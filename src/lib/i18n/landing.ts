@@ -104,5 +104,5 @@ export const landing = {
   footerHelp: 'مركز المساعدة',
   footerMadeIn: 'صُنع بحب في الجزائر',
   footerRights: 'جميع الحقوق محفوظة',
-  footerDevCredit: 'المنصة من تطوير: يجي مسعود طالب دكتوراه بجامعة الجزائر 3',
+  footerDevCredit: 'المنصة من تطوير يحي مسعود طالب دكتوراه في جامعة الجزائر 3',
 } as const
