@@ -3,6 +3,9 @@
 // Task 3-b — يحوّل ProjectSchema إلى موقع ثابت كامل (HTML/CSS/JS)
 // جاهز للنشر على Netlify: styles.css + script.js + كل صفحة.
 // كل نصوص المستخدم تُهرَّب (htmlEscape) — لا حقن HTML إطلاقاً.
+// Task 7-f — ترقيات الجودة: بطل موسّع (eyebrow/visual/titleSize/نموذج بريد)،
+// custom-html، الشعار (assets/logo + favicon)، SEO/OG، ظهور الأقسام عند
+// التمرير، زر العودة للأعلى، وتحسينات الوصول (skip link/focus-visible).
 // ============================================================
 import type {
   Block,
@@ -51,6 +54,54 @@ function compactNum(v: number): string {
     return `${Number.isInteger(k) ? k : k.toFixed(1)}ألف`
   }
   return String(v)
+}
+
+/** قصّ النص لحدّ أقصى من المحارف (آمن مع أزواج UTF-16) للوصف والوسوم */
+function truncateText(value: string, max: number): string {
+  const t = (value ?? '').trim()
+  const chars = Array.from(t)
+  if (chars.length <= max) return t
+  return `${chars.slice(0, Math.max(0, max - 1)).join('')}…`
+}
+
+// ============================================================
+// الشعار — data URL → ملف داخل الحزمة
+// ============================================================
+const LOGO_MIME_BY_EXT: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  webp: 'image/webp',
+  gif: 'image/gif',
+  svg: 'image/svg+xml',
+}
+
+/** تحويل data URL لصورة إلى { buffer, ext, mime } — null إن لم تكن صالحة */
+export function dataUrlToAsset(dataUrl: string): { buffer: Uint8Array; ext: string; mime: string } | null {
+  const raw = typeof dataUrl === 'string' ? dataUrl.trim() : ''
+  if (!/^data:image\//i.test(raw)) return null
+  const comma = raw.indexOf(',')
+  if (comma < 0) return null
+  const header = raw.slice(5, comma)
+  const payload = raw.slice(comma + 1)
+  const mime = (header.split(';')[0] ?? '').toLowerCase()
+  let ext: string | undefined
+  if (mime === 'image/png') ext = 'png'
+  else if (mime === 'image/jpeg' || mime === 'image/jpg') ext = 'jpg'
+  else if (mime === 'image/webp') ext = 'webp'
+  else if (mime === 'image/gif') ext = 'gif'
+  else if (mime === 'image/svg+xml') ext = 'svg'
+  if (!ext) return null
+  const isBase64 = /;base64$/i.test(header)
+  let buffer: Uint8Array
+  try {
+    buffer = isBase64
+      ? Buffer.from(payload, 'base64')
+      : Buffer.from(decodeURIComponent(payload), 'utf8')
+  } catch {
+    return null
+  }
+  if (buffer.byteLength === 0) return null
+  return { buffer, ext, mime: LOGO_MIME_BY_EXT[ext] ?? 'image/png' }
 }
 
 // قُرّاء خصائص آمنة (مطابقة لعارض React)
@@ -207,7 +258,11 @@ ${themeVarsCss(theme)}
 
 /* ===== أساسيات ===== */
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: no-preference){html{scroll-behavior:smooth}}
+html{scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--pt-primary) 40%,transparent) transparent}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--pt-primary) 40%,transparent);border-radius:999px}
 body{font-family:var(--pt-font);background:var(--pt-bg);color:var(--pt-text);direction:rtl;text-align:right;line-height:1.65;-webkit-font-smoothing:antialiased}
 img,svg{max-width:100%}
 a{color:inherit;text-decoration:none}
@@ -216,6 +271,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 [hidden]{display:none!important}
 .container{max-width:1120px;margin-inline:auto;padding-inline:16px}
 main{display:block}
+:focus-visible{outline:2px solid var(--pt-primary);outline-offset:2px}
+::selection{background:color-mix(in srgb,var(--pt-primary) 22%,transparent)}
 
 /* ===== الأزرار ===== */
 .pt-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;font-weight:600;border-radius:var(--pt-radius);min-height:40px;padding:0 20px;font-size:14px;transition:filter .15s ease,background .15s ease,transform .1s ease}
@@ -349,6 +406,54 @@ main{display:block}
 .blk-hero__skel span{display:block;height:10px;border-radius:999px;background:var(--pt-secondary)}
 .blk-hero__skel span+span{margin-top:8px;width:75%}
 
+/* ===== hero: eyebrow / أحجام العنوان / الهاتف / الفيديو / نموذج البريد ===== */
+.pt-eyebrow{display:inline-flex;align-items:center;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:600;border:1px solid var(--pt-border);background:var(--pt-secondary);color:var(--pt-text);margin-bottom:16px}
+.pt-eyebrow--dark{border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.12);color:#fff}
+.blk-hero__title--lg{font-size:clamp(2rem,5vw,3.75rem)}
+.blk-hero__title--xl{font-size:clamp(2.5rem,6.5vw,4.5rem);letter-spacing:-.015em}
+.blk-hero__stack{margin-top:40px;display:flex;justify-content:center}
+/* موك الهاتف */
+.pt-phone-wrap{display:flex;align-items:center;justify-content:center;width:280px;max-width:100%}
+.pt-phone{position:relative;width:min(280px,100%);aspect-ratio:9/19;border:8px solid var(--pt-border);border-radius:28px;background:var(--pt-surface);box-shadow:var(--pt-shadow);overflow:hidden;padding:14px 12px 16px;display:flex;flex-direction:column;gap:12px}
+.pt-phone__notch{width:72px;height:7px;border-radius:999px;background:color-mix(in srgb,var(--pt-text) 22%,transparent);margin-inline:auto;flex-shrink:0}
+.pt-phone__header{display:flex;align-items:center;gap:8px}
+.pt-phone__avatar{width:26px;height:26px;border-radius:999px;background:var(--pt-primary);flex-shrink:0}
+.pt-phone__lines{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.pt-phone__line{height:6px;border-radius:999px;background:var(--pt-secondary)}
+.pt-phone__stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pt-phone__stat{border:1px solid var(--pt-border);border-radius:calc(var(--pt-radius) - 4px);background:var(--pt-bg);padding:10px;display:flex;flex-direction:column;gap:7px}
+.pt-phone__stat-bar{height:6px;border-radius:999px;background:var(--pt-secondary)}
+.pt-phone__stat-val{height:9px;border-radius:4px;background:var(--pt-primary);opacity:.85}
+.pt-phone__chart{flex:1;min-height:70px;display:flex;align-items:flex-end;gap:7px;border:1px solid var(--pt-border);border-radius:calc(var(--pt-radius) - 4px);background:var(--pt-bg);padding:10px}
+.pt-phone__chart-bar{flex:1;border-radius:5px 5px 0 0}
+.pt-phone__cta{height:30px;border-radius:999px;background:var(--pt-primary);flex-shrink:0}
+/* بطاقة الفيديو */
+.pt-video-wrap{width:520px;max-width:100%}
+.pt-video{position:relative;aspect-ratio:16/9;border:1px solid var(--pt-border);background:var(--pt-surface);border-radius:calc(var(--pt-radius) + 6px);box-shadow:var(--pt-shadow);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.pt-video__veil{position:absolute;inset:0;background:linear-gradient(160deg,var(--pt-secondary),transparent);pointer-events:none}
+.pt-video__caption{position:absolute;bottom:14px;inset-inline:16px;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.pt-video__caption span{height:8px;border-radius:999px;background:color-mix(in srgb,var(--pt-text) 14%,transparent)}
+.pt-play{position:relative;width:60px;height:60px;border-radius:999px;border:none;background:var(--pt-primary);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,.22);transition:transform .2s ease,opacity .2s ease}
+.pt-play:hover{filter:brightness(1.08)}
+.pt-play--clicked{opacity:.35;transform:scale(.88)}
+.pt-play__triangle{display:block;width:0;height:0;border-style:solid;border-width:11px 0 11px 18px;border-color:transparent transparent transparent #fff;margin-left:5px}
+/* نموذج جمع البريد */
+.pt-lead-wrap{margin-top:24px;max-width:440px}
+.pt-lead-wrap--centered{margin-inline:auto}
+.pt-lead-form{display:flex;gap:8px}
+.pt-lead-form .pt-btn{flex-shrink:0}
+.pt-lead-form__input{flex:1;min-width:0;min-height:44px;border-radius:calc(var(--pt-radius) - 2px);border:1px solid var(--pt-border);background:var(--pt-bg);color:var(--pt-text);padding:10px 14px;font-size:14px}
+.pt-lead-form__input::placeholder{color:var(--pt-muted)}
+.pt-lead-form__input:focus{outline:2px solid var(--pt-primary);outline-offset:1px;border-color:var(--pt-primary)}
+.pt-lead-form--dark .pt-lead-form__input{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.3);color:#fff}
+.pt-lead-form--dark .pt-lead-form__input::placeholder{color:rgba(255,255,255,.6)}
+.pt-lead-social{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:12.5px;color:var(--pt-muted)}
+.pt-lead-wrap--centered .pt-lead-social{justify-content:center}
+.pt-lead-social__avatars{display:flex;align-items:center}
+.pt-lead-social__av .pt-avatar{box-shadow:0 0 0 2px var(--pt-bg)}
+.blk-hero--dark .pt-lead-social,.blk-hero--gradient .pt-lead-social{color:rgba(255,255,255,.78)}
+.blk-hero--dark .pt-lead-social__av .pt-avatar,.blk-hero--gradient .pt-lead-social__av .pt-avatar{box-shadow:0 0 0 2px #16121f}
+
 /* ===== features ===== */
 .blk-features__grid{display:grid;grid-template-columns:repeat(var(--cols,3),1fr);gap:20px}
 .blk-feature{padding:24px;border-radius:var(--pt-radius);border:1px solid var(--pt-border);background:var(--pt-surface);box-shadow:var(--pt-shadow);transition:transform .2s}
@@ -450,6 +555,10 @@ main{display:block}
 .blk-team__name{font-size:15.5px;font-weight:700}
 .blk-team__role{font-size:13px;color:var(--pt-muted)}
 
+/* ===== custom-html ===== */
+.blk-custom-label{display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:12.5px;font-weight:600;color:var(--pt-muted)}
+.pt-custom-html{display:block;width:100%;border:1px solid var(--pt-border);border-radius:var(--pt-radius);background:var(--pt-bg)}
+
 /* ===== auth ===== */
 .blk-auth{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 16px}
 .blk-auth__brand{display:flex;align-items:center;gap:10px;margin-bottom:24px;font-size:18px;font-weight:800}
@@ -548,6 +657,26 @@ main{display:block}
 .blk-calendar__event{display:flex;align-items:center;gap:10px;font-size:14px}
 .blk-calendar__event-day{width:28px;height:28px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:var(--pt-secondary);color:var(--pt-primary);font-size:11px;font-weight:700;flex-shrink:0}
 
+/* ===== الشعار ===== */
+.pt-logo{display:block;height:32px;width:auto;max-width:120px;object-fit:contain}
+.pt-sidebar .pt-logo,.pt-sidebar-top .pt-logo{height:28px;max-width:140px}
+.blk-auth__brand .pt-logo{height:34px;max-width:140px}
+.pt-footer__logo{display:flex;justify-content:center;margin-bottom:12px}
+.pt-footer__logo .pt-logo{height:24px;max-width:96px}
+
+/* ===== رابط التخطي + زر العودة للأعلى + الظهور عند التمرير ===== */
+.pt-skip{position:fixed;top:8px;inset-inline-start:8px;z-index:100;padding:10px 18px;border-radius:calc(var(--pt-radius) - 2px);background:var(--pt-primary);color:var(--pt-primary-fg);font-weight:700;font-size:14px;opacity:0;pointer-events:none;transform:translateY(-10px);transition:opacity .15s ease,transform .15s ease}
+.pt-skip:focus{opacity:1;pointer-events:auto;transform:none}
+.pt-top{position:fixed;bottom:20px;inset-inline-end:20px;z-index:40;width:44px;height:44px;border:none;border-radius:999px;background:var(--pt-primary);color:var(--pt-primary-fg);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(0,0,0,.22);opacity:0;pointer-events:none;transform:translateY(6px);transition:opacity .25s ease,transform .25s ease}
+.pt-top:hover{filter:brightness(1.08)}
+.pt-top--show{opacity:1;pointer-events:auto;transform:none}
+.pt-reveal{opacity:0;transform:translateY(18px);transition:opacity .6s cubic-bezier(.22,.61,.36,1),transform .6s cubic-bezier(.22,.61,.36,1)}
+.pt-reveal.pt-in{opacity:1;transform:none}
+@media (prefers-reduced-motion: reduce){
+  .pt-reveal{opacity:1;transform:none;transition:none}
+  .pt-top{transition:none}
+}
+
 /* ===== 404 ===== */
 .pt-404{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px}
 .pt-404__code{font-size:72px;font-weight:800;color:var(--pt-primary)}
@@ -572,6 +701,7 @@ main{display:block}
 @media (max-width:480px){
   .blk-features__grid{grid-template-columns:1fr}
   .blk-hero{padding-block:44px}
+  .pt-lead-form{flex-direction:column}
 }
 `
 }
@@ -637,6 +767,55 @@ function buildScriptJs(): string {
       btn.setAttribute('aria-checked', on ? 'true' : 'false')
     })
   })
+
+  // نموذج جمع البريد في البطل
+  document.querySelectorAll('form.pt-lead-form').forEach(function (form) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault()
+      var alertEl = document.createElement('div')
+      alertEl.className = 'pt-alert pt-alert--success'
+      alertEl.setAttribute('role', 'status')
+      alertEl.textContent = 'تم تسجيل بريدك بنجاح ✓ شكراً لاهتمامك!'
+      form.replaceWith(alertEl)
+    })
+  })
+
+  // زر تشغيل الفيديو (ديكوري — لا فيديو حقيقي)
+  document.querySelectorAll('.pt-play').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btn.classList.add('pt-play--clicked')
+    })
+  })
+
+  // ظهور الأقسام عند التمرير
+  var revealEls = document.querySelectorAll('.pt-reveal')
+  if ('IntersectionObserver' in window && revealEls.length) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('pt-in')
+          io.unobserve(entry.target)
+        }
+      })
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px' })
+    revealEls.forEach(function (el) { io.observe(el) })
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('pt-in') })
+  }
+
+  // زر العودة إلى الأعلى (صفحات الموقع فقط)
+  var topBtn = document.querySelector('.pt-top')
+  if (topBtn) {
+    var syncTop = function () {
+      var y = window.scrollY || document.documentElement.scrollTop || 0
+      topBtn.classList.toggle('pt-top--show', y > 400)
+    }
+    window.addEventListener('scroll', syncTop, { passive: true })
+    syncTop()
+    topBtn.addEventListener('click', function () {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    })
+  }
 })()
 `
 }
@@ -653,6 +832,7 @@ function buildNetlifyToml(): string {
 
 function buildReadmeMd(schema: ProjectSchema): string {
   const name = schema.metadata.name || 'مشروعك'
+  const hasLogo = !!dataUrlToAsset(schema.branding?.logo ?? '')
   return `# ${name} — نموذج أولي جاهز للنشر
 
 مشروعك جاهز! هذه حزمة موقع ثابت (HTML + CSS + JS بدون أي مكتبات) أُنشئت بواسطة منصة **نموذج**.
@@ -663,10 +843,10 @@ function buildReadmeMd(schema: ProjectSchema): string {
 | --- | --- |
 | \`index.html\` | الصفحة الرئيسية لموقعك |
 | \`styles.css\` | كل التنسيقات والألوان (سهل التعديل) |
-| \`script.js\` | تفاعلات خفيفة: القائمة، النماذج، البحث في الجداول |
+| \`script.js\` | تفاعلات خفيفة: القائمة، النماذج، بحث الجداول، ظهور الأقسام عند التمرير، زر العودة للأعلى |
 | \`404.html\` | صفحة الخطأ |
 | \`netlify.toml\` | إعداد النشر على Netlify |
-| باقي المجلدات | صفحة لكل قسم من موقعك |
+${hasLogo ? '| \`assets/\` | شعار مشروعك — يظهر في الترويسة والتذييل وكأيقونة المتصفح |\n' : ''}| باقي المجلدات | صفحة لكل قسم من موقعك |
 
 ## خطوات النشر على Netlify
 
@@ -865,6 +1045,8 @@ interface RenderCtx {
   hrefOf: (pageId: string) => string
   /** عدّاد لتوليد معرّفات فريدة */
   seq: { n: number }
+  /** الشعار المُصدَّر (مسار نسبي من هذه الصفحة) أو null إن لا شعار */
+  logo: { src: string; mime: string } | null
 }
 
 function nextId(ctx: RenderCtx, prefix: string): string {
@@ -882,6 +1064,40 @@ function sectionHeading(title: string, subtitle: string): string {
 
 function sectionWrap(inner: string, tight = false): string {
   return `<section class="blk-section${tight ? ' blk-section--tight' : ''}"><div class="blk-section__inner">${inner}</div></section>`
+}
+
+// ============================================================
+// الظهور عند التمرير (reveal) — يُطبَّق على أقسام الكتل التسويقية
+// ============================================================
+const REVEAL_SECTION_TYPES: ReadonlySet<string> = new Set([
+  'features',
+  'stats',
+  'steps',
+  'pricing',
+  'testimonials',
+  'faq',
+  'cta',
+  'contact-form',
+  'gallery',
+  'banner',
+  'list',
+  'team',
+  'custom-html',
+])
+
+/** إضافة صنف pt-reveal + تأخير تتابع إلى وسم القسم الأول في المقطع */
+function applyReveal(html: string, delayMs: number): string {
+  const gt = html.indexOf('>')
+  if (gt < 0) return html
+  const head = html.slice(0, gt)
+  const rest = html.slice(gt)
+  const classIdx = head.indexOf('class="')
+  const withClass =
+    classIdx >= 0
+      ? `${head.slice(0, classIdx)}class="pt-reveal ${head.slice(classIdx + 7)}`
+      : `${head} class="pt-reveal"`
+  const styleAttr = delayMs > 0 ? ` style="transition-delay:${delayMs}ms"` : ''
+  return `${withClass}${styleAttr}${rest}`
 }
 
 // ============================================================
@@ -940,44 +1156,27 @@ function renderBlock(block: Block, ctx: RenderCtx): string {
       return renderState('error', p)
     case 'calendar':
       return renderCalendar(p)
+    case 'custom-html':
+      return renderCustomHtml(p)
     default:
       return ''
   }
 }
 
 // ---------- hero ----------
-function renderHero(p: Record<string, unknown>, ctx: RenderCtx): string {
-  const title = S(p, 'title')
-  const subtitle = S(p, 'subtitle')
-  const primaryButton = S(p, 'primaryButton')
-  const primaryButtonPage = S(p, 'primaryButtonPage')
-  const secondaryButton = S(p, 'secondaryButton')
-  const layout = S(p, 'layout', 'split') === 'centered' ? 'centered' : 'split'
-  const background = (['default', 'muted', 'dark', 'gradient'] as const).includes(S(p, 'background') as 'default')
-    ? S(p, 'background')
-    : 'default'
-  const align = S(p, 'align', 'start') === 'center' ? 'center' : 'start'
-  const dark = background === 'dark' || background === 'gradient'
+const HERO_DASH_BARS: number[] = [38, 62, 45, 78, 56, 88, 70]
+const PHONE_BARS: number[] = [40, 65, 50, 80, 60, 90]
+const LEAD_SOCIAL_NAMES: string[] = ['أحمد بن علي', 'سارة بوزيد', 'ياسين مراد']
 
-  let primaryHref = '#'
-  if (primaryButtonPage.trim()) {
-    const page = ctx.schema.pages.find((pg) => pg.id === primaryButtonPage.trim())
-    if (page) primaryHref = ctx.hrefOf(page.id)
-  } else {
-    const auth = ctx.schema.pages.find((pg) => pg.type === 'auth' && pg.authVariant !== 'forgot')
-    if (auth) primaryHref = ctx.hrefOf(auth.id)
-  }
+/** الرسم المجرد لواجهة لوحة تحكم (كما في السابق) */
+function heroDashboardVisualHtml(): string {
+  const barsHtml = HERO_DASH_BARS.map((h, i) => {
+    const color = i % 3 === 0 ? 'var(--pt-accent)' : 'var(--pt-primary)'
+    const opacity = 0.45 + (i / HERO_DASH_BARS.length) * 0.55
+    return `<span class="blk-hero__bar" style="height:${h}%;background:${color};opacity:${opacity.toFixed(2)}"></span>`
+  }).join('')
 
-  const bars = [38, 62, 45, 78, 56, 88, 70]
-  const barsHtml = bars
-    .map((h, i) => {
-      const color = i % 3 === 0 ? 'var(--pt-accent)' : 'var(--pt-primary)'
-      const opacity = 0.45 + (i / bars.length) * 0.55
-      return `<span class="blk-hero__bar" style="height:${h}%;background:${color};opacity:${opacity.toFixed(2)}"></span>`
-    })
-    .join('')
-
-  const visual = `<div class="blk-hero__visual" role="img" aria-label="رسم توضيحي لواجهة المنتج">
+  return `<div class="blk-hero__visual" role="img" aria-label="رسم توضيحي لواجهة المنتج">
   <span class="blk-hero__glow1" aria-hidden="true"></span>
   <span class="blk-hero__glow2" aria-hidden="true"></span>
   <div class="blk-hero__panel">
@@ -998,24 +1197,131 @@ function renderHero(p: Record<string, unknown>, ctx: RenderCtx): string {
     <div class="blk-hero__skel" aria-hidden="true"><span></span><span></span></div>
   </div>
 </div>`
+}
+
+/** موك هاتف يعرض واجهة تطبيق مصغّرة (visual = phone) */
+function heroPhoneVisualHtml(): string {
+  const barsHtml = PHONE_BARS.map((h, i) => {
+    const color = i % 2 === 0 ? 'var(--pt-primary)' : 'var(--pt-accent)'
+    const opacity = 0.5 + (i / PHONE_BARS.length) * 0.5
+    return `<span class="pt-phone__chart-bar" style="height:${h}%;background:${color};opacity:${opacity.toFixed(2)}"></span>`
+  }).join('')
+  return `<div class="blk-hero__visual pt-phone-wrap" role="img" aria-label="موك هاتف يعرض واجهة التطبيق">
+  <span class="blk-hero__glow1" aria-hidden="true"></span>
+  <span class="blk-hero__glow2" aria-hidden="true"></span>
+  <div class="pt-phone" aria-hidden="true">
+    <span class="pt-phone__notch"></span>
+    <div class="pt-phone__header">
+      <span class="pt-phone__avatar"></span>
+      <span class="pt-phone__lines"><span class="pt-phone__line" style="width:55%"></span><span class="pt-phone__line" style="width:34%"></span></span>
+    </div>
+    <div class="pt-phone__stats">
+      <span class="pt-phone__stat"><span class="pt-phone__stat-bar" style="width:70%"></span><span class="pt-phone__stat-val" style="width:52%"></span></span>
+      <span class="pt-phone__stat"><span class="pt-phone__stat-bar" style="width:56%"></span><span class="pt-phone__stat-val" style="width:64%"></span></span>
+    </div>
+    <div class="pt-phone__chart">${barsHtml}</div>
+    <span class="pt-phone__cta"></span>
+  </div>
+</div>`
+}
+
+/** بطاقة فيديو 16:9 بزر تشغيل ديكوري (visual = video) */
+function heroVideoVisualHtml(): string {
+  return `<div class="blk-hero__visual pt-video-wrap">
+  <span class="blk-hero__glow1" aria-hidden="true"></span>
+  <span class="blk-hero__glow2" aria-hidden="true"></span>
+  <div class="pt-video">
+    <span class="pt-video__veil" aria-hidden="true"></span>
+    <button type="button" class="pt-play" aria-label="تشغيل الفيديو"><span class="pt-play__triangle" aria-hidden="true"></span></button>
+    <div class="pt-video__caption" aria-hidden="true"><span style="width:62%"></span><span style="width:42%"></span></div>
+  </div>
+</div>`
+}
+
+/** نموذج جمع البريد داخل عمود نص البطل (visual = form) */
+function heroLeadFormHtml(p: Record<string, unknown>, dark: boolean, centered: boolean): string {
+  const placeholder = S(p, 'emailPlaceholder') || 'بريدك الإلكتروني'
+  const buttonText = S(p, 'emailButton') || 'سجّلني'
+  const avatars = LEAD_SOCIAL_NAMES.map(
+    (name, i) =>
+      `<span class="pt-lead-social__av"${i > 0 ? ' style="margin-inline-start:-8px"' : ''}>${avatarHtml(name, 32)}</span>`
+  ).join('')
+  return `<div class="pt-lead-wrap${centered ? ' pt-lead-wrap--centered' : ''}">
+  <form class="pt-lead-form${dark ? ' pt-lead-form--dark' : ''}" dir="ltr" novalidate>
+    <input class="pt-lead-form__input" type="email" placeholder="${esc(placeholder)}" aria-label="${esc(placeholder)}" required>
+    <button class="pt-btn pt-btn--primary" type="submit">${esc(buttonText)}</button>
+  </form>
+  <div class="pt-lead-social">
+    <span class="pt-lead-social__avatars" aria-hidden="true">${avatars}</span>
+    <span>انضم إلى 2,400+ مهتم</span>
+  </div>
+</div>`
+}
+
+function renderHero(p: Record<string, unknown>, ctx: RenderCtx): string {
+  const title = S(p, 'title')
+  const subtitle = S(p, 'subtitle')
+  const eyebrow = S(p, 'eyebrow')
+  const primaryButton = S(p, 'primaryButton')
+  const primaryButtonPage = S(p, 'primaryButtonPage')
+  const secondaryButton = S(p, 'secondaryButton')
+  const layout = S(p, 'layout', 'split') === 'centered' ? 'centered' : 'split'
+  const background = (['default', 'muted', 'dark', 'gradient'] as const).includes(S(p, 'background') as 'default')
+    ? S(p, 'background')
+    : 'default'
+  const align = S(p, 'align', 'start') === 'center' ? 'center' : 'start'
+  const dark = background === 'dark' || background === 'gradient'
+  const visual = (['dashboard', 'phone', 'video', 'form', 'none'] as const).includes(S(p, 'visual') as 'dashboard')
+    ? S(p, 'visual')
+    : 'dashboard'
+  const titleSize = (['md', 'lg', 'xl'] as const).includes(S(p, 'titleSize') as 'md') ? S(p, 'titleSize') : 'md'
+
+  let primaryHref = '#'
+  if (primaryButtonPage.trim()) {
+    const page = ctx.schema.pages.find((pg) => pg.id === primaryButtonPage.trim())
+    if (page) primaryHref = ctx.hrefOf(page.id)
+  } else {
+    const auth = ctx.schema.pages.find((pg) => pg.type === 'auth' && pg.authVariant !== 'forgot')
+    if (auth) primaryHref = ctx.hrefOf(auth.id)
+  }
 
   const actions =
     primaryButton || secondaryButton
       ? `<div class="blk-hero__actions">${primaryButton ? `<a class="pt-btn pt-btn--primary pt-btn--lg" href="${esc(primaryHref)}">${esc(primaryButton)}</a>` : ''}${secondaryButton ? `<a class="pt-btn pt-btn--${dark ? 'on-dark' : 'outline'} pt-btn--lg" href="#">${esc(secondaryButton)}</a>` : ''}</div>`
       : ''
 
+  // الرسم الجانبي: فقط في التخطيط المقسّم (dashboard/phone/video)
+  const hasSideVisual = layout === 'split' && (visual === 'dashboard' || visual === 'phone' || visual === 'video')
+  // في التخطيط الموسّط نعرض الهاتف/الفيديو أسفل النص (مطابق لمنطق عارض React)
+  const hasStackedVisual = layout === 'centered' && (visual === 'phone' || visual === 'video')
+  const centeredCol = !hasSideVisual
+  const visualHtml =
+    hasSideVisual || hasStackedVisual
+      ? visual === 'phone'
+        ? heroPhoneVisualHtml()
+        : visual === 'video'
+          ? heroVideoVisualHtml()
+          : heroDashboardVisualHtml()
+      : ''
+
   const textCol = `<div class="blk-hero__text" style="${align === 'center' ? 'text-align:center' : ''}">
-  ${title ? `<h1 class="blk-hero__title">${esc(title)}</h1>` : ''}
+  ${eyebrow ? `<span class="pt-eyebrow${dark ? ' pt-eyebrow--dark' : ''}">${esc(eyebrow)}</span>` : ''}
+  ${title ? `<h1 class="blk-hero__title${titleSize === 'lg' || titleSize === 'xl' ? ` blk-hero__title--${titleSize}` : ''}">${esc(title)}</h1>` : ''}
   ${subtitle ? `<p class="blk-hero__subtitle">${esc(subtitle)}</p>` : ''}
   ${actions}
+  ${visual === 'form' ? heroLeadFormHtml(p, dark, centeredCol) : ''}
 </div>`
 
-  const inner =
-    layout === 'split'
-      ? `<div class="blk-hero__split">${textCol}<div style="flex:1;min-width:0">${visual}</div></div>`
-      : textCol
+  let inner: string
+  if (hasSideVisual) {
+    inner = `<div class="blk-hero__split">${textCol}<div style="flex:1;min-width:0">${visualHtml}</div></div>`
+  } else if (hasStackedVisual) {
+    inner = `${textCol}<div class="blk-hero__stack">${visualHtml}</div>`
+  } else {
+    inner = textCol
+  }
 
-  return `<section class="blk-hero blk-hero--${esc(background)}"><div class="blk-hero__inner${layout === 'centered' ? ' blk-hero--centered' : ''}">${inner}</div></section>`
+  return `<section class="blk-hero blk-hero--${esc(background)}"><div class="blk-hero__inner${centeredCol ? ' blk-hero--centered' : ''}">${inner}</div></section>`
 }
 
 // ---------- features ----------
@@ -1283,6 +1589,18 @@ function renderTeam(p: Record<string, unknown>): string {
     })
     .join('')
   return sectionWrap(`${sectionHeading(title, '')}<div class="blk-team__grid">${cards}</div>`)
+}
+
+// ---------- custom-html ----------
+function renderCustomHtml(p: Record<string, unknown>): string {
+  const name = S(p, 'name', 'قسم HTML مخصص')
+  const html = S(p, 'html')
+  if (!html.trim()) return ''
+  const height = Math.max(100, Math.min(4000, Math.round(N(p, 'height', 560)) || 560))
+  return sectionWrap(
+    `${name ? `<div class="blk-custom-label"><span aria-hidden="true">⌨</span><span>${esc(name)}</span></div>` : ''}
+<iframe class="pt-custom-html" srcdoc="${esc(html)}" sandbox="allow-scripts allow-popups allow-forms" title="${esc(name)}" style="height:${height}px" loading="lazy"></iframe>`
+  )
 }
 
 // ---------- auth-card ----------
@@ -1661,33 +1979,53 @@ function siteShell(page: ProjectPage, ctx: RenderCtx): string {
     })
     .join('')
 
-  const blocks = page.blocks.map((b) => renderBlock(b, ctx)).join('\n')
+  const brandMark = ctx.logo
+    ? `<img class="pt-logo" src="${esc(ctx.logo.src)}" alt="${esc(nav.brand)}" loading="lazy">`
+    : `<span class="pt-nav__logo" aria-hidden="true"></span>`
+
+  // أقسام الكتل التسويقية تظهر تدريجياً عند التمرير (البطل يظهر فوراً)
+  let revealIdx = 0
+  const blocks = page.blocks
+    .map((b) => {
+      const html = renderBlock(b, ctx)
+      if (!html) return ''
+      if (b.type === 'hero' || !REVEAL_SECTION_TYPES.has(b.type)) return html
+      const delay = Math.min(revealIdx, 2) * 60
+      revealIdx += 1
+      return applyReveal(html, delay)
+    })
+    .join('\n')
 
   return `<header class="pt-nav">
   <div class="container pt-nav__inner">
-    <a class="pt-nav__brand" href="${esc(homeHref)}" aria-label="الذهاب إلى ${esc(nav.brand)}"><span class="pt-nav__logo" aria-hidden="true"></span><span>${esc(nav.brand)}</span></a>
+    <a class="pt-nav__brand" href="${esc(homeHref)}" aria-label="الذهاب إلى ${esc(nav.brand)}">${brandMark}<span>${esc(nav.brand)}</span></a>
     <nav class="pt-nav__links" id="site-nav" aria-label="التنقل الرئيسي">${links}${cta}</nav>
     <button class="pt-nav__burger" type="button" data-nav-toggle aria-label="فتح القائمة" aria-expanded="false" aria-controls="site-nav"><span></span><span></span><span></span></button>
   </div>
 </header>
-<main>${blocks}</main>
+<main id="pt-main">${blocks}</main>
 <footer class="pt-footer">
   <div class="container pt-footer__inner">
     <div class="pt-footer__row">
       <div class="pt-footer__brand"><span class="pt-nav__logo" style="width:24px;height:24px;border-radius:calc(var(--pt-radius) - 4px)" aria-hidden="true"></span><span>${esc(nav.brand)}</span>${badgeHtml('بيانات تجريبية', 'primary')}</div>
       <nav class="pt-footer__links" aria-label="تنقل التذييل">${footerLinks}</nav>
     </div>
+    ${ctx.logo ? `<div class="pt-footer__logo"><img class="pt-logo" src="${esc(ctx.logo.src)}" alt="${esc(nav.brand)}" loading="lazy"></div>` : ''}
     ${nav.footerNote ? `<p class="pt-footer__note">${esc(nav.footerNote)}</p>` : ''}
   </div>
-</footer>`
+</footer>
+<button type="button" class="pt-top" aria-label="العودة إلى الأعلى"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg></button>`
 }
 
 function authShell(page: ProjectPage, ctx: RenderCtx): string {
   const home = ctx.schema.pages.find((pg) => pg.type === 'landing') ?? ctx.schema.pages[0]
   const blocks = page.blocks.map((b) => renderBlock(b, ctx)).join('\n')
+  const brandMark = ctx.logo
+    ? `<img class="pt-logo" src="${esc(ctx.logo.src)}" alt="${esc(ctx.schema.navigation.brand)}" loading="lazy">`
+    : `<span class="blk-auth__logo" aria-hidden="true"></span>`
   return `<div class="blk-auth">
-  <a class="blk-auth__brand" href="${esc(home ? ctx.hrefOf(home.id) : '#')}" aria-label="الذهاب إلى ${esc(ctx.schema.navigation.brand)}"><span class="blk-auth__logo" aria-hidden="true"></span><span>${esc(ctx.schema.navigation.brand)}</span></a>
-  <main style="width:100%">${blocks}</main>
+  <a class="blk-auth__brand" href="${esc(home ? ctx.hrefOf(home.id) : '#')}" aria-label="الذهاب إلى ${esc(ctx.schema.navigation.brand)}">${brandMark}<span>${esc(ctx.schema.navigation.brand)}</span></a>
+  <main id="pt-main" style="width:100%">${blocks}</main>
 </div>`
 }
 
@@ -1713,9 +2051,18 @@ function dashboardShell(page: ProjectPage, ctx: RenderCtx): string {
 
   const blocks = page.blocks.map((b) => renderBlock(b, ctx)).join('\n')
 
+  const brand = ctx.schema.navigation.brand
+  const logoImg = ctx.logo
+    ? `<img class="pt-logo" src="${esc(ctx.logo.src)}" alt="${esc(brand)}" loading="lazy">`
+    : ''
+  const sidebarMark = logoImg || `<span class="pt-nav__logo" aria-hidden="true"></span>`
+  const topMark =
+    logoImg ||
+    `<span class="pt-nav__logo" style="width:28px;height:28px;border-radius:calc(var(--pt-radius) - 4px)" aria-hidden="true"></span>`
+
   return `<div class="pt-sidebar-layout">
   <aside class="pt-sidebar">
-    <div class="pt-sidebar__brand"><span class="pt-nav__logo" aria-hidden="true"></span><span>${esc(ctx.schema.navigation.brand)}</span></div>
+    <div class="pt-sidebar__brand">${sidebarMark}<span>${esc(brand)}</span></div>
     <nav class="pt-sidebar__nav" aria-label="تنقل لوحة التحكم">${navHtml}</nav>
     <div class="pt-sidebar__user">
       ${avatarHtml('م', 34)}
@@ -1724,10 +2071,10 @@ function dashboardShell(page: ProjectPage, ctx: RenderCtx): string {
   </aside>
   <div>
     <div class="pt-sidebar-top">
-      <div class="pt-sidebar-top__head"><span class="pt-nav__logo" style="width:28px;height:28px;border-radius:calc(var(--pt-radius) - 4px)" aria-hidden="true"></span><span>${esc(ctx.schema.navigation.brand)}</span></div>
+      <div class="pt-sidebar-top__head">${topMark}<span>${esc(brand)}</span></div>
       <nav class="pt-sidebar-top__pills" aria-label="تنقل لوحة التحكم">${pills}</nav>
     </div>
-    <main class="pt-sidebar-content"><div class="pt-sidebar-content__inner">${blocks}</div></main>
+    <main id="pt-main" class="pt-sidebar-content"><div class="pt-sidebar-content__inner">${blocks}</div></main>
   </div>
 </div>`
 }
@@ -1735,11 +2082,26 @@ function dashboardShell(page: ProjectPage, ctx: RenderCtx): string {
 // ============================================================
 // مستند HTML كامل
 // ============================================================
-const FAVICON =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%237c3aed'/%3E%3C/svg%3E"
-
 const FONTS_HREF =
   'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&family=Cairo:wght@400;600;700;800&display=swap'
+
+/** أيقونة افتراضية: حرف العلامة داخل مربع بحافة دائرية بلون السمة الأساسي */
+function letterFavicon(schema: ProjectSchema): string {
+  const brand = (schema.navigation.brand || schema.metadata.name || 'ن').trim()
+  const letter = Array.from(brand)[0] ?? 'ن'
+  const primary = schema.theme.mode === 'dark' ? hexLighten(schema.theme.primary, 0.18) : schema.theme.primary
+  const fg = schema.theme.primaryForeground || '#ffffff'
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="${esc(primary)}"/><text x="16" y="22.5" font-size="16" font-weight="700" text-anchor="middle" fill="${esc(fg)}" font-family="system-ui,sans-serif">${esc(letter)}</text></svg>`
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}
+
+/** وسم الأيقونة: ملف الشعار إن وُجد، وإلا حرف العلامة */
+function faviconLink(schema: ProjectSchema, logo: { src: string; mime: string } | null): string {
+  if (logo) {
+    return `<link rel="icon" type="${esc(logo.mime)}" href="${esc(logo.src)}">`
+  }
+  return `<link rel="icon" href="${esc(letterFavicon(schema))}">`
+}
 
 function htmlDocument(
   schema: ProjectSchema,
@@ -1752,7 +2114,7 @@ function htmlDocument(
   const title = isLanding
     ? `${brand} — ${schema.metadata.description.slice(0, 70)}`
     : `${page.name} | ${brand}`
-  const description = page.subtitle || page.title || schema.metadata.description
+  const description = truncateText(page.subtitle || schema.metadata.description, 160)
   return `<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
@@ -1760,13 +2122,20 @@ function htmlDocument(
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(description)}">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ar_AR">
+<meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="${FONTS_HREF}" rel="stylesheet">
 <link rel="stylesheet" href="${esc(ctx.rel)}styles.css">
-<link rel="icon" href="${FAVICON}">
+${faviconLink(schema, ctx.logo)}
+<noscript><style>.pt-reveal{opacity:1;transform:none}</style></noscript>
 </head>
 <body>
+<a class="pt-skip" href="#pt-main">تخطَّ إلى المحتوى</a>
 ${body}
 <div class="pt-demo-badge" aria-hidden="true">بيانات تجريبية</div>
 <script src="${esc(ctx.rel)}script.js"></script>
@@ -1782,27 +2151,45 @@ function shellFor(page: ProjectPage, ctx: RenderCtx): string {
   return siteShell(page, ctx)
 }
 
-function pageHtml(schema: ProjectSchema, page: ProjectPage, rel: string, hrefOf: (pageId: string) => string): string {
-  const ctx: RenderCtx = { schema, rel, hrefOf, seq: { n: 0 } }
+function pageHtml(
+  schema: ProjectSchema,
+  page: ProjectPage,
+  rel: string,
+  hrefOf: (pageId: string) => string,
+  logo: { src: string; mime: string } | null
+): string {
+  const ctx: RenderCtx = { schema, rel, hrefOf, seq: { n: 0 }, logo }
   return htmlDocument(schema, page, shellFor(page, ctx), ctx)
 }
 
 // ============================================================
 // 404
 // ============================================================
-function notFoundHtml(schema: ProjectSchema, rel: string, homeHref: string): string {
+function notFoundHtml(
+  schema: ProjectSchema,
+  rel: string,
+  homeHref: string,
+  logo: { src: string; mime: string } | null
+): string {
+  const brand = schema.navigation.brand || 'نموذج'
   return `<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>الصفحة غير موجودة | ${esc(schema.navigation.brand || 'نموذج')}</title>
+<title>الصفحة غير موجودة | ${esc(brand)}</title>
 <meta name="description" content="عذراً، هذه الصفحة غير موجودة.">
+<meta property="og:title" content="الصفحة غير موجودة | ${esc(brand)}">
+<meta property="og:description" content="عذراً، هذه الصفحة غير موجودة.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ar_AR">
+<meta name="twitter:card" content="summary">
 <link rel="stylesheet" href="${esc(rel)}styles.css">
-<link rel="icon" href="${FAVICON}">
+${faviconLink(schema, logo)}
 </head>
 <body>
-<main class="pt-404">
+<a class="pt-skip" href="#pt-main">تخطَّ إلى المحتوى</a>
+<main id="pt-main" class="pt-404">
   <p class="pt-404__code">404</p>
   <h1>الصفحة غير موجودة</h1>
   <p class="pt-404__text">عذراً، لم نجد الصفحة التي تبحث عنها.</p>
@@ -1818,7 +2205,8 @@ function notFoundHtml(schema: ProjectSchema, rel: string, homeHref: string): str
 // نقطة الدخول — generateStaticSite
 // ============================================================
 export function generateStaticSite(schema: ProjectSchema): {
-  files: Record<string, string>
+  /** نص الملفات كنص، والشعار كـ Uint8Array ثنائي */
+  files: Record<string, string | Uint8Array>
   landingSlug: string
 } {
   const pages = Array.isArray(schema.pages) ? schema.pages : []
@@ -1856,9 +2244,15 @@ export function generateStaticSite(schema: ProjectSchema): {
     return `../${slug}/`
   }
 
-  const files: Record<string, string> = {}
+  // ---------- الشعار: data URL → ملف ثنائي في الحزمة ----------
+  const logoAsset = schema.branding?.logo ? dataUrlToAsset(schema.branding.logo) : null
+  const rootLogo = logoAsset ? { src: `assets/logo.${logoAsset.ext}`, mime: logoAsset.mime } : null
+  const folderLogo = logoAsset ? { src: `../assets/logo.${logoAsset.ext}`, mime: logoAsset.mime } : null
+
+  const files: Record<string, string | Uint8Array> = {}
 
   // ---------- الملفات المشتركة ----------
+  if (logoAsset) files[`assets/logo.${logoAsset.ext}`] = logoAsset.buffer
   files['styles.css'] = buildStylesCss(schema.theme)
   files['script.js'] = buildScriptJs()
   files['netlify.toml'] = buildNetlifyToml()
@@ -1867,14 +2261,14 @@ export function generateStaticSite(schema: ProjectSchema): {
   // ---------- الصفحات ----------
   for (const page of pages) {
     const slug = slugOf.get(page.id) ?? 'page'
-    files[`${slug}/index.html`] = pageHtml(schema, page, '../', hrefFromFolder)
+    files[`${slug}/index.html`] = pageHtml(schema, page, '../', hrefFromFolder, folderLogo)
   }
 
   // ---------- الجذر: الصفحة الرئيسية + 404 ----------
   files['index.html'] = landing
-    ? pageHtml(schema, landing, '', hrefFromRoot)
-    : notFoundHtml(schema, '', './')
-  files['404.html'] = notFoundHtml(schema, '', './')
+    ? pageHtml(schema, landing, '', hrefFromRoot, rootLogo)
+    : notFoundHtml(schema, '', './', rootLogo)
+  files['404.html'] = notFoundHtml(schema, '', './', rootLogo)
 
   return { files, landingSlug }
 }

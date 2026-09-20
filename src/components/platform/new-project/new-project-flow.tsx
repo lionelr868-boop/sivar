@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   ChevronDown,
@@ -33,10 +34,14 @@ import * as api from '@/lib/api-client'
 import { t } from '@/lib/i18n'
 import { PAGE_TYPE_LABELS, PROJECT_STYLE_LABELS, PROJECT_TYPE_LABELS } from '@/lib/types'
 import type { IdeaAnalysis, ProjectStyle, ProjectType, SuggestedPage } from '@/lib/types'
+import { LANDING_VARIANTS } from '@/lib/project/landing-kit'
+import type { LandingVariantId } from '@/lib/types'
+import { LandingVariantThumb } from '@/components/platform/templates-library/landing-variant-thumb'
+import { Progress } from '@/components/ui/progress'
 
 const tNP = t.newProject
 
-type Step = 'idea' | 'analyzing' | 'review' | 'building' | 'success'
+type Step = 'idea' | 'variant' | 'analyzing' | 'review' | 'building' | 'success'
 
 const MIN_IDEA_LENGTH = 10
 
@@ -58,6 +63,17 @@ const ANALYZE_STAGES = [tNP.analyzeStage1, tNP.analyzeStage2, tNP.analyzeStage3]
 const BUILD_STAGES = [tNP.buildStep1, tNP.buildStep2, tNP.buildStep3, tNP.buildStep4]
 
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
+// خطوات المسار الخمس (لمؤشر التقدّم)
+const FLOW_STEPS = [tNP.stepIdea, tNP.stepVariant, tNP.stepAnalyze, tNP.stepReview, tNP.stepBuild]
+const STEP_INDEX: Record<Step, number> = {
+  idea: 0,
+  variant: 1,
+  analyzing: 2,
+  review: 3,
+  building: 4,
+  success: 5,
+}
 
 /** حاوية خطوة مع انتقال سلس (دخول من اليسار في RTL) */
 function StepShell({ stepKey, children }: { stepKey: string; children: React.ReactNode }) {
@@ -113,6 +129,43 @@ function ChecklistItem({
   )
 }
 
+/** مؤشر تقدّم المسار — 5 خطوات بنقاط وخطوط واصلة (نمط Onboarding) */
+function FlowProgress({ step }: { step: Step }) {
+  const current = Math.min(STEP_INDEX[step], FLOW_STEPS.length - 1)
+  const done = STEP_INDEX[step] >= FLOW_STEPS.length
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-muted-foreground">{FLOW_STEPS[current]}</span>
+        <span className="text-xs font-bold text-primary" dir="ltr">
+          {current + 1}/{FLOW_STEPS.length}
+        </span>
+      </div>
+      <Progress value={(current / (FLOW_STEPS.length - 1)) * 100} aria-label={tNP.stepIndicator} />
+      <div className="flex items-center justify-between" aria-hidden="true">
+        {FLOW_STEPS.map((label, i) => (
+          <div key={label} className="flex flex-1 items-center">
+            <span
+              className={`grid size-6 shrink-0 place-items-center rounded-full border text-[10px] font-bold transition-colors ${
+                done || i < current
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : i === current
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border bg-muted text-muted-foreground'
+              }`}
+            >
+              {done || i < current ? <CheckCircle2 className="size-3" strokeWidth={3} /> : i + 1}
+            </span>
+            {i < FLOW_STEPS.length - 1 ? (
+              <span className={`h-0.5 flex-1 ${done || i < current ? 'bg-primary' : 'bg-border'}`} />
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function NewProjectFlow() {
   const openProject = useAppStore((s) => s.openProject)
   const setDashboardSection = useAppStore((s) => s.setDashboardSection)
@@ -126,6 +179,9 @@ export function NewProjectFlow() {
   const [colorMode, setColorMode] = useState<'auto' | 'custom'>('auto')
   const [colors, setColors] = useState({ primary: '#7c3aed', secondary: '#0d9488', accent: '#d97706' })
   const [optionsOpen, setOptionsOpen] = useState(false)
+
+  // نمط الواجهة (اختياري — افتراضي classic-split)
+  const [landingVariant, setLandingVariant] = useState<LandingVariantId>('classic-split')
 
   const [analysis, setAnalysis] = useState<IdeaAnalysis | null>(null)
   const [projectName, setProjectName] = useState('')
@@ -204,6 +260,7 @@ export function NewProjectFlow() {
           style: style || undefined,
           audience: finalAnalysis.audience,
           palette: colorMode === 'custom' ? colors : null,
+          landingVariant,
         }),
         delay(2800),
       ])
@@ -239,6 +296,9 @@ export function NewProjectFlow() {
         <ArrowRight className="size-4" />
         {tNP.backToProjects}
       </Button>
+
+      {/* مؤشر تقدّم المسار — 5 خطوات */}
+      <FlowProgress step={step} />
 
       <StepShell stepKey={stepKey}>
         {/* ================ الخطوة 1: الفكرة ================ */}
@@ -415,14 +475,76 @@ export function NewProjectFlow() {
               size="lg"
               className="h-12 w-full text-base"
               disabled={!ideaReady}
-              onClick={() => void startAnalysis()}
+              onClick={() => setStep('variant')}
             >
-              {tNP.submitAnalyze}
+              {t.common.next}
+              <ArrowLeft className="size-4" />
             </Button>
           </div>
         ) : null}
 
-        {/* ================ الخطوة 2: التحليل ================ */}
+        {/* ================ الخطوة 2 (اختيارية): شكل الصفحة الرئيسية ================ */}
+        {step === 'variant' ? (
+          <div className="space-y-6">
+            <div className="space-y-1.5 text-center">
+              <div className="flex items-center justify-center gap-2">
+                <h1 className="font-display text-2xl font-extrabold tracking-tight">
+                  {tNP.variantStepTitle}
+                </h1>
+                <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
+                  {t.common.optional}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground sm:text-base">{tNP.variantStepSubtitle}</p>
+            </div>
+
+            {/* شبكة الأنماط الـ12 */}
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+              {LANDING_VARIANTS.map((variant) => {
+                const selected = landingVariant === variant.id
+                return (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setLandingVariant(variant.id)}
+                    className={`flex flex-col gap-2 rounded-xl border p-2.5 text-start transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+                      selected
+                        ? 'border-primary bg-secondary/70 shadow-sm'
+                        : 'border-border hover:border-primary/30 hover:bg-accent/40'
+                    }`}
+                  >
+                    <span className="aspect-[4/3] w-full">
+                      <LandingVariantThumb variant={variant} className="h-full w-full" />
+                    </span>
+                    <span className="space-y-0.5 px-0.5 pb-0.5">
+                      <span className="block truncate text-xs font-semibold">{variant.name}</span>
+                      <span className="block truncate text-[10px] leading-tight text-muted-foreground">
+                        {variant.tagline}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="flex flex-col gap-2.5 sm:flex-row">
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-12 flex-1"
+                onClick={() => setStep('idea')}
+              >
+                {tNP.variantBackToIdea}
+              </Button>
+              <Button size="lg" className="h-12 flex-1" onClick={() => void startAnalysis()}>
+                {tNP.submitAnalyze}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {/* ================ الخطوة 3: التحليل ================ */}
         {step === 'analyzing' ? (
           <div className="space-y-6 py-8">
             <div className="space-y-3 text-center">
@@ -445,7 +567,7 @@ export function NewProjectFlow() {
           </div>
         ) : null}
 
-        {/* ================ الخطوة 3: المراجعة / التعديل ================ */}
+        {/* ================ الخطوة 4: المراجعة / التعديل ================ */}
         {step === 'review' && analysis ? (
           editMode ? (
             <div className="space-y-6">
@@ -597,7 +719,7 @@ export function NewProjectFlow() {
           )
         ) : null}
 
-        {/* ================ الخطوة 4: البناء ================ */}
+        {/* ================ الخطوة 5: البناء ================ */}
         {step === 'building' ? (
           <div className="space-y-6 py-8">
             <div className="space-y-3 text-center">

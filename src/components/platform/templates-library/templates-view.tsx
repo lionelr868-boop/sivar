@@ -1,17 +1,28 @@
 'use client'
 
 // ============================================================
-// نموذج — مكتبة القوالب: تصفية بالفئة + بحث + بطاقات بمعاينة حية
-// + قائمة صفحات قابلة للتوسيع + "استخدم هذا القالب"
-// Task 3-a
+// نموذج — مكتبة القوالب: 4 تبويبات
+// قوالب المشاريع (14) | صفحات الهبوط (12 نمطاً) | قوالبي | مكتبة HTML
+// كل تبويب يُحمّل بياناته فقط عند تفعيله (Radix Tabs lazy mount)
+// Task 3-a → أعيدت هيكلته في Task 7-d
 // ============================================================
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronDown, LayoutTemplate, Loader2, Plus, Search } from 'lucide-react'
+import {
+  Bookmark,
+  ChevronDown,
+  Code2,
+  LayoutTemplate,
+  Loader2,
+  MonitorSmartphone,
+  Plus,
+  Search,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Collapsible,
   CollapsibleContent,
@@ -26,10 +37,14 @@ import type { ProjectType } from '@/lib/types'
 import { TEMPLATES, buildTemplateSchema } from '@/lib/project/templates'
 import type { TemplateMeta } from '@/lib/project/templates'
 import { TemplateMiniPreview } from '@/components/prototype/template-mini-preview'
+import { LandingVariantsTab } from './landing-variants-tab'
+import { SavedTemplatesTab } from './saved-templates-tab'
+import { HtmlLibraryTab } from './html-library-tab'
 
 const tTpl = t.templates
 
 type CategoryFilter = 'all' | ProjectType
+type LibraryTab = 'templates' | 'variants' | 'saved' | 'html'
 
 function TemplateCard({
   meta,
@@ -117,7 +132,8 @@ function TemplateCard({
   )
 }
 
-export function TemplatesView() {
+/** محتوى تبويب «قوالب المشاريع» — الشبكة الـ14 (سلوك Task 3-a كما هو) */
+function ProjectTemplatesGrid() {
   const openProject = useAppStore((s) => s.openProject)
   const [category, setCategory] = useState<CategoryFilter>('all')
   const [query, setQuery] = useState('')
@@ -164,18 +180,7 @@ export function TemplatesView() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* الترويسة */}
-      <header className="space-y-1.5">
-        <div className="flex items-center gap-2.5">
-          <span className="grid size-10 place-items-center rounded-lg bg-primary/10 text-primary">
-            <LayoutTemplate className="size-5" aria-hidden />
-          </span>
-          <h1 className="font-display text-2xl font-extrabold tracking-tight">{tTpl.title}</h1>
-        </div>
-        <p className="text-sm text-muted-foreground sm:text-base">{tTpl.subtitle}</p>
-      </header>
-
+    <div className="space-y-4">
       {/* البحث + الفئات */}
       <div className="space-y-3">
         <div className="relative max-w-sm">
@@ -260,6 +265,67 @@ export function TemplatesView() {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+export function TemplatesView() {
+  const [tab, setTab] = useState<LibraryTab>('templates')
+
+  return (
+    <div className="space-y-6">
+      {/* الترويسة */}
+      <header className="space-y-1.5">
+        <div className="flex items-center gap-2.5">
+          <span className="grid size-10 place-items-center rounded-lg bg-primary/10 text-primary">
+            <LayoutTemplate className="size-5" aria-hidden />
+          </span>
+          <h1 className="font-display text-2xl font-extrabold tracking-tight">{tTpl.title}</h1>
+        </div>
+        <p className="text-sm text-muted-foreground sm:text-base">{tTpl.subtitle}</p>
+      </header>
+
+      {/* التبويبات */}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as LibraryTab)}>
+        <TabsList className="grid h-11 w-full max-w-2xl grid-cols-2 sm:grid-cols-4">
+          <TabsTrigger value="templates" className="h-9 gap-1.5 text-xs sm:text-sm">
+            <LayoutTemplate aria-hidden />
+            {tTpl.tabTemplates}
+          </TabsTrigger>
+          <TabsTrigger value="variants" className="h-9 gap-1.5 text-xs sm:text-sm">
+            <MonitorSmartphone aria-hidden />
+            {tTpl.tabLandingVariants}
+          </TabsTrigger>
+          <TabsTrigger value="saved" className="h-9 gap-1.5 text-xs sm:text-sm">
+            <Bookmark aria-hidden />
+            {tTpl.tabSaved}
+          </TabsTrigger>
+          <TabsTrigger value="html" className="h-9 gap-1.5 text-xs sm:text-sm">
+            <Code2 aria-hidden />
+            {tTpl.tabHtmlLibrary}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* قوالب المشاريع — الشبكة الـ14 الأصلية */}
+        <TabsContent value="templates" className="mt-4">
+          <ProjectTemplatesGrid />
+        </TabsContent>
+
+        {/* صفحات الهبوط — 12 نمطاً */}
+        <TabsContent value="variants" className="mt-4">
+          <LandingVariantsTab />
+        </TabsContent>
+
+        {/* قوالبي — المحفوظة من المشاريع */}
+        <TabsContent value="saved" className="mt-4">
+          <SavedTemplatesTab />
+        </TabsContent>
+
+        {/* مكتبة HTML */}
+        <TabsContent value="html" className="mt-4">
+          <HtmlLibraryTab />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

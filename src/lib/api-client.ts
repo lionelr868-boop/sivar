@@ -2,11 +2,13 @@
 // DO NOT REWRITE — owned by main agent
 import type {
   AgentResult,
+  HtmlSnippetDTO,
   IdeaAnalysis,
   ProjectDTO,
   ProjectSchema,
   ProjectStatus,
   ProjectSummaryDTO,
+  SavedTemplateDTO,
   UserDTO,
   ValidateResult,
   VersionDTO,
@@ -103,6 +105,8 @@ export function createProject(payload: {
   audience?: string
   palette?: { primary: string; secondary: string; accent: string } | null
   templateId?: string
+  /** نمط صفحة الهبوط — من مكتبة الأنماط الـ12 */
+  landingVariant?: string
 }): Promise<{ project: ProjectDTO }> {
   return request<{ project: ProjectDTO }>('/api/projects', {
     method: 'POST',
@@ -161,4 +165,62 @@ export function validateProject(id: string): Promise<ValidateResult> {
 /** ZIP download — navigates to the export endpoint (browser handles the file). */
 export function downloadProjectZip(id: string): void {
   window.location.href = `/api/projects/${id}/export`
+}
+
+// ===== Saved templates (قوالبي المحفوظة) =====
+export function listSavedTemplates(): Promise<{ templates: SavedTemplateDTO[] }> {
+  return request<{ templates: SavedTemplateDTO[] }>('/api/templates')
+}
+
+export function saveProjectAsTemplate(
+  projectId: string,
+  payload?: { name?: string; description?: string }
+): Promise<{ template: SavedTemplateDTO }> {
+  return request<{ template: SavedTemplateDTO }>('/api/templates', {
+    method: 'POST',
+    body: JSON.stringify({ projectId, ...payload }),
+  })
+}
+
+export function deleteSavedTemplate(id: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>(`/api/templates/${id}`, { method: 'DELETE' })
+}
+
+/** إنشاء مشروع جديد من قالب محفوظ */
+export function useSavedTemplate(id: string, payload?: { name?: string }): Promise<{ project: ProjectDTO }> {
+  return request<{ project: ProjectDTO }>(`/api/templates/${id}/use`, {
+    method: 'POST',
+    body: JSON.stringify(payload ?? {}),
+  })
+}
+
+// ===== HTML snippets (مكتبة HTML) =====
+export function listSnippets(): Promise<{ snippets: HtmlSnippetDTO[] }> {
+  return request<{ snippets: HtmlSnippetDTO[] }>('/api/snippets')
+}
+
+export function createSnippet(payload: {
+  name: string
+  kind: HtmlSnippetDTO['kind']
+  html: string
+}): Promise<{ snippet: HtmlSnippetDTO }> {
+  return request<{ snippet: HtmlSnippetDTO }>('/api/snippets', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteSnippet(id: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>(`/api/snippets/${id}`, { method: 'DELETE' })
+}
+
+/** إضافة صفحة HTML من المكتبة إلى مشروع قائم */
+export function useSnippet(
+  snippetId: string,
+  payload: { projectId: string; placement: 'site' | 'dashboard'; pageName?: string }
+): Promise<{ project: ProjectDTO }> {
+  return request<{ project: ProjectDTO }>(`/api/snippets/${snippetId}/use`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 }

@@ -1,6 +1,7 @@
 'use client'
 
-// لوحة نظام التصميم: ألوان/خطوط/زوايا/ظلال + أنماط جاهزة + وضع ليلي
+// لوحة نظام التصميم: الشعار + ألوان/خطوط/زوايا/ظلال + أنماط جاهزة + وضع ليلي
+import { useRef, useState } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { t } from '@/lib/i18n'
 import { type ProjectTheme, type ProjectSchema } from '@/lib/types'
@@ -10,7 +11,8 @@ import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Moon, Palette, Sun } from 'lucide-react'
+import { ImagePlus, Loader2, Moon, Palette, Sun, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 interface PalettePreset {
@@ -65,6 +67,165 @@ const SHADOWS: { value: ProjectTheme['shadow']; label: string }[] = [
   { value: 'lg', label: t.builder.shadowLg },
 ]
 
+// ============================================================
+// الشعار — رفع/استبدال/إزالة (تصغير عبر canvas بحد 512px)
+// ============================================================
+const LOGO_MAX_BYTES = 3 * 1024 * 1024
+const LOGO_MAX_DIMENSION = 512
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
+    reader.onerror = () => reject(new Error('read-error'))
+    reader.readAsDataURL(file)
+  })
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('image-error'))
+    img.src = src
+  })
+}
+
+/** تصغير الصورة عبر canvas (أقصى بُعد 512px مع الحفاظ على النسبة) — SVG يُقرأ كما هو */
+async function processLogoFile(file: File): Promise<string> {
+  const dataUrl = await readAsDataUrl(file)
+  const isSvg = file.type === 'image/svg+xml' || /\.svg$/i.test(file.name)
+  if (isSvg) return dataUrl
+  const img = await loadImage(dataUrl)
+  const naturalW = img.naturalWidth || LOGO_MAX_DIMENSION
+  const naturalH = img.naturalHeight || LOGO_MAX_DIMENSION
+  const scale = Math.min(1, LOGO_MAX_DIMENSION / Math.max(naturalW, naturalH))
+  const w = Math.max(1, Math.round(naturalW * scale))
+  const h = Math.max(1, Math.round(naturalH * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return dataUrl
+  ctx.drawImage(img, 0, 0, w, h)
+  return canvas.toDataURL('image/png')
+}
+
+/** خلفية رقاعية شفافة لمعاينة الشعار (تظهر الحواف الشفافة) */
+const CHECKERBOARD_STYLE: React.CSSProperties = {
+  backgroundColor: 'var(--muted)',
+  backgroundImage:
+    'repeating-conic-gradient(color-mix(in srgb, var(--foreground) 8%, transparent) 0% 25%, transparent 0% 50%)',
+  backgroundSize: '16px 16px',
+}
+
+function LogoSection() {
+  const schema = useAppStore((s) => s.schema)
+  const applySchemaFn = useAppStore((s) => s.applySchemaFn)
+  const [processing, setProcessing] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  if (!schema) return null
+  const logo = schema.branding?.logo
+  const logoName = schema.branding?.logoName
+
+  const handleFile = async (file: File) => {
+    if (file.size > LOGO_MAX_BYTES) {
+      toast.error(t.builder.logoTooLarge)
+      return
+    }
+    setProcessing(true)
+    try {
+      const dataUrl = await processLogoFile(file)
+      applySchemaFn((s) => ({
+        ...s,
+        branding: { ...(s.branding ?? {}), logo: dataUrl, logoName: file.name },
+      }))
+      toast.success(t.builder.logoUploaded)
+    } catch {
+      toast.error(t.common.error)
+    } finally {
+      setProcessing(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  const removeLogo = () => {
+    applySchemaFn((s) => ({
+      ...s,
+      branding: { ...(s.branding ?? {}), logo: undefined, logoName: undefined },
+    }))
+  }
+
+  return (
+    <section className="space-y-3 rounded-xl border bg-card p-3" aria-label={t.builder.logoSection}>
+      <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t.builder.logoSection}</h4>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/svg+xml,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) void handleFile(file)
+          e.target.value = ''
+        }}
+      />
+
+      {logo ? (
+        <div className="space-y-3">
+          <div className="grid place-items-center rounded-lg border p-3" style={CHECKERBOARD_STYLE}>
+            <img src={logo} alt={logoName ?? t.builder.logoSection} className="h-12 max-w-[180px] object-contain" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 flex-1 gap-1.5 text-xs"
+              onClick={() => fileRef.current?.click()}
+              disabled={processing}
+            >
+              {processing ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+              {t.builder.logoReplace}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-9 gap-1.5 text-xs text-destructive hover:text-destructive"
+              onClick={removeLogo}
+              disabled={processing}
+            >
+              <Trash2 className="size-4" />
+              {t.builder.logoRemove}
+            </Button>
+          </div>
+          {logoName ? (
+            <p className="truncate text-center text-[11px] text-muted-foreground" title={logoName}>
+              {logoName}
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 w-full gap-2"
+            onClick={() => fileRef.current?.click()}
+            disabled={processing}
+          >
+            {processing ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+            {t.builder.logoUploadBtn}
+          </Button>
+          <p className="text-xs leading-relaxed text-muted-foreground">{t.builder.logoHint}</p>
+        </div>
+      )}
+    </section>
+  )
+}
+
 export function ThemePanel() {
   const schema = useAppStore((s) => s.schema)
   const applySchemaFn = useAppStore((s) => s.applySchemaFn)
@@ -86,6 +247,9 @@ export function ThemePanel() {
           <p className="text-[11px] text-muted-foreground">{t.builder.themeSubtitle}</p>
         </div>
       </div>
+
+      {/* الشعار */}
+      <LogoSection />
 
       {/* أنماط جاهزة */}
       <section className="space-y-2">

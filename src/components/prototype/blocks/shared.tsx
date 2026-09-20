@@ -12,6 +12,8 @@ export interface BlockCtx {
   schema: ProjectSchema
   /** وضع المعاينة: الأزرار والروابط حيّة */
   interactive: boolean
+  /** معاينة مصغّرة (مثل بطاقات القوالب) — تجنّب تحميل إطارات HTML */
+  mini?: boolean
   /** تنقّل بين صفحات النموذج */
   onNavigate?: (pageId: string) => void
 }

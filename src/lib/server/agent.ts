@@ -16,6 +16,7 @@ import type {
 import { COLOR_NAME_TO_HEX } from '@/lib/types'
 import { BLOCK_REGISTRY } from '@/lib/registry/blocks'
 import { ENTITY_KEYS, defaultEntityFor } from '@/lib/content/mock-data'
+import { LANDING_VARIANTS } from '@/lib/project/landing-kit'
 
 // ============================================================
 // أنواع
@@ -40,12 +41,14 @@ const MAX_ACTIONS = 12
 const TOOL_NAMES: string[] = [
   'create_page', 'delete_page', 'update_page', 'add_block', 'update_block', 'update_content',
   'delete_block', 'move_block', 'update_theme', 'update_navigation', 'update_dashboard_nav',
-  'rename_project', 'generate_mock_data',
+  'rename_project', 'generate_mock_data', 'change_landing_variant',
 ]
 const PAGE_TYPES = [
   'landing', 'auth', 'dashboard', 'pricing', 'table', 'form', 'settings', 'profile', 'faq', 'custom',
 ]
 const BLOCK_TYPES: string[] = Object.keys(BLOCK_REGISTRY)
+const LANDING_VARIANT_IDS: string[] = LANDING_VARIANTS.map((v) => v.id as string)
+const LANDING_VARIANTS_PROMPT = LANDING_VARIANTS.map((v) => `${v.id} — ${v.name} (${v.tagline})`).join('؛ ')
 const THEME_COLOR_KEYS = [
   'primary', 'primaryForeground', 'secondary', 'accent', 'background', 'surface', 'text',
   'mutedText', 'border',
@@ -155,6 +158,10 @@ const AGENT_SYSTEM_PROMPT = [
   '11. update_dashboard_nav: {"items":[{"label":"...","pageId":"...","icon":"sparkles"}]}',
   '12. rename_project: {"name":"الاسم الجديد"}',
   '13. generate_mock_data: {"entity":"مفتاح كيان اختياري — بدون قيمة يُحدّث كل الكيانات"}',
+  '14. change_landing_variant: {"variant":"معرف نمط من أنماط صفحات الهبوط أدناه","pageId":"معرّف صفحة هبوط اختياري — الافتراضي أول صفحة هبوط"} — يعيد بناء أقسام صفحة الهبوط بالنمط المختار. الأنماط: ' + LANDING_VARIANTS_PROMPT,
+  '',
+  'أدوات إضافية عند إنشاء صفحات الهبوط:',
+  '- في create_page من نوع landing يمكنك إضافة "landingVariant":"معرف النمط" من قائمة الأنماط أعلاه لبنائها بنمط محدد.',
   '',
   'قواعد صارمة:',
   '- غيّر أقل قدر ممكن — طلب صغير = تغيير صغير.',
@@ -250,7 +257,15 @@ function sanitizeActions(schema: ProjectSchema, rawActions: unknown): AgentActio
           typeof args.authVariant === 'string' && ['login', 'signup', 'forgot'].includes(args.authVariant)
             ? (args.authVariant as AuthVariant)
             : undefined
-        actions.push({ tool: 'create_page', args: { name, type, entity, authVariant } })
+        const clean: Record<string, unknown> = { name, type, entity, authVariant }
+        if (
+          type === 'landing' &&
+          typeof args.landingVariant === 'string' &&
+          LANDING_VARIANT_IDS.includes(args.landingVariant)
+        ) {
+          clean.landingVariant = args.landingVariant
+        }
+        actions.push({ tool: 'create_page', args: clean })
         break
       }
       case 'delete_page': {
@@ -373,6 +388,20 @@ function sanitizeActions(schema: ProjectSchema, rawActions: unknown): AgentActio
         actions.push({ tool: 'generate_mock_data', args: entity ? { entity } : {} })
         break
       }
+      case 'change_landing_variant': {
+        const variant =
+          typeof args.variant === 'string' && LANDING_VARIANT_IDS.includes(args.variant)
+            ? args.variant
+            : typeof args.landingVariant === 'string' && LANDING_VARIANT_IDS.includes(args.landingVariant)
+              ? args.landingVariant
+              : ''
+        if (!variant) continue
+        const pageId = resolvePageRef(schema, args, ['pageId', 'page', 'pageName', 'name'])
+        const clean: Record<string, unknown> = { variant }
+        if (pageId) clean.pageId = pageId
+        actions.push({ tool: 'change_landing_variant', args: clean })
+        break
+      }
       default:
         break
     }
@@ -446,6 +475,28 @@ function detectColor(message: string): string | null {
   return null
 }
 
+/** استخراج نمط صفحة الهبوط من نص المستخدم — بالاسم أو المعرف أو الكلمات المفتاحية */
+function detectLandingVariant(message: string): string {
+  // مطابقة مباشرة بالمعرف أو الاسم العربي
+  for (const v of LANDING_VARIANTS) {
+    if (message.includes(v.id)) return v.id
+    if (message.includes(v.name)) return v.id
+  }
+  // كلمات مفتاحية
+  if (/تدرّج|تدرج|غلاف|ملوّن|ملون/.test(message)) return 'gradient-cover'
+  if (/داكن|فاخر|ليلي|أسود|اسود/.test(message)) return 'dark-premium'
+  if (/تطبيق|هاتف|جوال|موبايل/.test(message)) return 'app-showcase'
+  if (/فيديو/.test(message)) return 'video-lead'
+  if (/بريد|تسجيلات|انتظار|مهتمين/.test(message)) return 'email-capture'
+  if (/متجر|منتجات|تسوّق|تسوق/.test(message)) return 'store-promo'
+  if (/بسيط|minimal|نظيف|أبيض/.test(message)) return 'minimal-startup'
+  if (/أرقام|ارقام|إحصائ|احصائ|نتائج/.test(message)) return 'stats-lead'
+  if (/وكالة/.test(message)) return 'agency-bold'
+  if (/فعالية|حدث|مؤتمر|ورشة/.test(message)) return 'event-announce'
+  if (/موسّط|موسط|وسط|ضخم|عنوان\s*كبير/.test(message)) return 'centered-bold'
+  return 'classic-split'
+}
+
 function firstDashboardPage(schema: ProjectSchema): ProjectPage | null {
   return schema.pages.find((p) => p.type === 'dashboard') ?? schema.pages[0] ?? null
 }
@@ -489,6 +540,45 @@ function heuristicRun(schema: ProjectSchema, message: string): AgentRunResult {
         ],
         fallback: true,
       }
+    }
+  }
+
+  // ---------- إضافة صفحة هبوط بنمط محدد ----------
+  if (/أضف|اضف|أنشئ|انشئ|أريد|اريد/.test(text) && /صفحة\s*هبوط|هبوط\s*بنمط/.test(text)) {
+    const variant = detectLandingVariant(text)
+    const variantName = LANDING_VARIANTS.find((v) => v.id === variant)?.name ?? variant
+    return {
+      explanation: `أنشأت صفحة هبوط جديدة بنمط «${variantName}» — يمكنك تغيير النمط لاحقاً من لوحة الصفحات.`,
+      actions: [
+        {
+          tool: 'create_page',
+          args: { name: 'صفحة هبوط جديدة', type: 'landing', landingVariant: variant },
+        },
+      ],
+      fallback: true,
+    }
+  }
+
+  // ---------- تغيير نمط صفحة الهبوط ----------
+  if (
+    /(بدّل|بدل|غيّر|غير|حَوّل|حوّل|اجعل|صمّم|صمم)/.test(text) &&
+    /(الصفحة\s*الرئيسية|صفحة\s*الهبوط|الهبوط|الواجهة|النمط)/.test(text) &&
+    !/(لون|اللون|ألوان|الوان|ثيم)/.test(text)
+  ) {
+    const landing = schema.pages.find((p) => p.type === 'landing')
+    if (landing) {
+      const variant = detectLandingVariant(text)
+      const variantName = LANDING_VARIANTS.find((v) => v.id === variant)?.name ?? variant
+      return {
+        explanation: `أعدت بناء صفحة «${landing.name}» بنمط «${variantName}» — محتوى النصوص قابل للتعديل من لوحة الخصائص.`,
+        actions: [{ tool: 'change_landing_variant', args: { variant } }],
+        fallback: true,
+      }
+    }
+    return {
+      explanation: 'لا توجد صفحة هبوط في المشروع لتغيير نمطها — أضف أولاً صفحة هبوط جديدة.',
+      actions: [],
+      fallback: true,
     }
   }
 

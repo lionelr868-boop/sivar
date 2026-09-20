@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
+  Bookmark,
   FolderKanban,
   Loader2,
   MoreVertical,
@@ -37,7 +38,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { toast } from 'sonner'
 import { useAppStore } from '@/store/app-store'
+import * as api from '@/lib/api-client'
 import { t } from '@/lib/i18n'
 import { timeAgo } from '@/lib/i18n/common'
 import { PROJECT_STATUS_LABELS, PROJECT_TYPE_LABELS } from '@/lib/types'
@@ -101,6 +113,35 @@ export function ProjectCard({
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  // حفظ المشروع كقالب
+  const [saveTplOpen, setSaveTplOpen] = useState(false)
+  const [tplName, setTplName] = useState('')
+  const [tplDescription, setTplDescription] = useState('')
+  const [tplSaving, setTplSaving] = useState(false)
+
+  const openSaveTemplate = () => {
+    setTplName(project.name)
+    setTplDescription('')
+    setSaveTplOpen(true)
+  }
+
+  const saveAsTemplate = async () => {
+    if (tplName.trim() === '') return
+    setTplSaving(true)
+    try {
+      await api.saveProjectAsTemplate(project.id, {
+        name: tplName.trim(),
+        description: tplDescription.trim() === '' ? undefined : tplDescription.trim(),
+      })
+      toast.success(tDash.saveAsTemplateSuccess)
+      setSaveTplOpen(false)
+    } catch {
+      toast.error(tDash.saveAsTemplateError)
+    } finally {
+      setTplSaving(false)
+    }
+  }
+
   const open = async () => {
     setOpening(true)
     await openProject(project.id)
@@ -154,6 +195,15 @@ export function ProjectCard({
                 <DropdownMenuItem onClick={() => void open()}>
                   <ArrowLeft />
                   {tDash.openProject}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault()
+                    openSaveTemplate()
+                  }}
+                >
+                  <Bookmark />
+                  {tDash.saveAsTemplateAction}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   variant="destructive"
@@ -221,6 +271,65 @@ export function ProjectCard({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* حفظ المشروع كقالب */}
+        <Dialog open={saveTplOpen} onOpenChange={setSaveTplOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>{tDash.saveAsTemplateTitle}</DialogTitle>
+              <DialogDescription>{tDash.saveAsTemplateHint}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label
+                  htmlFor={`save-tpl-name-${project.id}`}
+                  className="text-sm font-semibold leading-none"
+                >
+                  {tDash.saveAsTemplateNameLabel}
+                </label>
+                <Input
+                  id={`save-tpl-name-${project.id}`}
+                  value={tplName}
+                  onChange={(e) => setTplName(e.target.value)}
+                  className="bg-background"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <label
+                  htmlFor={`save-tpl-desc-${project.id}`}
+                  className="text-sm font-semibold leading-none"
+                >
+                  {tDash.saveAsTemplateDescLabel}
+                </label>
+                <Textarea
+                  id={`save-tpl-desc-${project.id}`}
+                  value={tplDescription}
+                  onChange={(e) => setTplDescription(e.target.value)}
+                  placeholder={tDash.saveAsTemplateDescPlaceholder}
+                  className="min-h-20 bg-background"
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" disabled={tplSaving} onClick={() => setSaveTplOpen(false)}>
+                {t.common.cancel}
+              </Button>
+              <Button
+                disabled={tplSaving || tplName.trim() === ''}
+                onClick={() => void saveAsTemplate()}
+              >
+                {tplSaving ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Bookmark className="size-4" />
+                )}
+                {tplSaving ? tDash.saveAsTemplateSaving : tDash.saveAsTemplateSubmit}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </Card>
     </motion.div>
   )

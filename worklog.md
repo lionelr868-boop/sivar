@@ -354,3 +354,137 @@ export function createProjectFromAnalysis(analysis: IdeaAnalysis, opts?: { style
 **Final state:** 0 browser errors، 0 console errors، lint 0 errors (تحذير خطوط واحد قديم غير مؤثر)، tsc نظيف، GET / و /api/* تعمل 200.
 
 **Stage Summary:** المنصة مكتملة الوظائف من الفكرة إلى ملف ZIP جاهز للنشر على Netlify.
+
+---
+
+## Task ID: 7-a — New Features Contracts (main agent)
+
+**Task:** عقود الميزات الجديدة الخمس: مكتبة أنماط صفحات الهبوط (12)، رفع الشعار، القوالب المحفوظة من المشاريع، مكتبة HTML المخصصة، وتحسينات جودة التصدير.
+
+**Work Log:**
+1. `src/lib/types.ts` — إضافة: `LandingVariantId` (12 قيمة)، `ProjectBranding` + `branding?` في ProjectSchema (توافق خلفي)، `'custom-html'` في BlockType، `change_landing_variant` في AgentToolName، `HtmlSnippetKind` + `HTML_SNIPPET_KIND_LABELS`، `SavedTemplateDTO`، `HtmlSnippetDTO`.
+2. `src/lib/api-client.ts` — إضافة: createProject يقبل `landingVariant`، listSavedTemplates / saveProjectAsTemplate / deleteSavedTemplate / useSavedTemplate، listSnippets / createSnippet / deleteSnippet / useSnippet.
+3. `src/lib/registry/blocks.ts` — نوع حقل جديد `'code'`؛ hero: حقول جديدة eyebrow/visual/titleSize/emailPlaceholder/emailButton + خيارات HERO_VISUAL_OPTIONS (dashboard/phone/video/form/none) وHERO_TITLE_SIZE_OPTIONS (md/lg/xl)؛ مكوّن جديد `custom-html` (label «HTML مخصص»، فئة marketing، icon code، defaults تحوي مثال HTML متدرّج + height 560، حقول name/height/html).
+4. `src/lib/project/landing-kit.ts` (جديد ~380 سطر) — LANDING_VARIANTS (12 نمطاً بـ meta كاملة: name/tagline/bestFor/thumb) + getLandingVariant + buildLandingBlocks (بطل مخصص بالكامل لكل نمط + أقسام داعمة بنسخ عربية مصقولة مع interpolation لاسم العلامة) + changeLandingVariant (إعادة بناء كتل صفحة هبوط قائمة) + buildVariantDemoSchema (schema عرض للمعاينة في المكتبة).
+5. `src/lib/project/tools.ts` — starterBlocksFor('landing') يستعمل buildLandingBlocks (بـ opts.landingVariant)؛ addPageToSchema يقبل landingVariant؛ دالة جديدة `addHtmlPageToSchema` (صفحة بنوع landing/dashboard حسب placement بكتلة custom-html واحدة)؛ applyActions: create_page يمرّر landingVariant، حالة جديدة `change_landing_variant` (variant|landingVariant|variantId + pageId|page|name، افتراضياً أول صفحة هبوط).
+6. `src/lib/project/factory.ts` — createProjectFromAnalysis يقبل opts.landingVariant ويعيد بناء أول صفحة هبوط به.
+7. `prisma/schema.prisma` — نموذجان جديدان: `SavedTemplate` (userId/name/description/icon/type/schemaJson/sourceProjectId) و`HtmlSnippet` (userId/name/kind/html) + علاقات في User. `bun run db:push` ✅.
+8. `src/components/platform/templates-library/landing-variant-thumb.tsx` (جديد) — مخططات مصغّرة CSS خالصة لكل نمط من الـ12 (split/centered/gradient/dark/phone/form/video/store/agency/event/minimal/stats) — مشترك بين Builder ومكتبة القوالب.
+
+**Stage Summary:**
+- tsc نظيف لـ src/** (أخطاء قديمة فقط في examples/ + skills/). العقود جاهزة للوكلاء المتوازيين 7-b..7-f.
+- عقد بطل Hero الموسّع (للعارض والمولّد): eyebrow (نص)، visual (dashboard|phone|video|form|none — افتراضي dashboard)، titleSize (md|lg|xl)، emailPlaceholder/emailButton عند visual=form. كلها اختيارية للتوافق الخلفي.
+- schema.branding = { logo?: dataURL, logoName? } — يُكتب من الواجهة (تصغير canvas بحد 512px) ويُصدَّر إلى assets/logo.png + favicon.
+
+---
+Task ID: 7-d
+Agent: dashboard-views agent
+Task: مكتبة القوالب بأربعة تبويبات (قوالب/صفحات هبوط/قوالبي/مكتبة HTML) + «حفظ كقالب» من بطاقة المشروع + خطوة «نمط الواجهة» الاختيارية في مسار مشروع جديد.
+
+Work Log:
+- قراءة العقود المثبتة كاملة (types/api-client/landing-kit/landing-variant-thumb/template-mini-preview/prototype-renderer/templates-view/projects-section/new-project-flow/app-store) قبل أي كود.
+- i18n: +~74 مفتاحاً عربياً في templates.ts (تبويبات + أنماط + قوالبي + مكتبة HTML) وdashboard.ts (حفظ كقالب) وnew-project.ts (خطوة النمط + خطوات المؤشر) — صفر عربية hardcoded في المكونات.
+- templates-view.tsx: إعادة هيكلة إلى 4 تبويبات shadcn Tabs (RTL، h-11، grid-cols-2 sm:grid-cols-4) مع الاحتفاظ بالترويسة؛ الشبكة الـ14 الأصلية (بحث/فئات/استخدام قالب) انتقلت كما هي إلى ProjectTemplatesGrid داخلي؛ TabsContent lazy-mount → تحميل بيانات كل تبويب عند تفعيله فقط.
+- landing-variants-tab.tsx (جديد): 12 بطاقة (LandingVariantThumb + name + tagline + bestFor chips أول 3) + «معاينة» تفتح Dialog max-w-4xl h-[80vh] بمعاينة حيّة كاملة الصفحة قابلة للتمرير (VariantLivePreview: buildVariantDemoSchema + PrototypeRenderer pageId='demo_page' + مقياس ResizeObserver 1100px مع قياس ارتفاع المحتوى — TemplateMiniPreview يقبل templateId فقط لذا استُخدم العارض مباشرة) + «إنشاء مشروع» (loading → createProject بـ templateId:'saas-suite' + landingVariant → openProject + toast خطأ بنمط templates-view).
+- saved-templates-tab.tsx (جديد): listSavedTemplates عند التثبيت + هياكل + حالة فارغة (Bookmark + «تصفح مشاريعك»)؛ بطاقة أيقونة ملونة + ميتا (صفحات/نوع/نسبة زمنية)؛ «إنشاء مشروع» Dialog باسم مُعبأ `${name} (نسخة)` → useSavedTemplate → openProject؛ حذف AlertDialog → deleteSavedTemplate → تحديث + toast؛ قائمة max-h-[70vh] overflow-y-auto.
+- html-library-tab.tsx (جديد): «إضافة كود» Dialog (اسم + Select نوع + Textarea dir=ltr font-mono + رفع ملف .html مخفي ≤500KB يملأ الكود/الاسم) بتحقق (اسم + html يحوي '<')؛ بطاقات (Badge نوع بألوان مختلفة + عدد أحرف + مقتطف 120 حرفاً ltr)؛ «معاينة» iframe sandbox srcDoc h-[60vh]؛ «استخدام في مشروع» Dialog (listProjects عند الفتح + حالة فارغة CTA + اختيار مشروع radio-like + موضع site/dashboard بطاقتان + pageName اختياري → useSnippet → toast + openProject)؛ حذف AlertDialog؛ حالة فارغة Code2.
+- projects-section.tsx (إضافة فقط): عنصر «حفظ كقالب» (Bookmark) قبل الحذف في قائمة ProjectCard + Dialog (اسم مُعبأ + وصف اختياري) → saveProjectAsTemplate → toast نجاح/خطأ.
+- new-project-flow.tsx: خطوة 'variant' اختيارية بين الفكرة والتحليل (شبكة 12 بطاقة مصغرة + افتراضي classic-split محدد مسبقاً + رجوع/متابعة، انتقالات StepShell كما هي)؛ مؤشر FlowProgress جديد (Progress + 5 نقاط + n/5 — المسار لم يكن لديه مؤشر)؛ landingVariant يُمرر إلى createProject في خطوة البناء؛ زر الفكرة أصبح «التالي».
+- QA: tsc صفر أخطاء في ملفاتي؛ lint صفر من ملفاتي (3 أخطاء pages-panel.tsx للوكيل الموازي 7-b/c)؛ SSR smoke-render للمكونات الستة PASS؛ تحقق نقري بالمتصفح: التبويبات/المعاينة الحية (486×1165px بمقياس 0.44 قابل للتمرير)/تحقق نموذج الإضافة/قائمة «حفظ كقالب»/خطوة النمط 2/5 — كلها سليمة. سجل العمل أيضاً في agent-ctx/7-d-dashboard-views.md.
+
+Stage Summary:
+- 7 ملفات ضمن الملكية فقط (3 جديدة + 4 معدلة) + سجل agent-ctx. جميع العقود محترمة وZero ملفات خارج النطاق.
+- ملاحظة للوكيل الرئيسي (E2E بعد الهبوط المزدوج): /api/templates يرجع 500 حالياً و/api/snippets 404 (مسارات 7-e الموازي قيد الكتابة — Prisma/model سليم: findMany على savedTemplate يعمل من node، db push متزامن؛ الخلل داخل معالج مسارهم). واجهات التبويبين تعرض حالة خطأ آمنة مع إعادة المحاولة إلى أن يكتمل 7-e. خادم dev انقطع عن شبكتي نهاية التحقق (نشاط موازٍ) ولم أُعِد تشغيله.
+
+---
+
+## Task ID: 7-b
+
+**Agent:** prototype-renderer agent
+**Task:** ترقية عارض النموذج الأولي — بطل موسّع (eyebrow/visual/titleSize/نموذج بريد) + مكوّن HTML مخصص + دعم الشعار + حركة دخول خفيفة.
+
+**Work Log:**
+- `blocks/hero-block.tsx`: قراءة الخصائص الجديدة بقُرّاء آمنين مع توافق خلفي كامل — `eyebrow` (شارة حبة فوق العنوان بتلوين فاتح/داكن)، `visual` (dashboard افتراضي؛ phone = إطار هاتف 9:19 بنوتش وبطاقات وأعمدة وزر سفلي؛ video = بطاقة 16:9 بزر تشغيل دائري ومثلث أبيض ▶ عبر border-inline-start على عنصر dir="ltr" + أسطر تعليق هيكلية + غسلة تدرّج؛ form = التقاط بريد داخل عمود النص: صف حقل زخرفي dir=ltr + PButton + ثلاث صور رمزية متداخلة أ/س/ي مع «انضم إلى 2,400+ مهتم»؛ none = عمود نص فقط بترميز mx-auto max-w-2xl مع احترام align)، `titleSize` (md/lg/xl)، و`emailPlaceholder`/`emailButton` بديلاطين «بريدك الإلكتروني»/«سجّلني». الرسم الجانبي في التخطيط المقسّم لـ dashboard/phone/video فقط؛ form/none نص فقط؛ الموسّط بلا رسم جانبي عدا video/phone تُكوَّم تحت النص (عقد video-lead من 7-a: layout centered + visual video).
+- `blocks/custom-html-block.tsx` (جديد): name/html/height (تثبيت 100..4000)؛ غير تفاعلي → بديل خفيف بلا إطارات (إطار متقطع + Code2 + «كود HTML مخصص» + ‏N حرفاً بـ RLM)؛ تفاعلي → iframe بـ srcDoc وsandbox="allow-scripts allow-popups allow-forms" (بلا allow-same-origin — عزل كامل عن صفحة المنصة) مع loading=lazy وbg-white.
+- `prototype-renderer.tsx`: حالة `custom-html` في renderBlock؛ دعم `branding.logo` — صورة الشعار بدل المربع+النص في ترويسة SiteShell (h-8/h-9، التنقل للرئيسية محفوظ) وصف التذييل (مع إبقاء شارة «بيانات تجريبية») وشعار صغير h-6 فوق footerNote، وفي جانب DashboardShell وشريطه المحمول (h-8/h-7) — الكل loading="lazy" decoding="async"؛ تغليف الكتل بـ `pt-rise` مع تأخير متدرّج (index×60ms بحد 6) في المسار التفاعلي غير التحريري فقط — وضع outline كما هو بلا تغيير.
+- `theme-provider.tsx`: حقن `<style>` يعرّف `@keyframes pt-rise` + `.pt-rise` (.5s cubic-bezier(.22,.61,.36,1) both) داخل PrototypeThemeScope.
+
+**Stage Summary:**
+- tsc: صفر أخطاء في src/** (4 أخطاء قديمة في examples/ وskills/ فقط)؛ lint: صفر أخطاء/تحذيرات من ملفاتي (تحذير layout.tsx القديم فقط).
+- اختبار SSR (سكربت مؤقت حُذف): 45/45 فحصاً ناجحاً — 12 نمطاً × تفاعلي/ساكن (pt-rise موجود/غائب + التأخيرات)، تغطية أنواع البطل (هاتف/بريد/فيديو مكوّم/eyebrow فاتح وداكن/titleSize الثلاثة)، buildLandingBlocks مع صفحة دخول (ربط primaryButtonPage)، custom-html (iframe مقابل البديل مقابل تثبيت الارتفاع 100/4000)، الشعار في القشرتين (3 صور + lazy/async + الشارة)، وضع outline سليم، وبطل قديم بلا خصائص جديدة يتصرف كالسابق تماماً.
+- مراجعة بصرية (agent-browser + VLM لصفحة دخان حُذفت): 7 أقسام كلها PASS؛ اتجاه مثلث التشغيل مثبت بـ computed styles (borderLeft 17px solid + شفاف علوي/سفلي داخل dir=ltr → ▶ يشير يميناً).
+- انحراف واحد موثّق: في التخطيط الموسّط تُكوَّم رسوم video/phone تحت النص (يشترطه عقد نمط video-lead المثبّت من 7-a)؛ يبقى dashboard مخفياً في الموسّط حفاظاً على مشاريع ما قبل 7-b.
+
+---
+
+## Task ID: 7-c — Builder UI Features (subagent, completed + verified by main agent)
+
+**Agent:** full-stack-developer (context deadline after finishing code; main agent verified & recorded)
+
+**Files:** `src/components/builder/{pages-panel,theme-panel,properties-panel,builder-header}.tsx` + `save-template-dialog.tsx` (جديد) + `src/lib/i18n/builder.ts`.
+
+**Delivered:**
+- AddPageDialog: عند اختيار Landing تظهر شبكة الأنماط الـ12 (LandingVariantThumb + اسم + وصف) وتمرّر landingVariant إلى addPageToSchema.
+- خيار صفحة جديدة «HTML»: تبويبات لصق الكود / رفع ملف (.html ≤500KB عبر FileReader) / من مكتبتي (قائمة snippets المستخدم) + اختيار الموضع (داخل الموقع / داخل لوحة التحكم) + حفظ اختياري في المكتبة → addHtmlPageToSchema + createSnippet.
+- زر «تغيير النمط» عند تحديد صفحة هبوط → نافذة معرض الأنماط → changeLandingVariant فوري.
+- لوحة التصميم: قسم «الشعار» — رفع صورة (تصغير canvas بحد 512px → dataURL → schema.branding.logo، SVG مباشرة) + معاينة + إزالة/استبدال.
+- لوحة الخصائص: نوع حقل 'code' جديد (textarea أحادي الاتجاه LTR mono + عدّاد أحرف) لمكوّن HTML المخصص.
+- رأس البناء: زر «حفظ كقالب» → نافذة (اسم/وصف) → حفظ المشروع أولاً ثم saveProjectAsTemplate + توست.
+
+**QA (main agent):** tsc نظيف، lint نظيف، تحقق فعلي بالمتصفح: رفع شعار حقيقي (input file) → ظهر في رأس الموقع 90×36 + الشريط الجانبي + التذييل؛ إنشاء صفحة HTML بلصق الكود + حفظها في المكتبة ثم إعادة استخدامها من تبويب «من مكتبتي»؛ تغيير نمط صفحة هبوط قائمة (gradient)؛ حفظ كقالب من الرأس.
+
+---
+
+## Task ID: 7-e — Backend APIs (subagent partial + main agent completion)
+
+**Agent:** full-stack-developer (context deadline mid-task) + main agent
+
+**Work Log:**
+- (subagent) `GET/POST /api/templates` + `DELETE /api/templates/[id]` كاملة مع templateToDTO وfindOwnedProject.
+- (main) `POST /api/templates/[id]/use` — استنساخ schema بإعادة تسمية «(نسخة)» + مشروع جديد + إصدار 1.
+- (main) `GET/POST /api/snippets` + `DELETE /api/snippets/[id]` + `POST /api/snippets/[id]/use` (addHtmlPageToSchema + إصدار «إضافة صفحة HTML: …»).
+- (main) `/api/projects` POST يقبل landingVariant (تحقق من LANDING_VARIANTS) → createProjectFromAnalysis.
+- (main) agent.ts: أداة #14 change_landing_variant في موجه LLM مع قائمة الأنماط + sanitize (variant/pageId) + create_page يقبل landingVariant + استدلال عربي: «أضف صفحة هبوط بنمط X» و«غيّر نمط الصفحة الرئيسية…» مع detectLandingVariant (مطابقة بالاسم/المعرف + كلمات مفتاحية: داكن/تدرج/تطبيق/فيديو/بريد/متجر/بسيط/أرقام/وكالة/فعالية/موسّط).
+- (main) validate.ts: فحص سابع «أقسام HTML المخصصة» + autoFixSchema يستبدل HTML الفارغ بالافتراضي.
+
+**QA:** اختبار curl حي كامل: إنشاء مشروع بـ landingVariant=app-showcase (hero visual=phone ✓) → حفظ كقالب → استخدام القالب (مشروع جديد بنفس schema) → إنشاء snippet → إضافته لمشروع (صفحة custom-html) → وكيل «غيّر نمط الصفحة الرئيسية إلى الداكن الفاخر» (bg=dark ✓ عبر LLM) → validate: 7/7 فحوصات ok.
+
+---
+
+## Task ID: 7-f — Export Generator Upgrades (subagent, completed + verified by main agent)
+
+**Agent:** full-stack-developer (context deadline after finishing code; main agent verified & recorded)
+
+**Delivered in src/lib/export/generate.ts:**
+- بطل Hero الموسّع: eyebrow (فاتح/داكن)، visual=phone (.pt-phone بنوك+إحصائيات+أعمدة)، visual=video (.pt-play بزر تشغيل)، visual=form (.pt-lead-form بنموذج بريد + صفوف أفاتار + نجاح عند الإرسال من script.js)، titleSize lg/xl.
+- مكوّن custom-html → iframe sandboxed srcdoc مهرّب.
+- الشعار: assets/logo.{ext} في ZIP + favicon + <img class=pt-logo> في الرأس/الشريط الجانبي/التذييل بمسارات نسبية (root و../).
+- SEO: meta description + og:title/description + <title> صفحة|مشروع + favicon حرفي احتياطي بلون الثيم.
+- حركات: .pt-reveal + IntersectionObserver بتتابع + prefers-reduced-motion.
+- زر العودة للأعلى (44px) + skip-link «تخطَّ إلى المحتوى» + focus-visible/selection/smooth-scroll/تمرير مخصص.
+
+**QA (main agent):** تصدير حي: ZIP 50KB يحوي pt-reveal/pt-top/pt-skip/meta/og ✓؛ صفحة HTML تصدَّرت بـ iframe srcdoc ✓؛ مع branding.logo: assets/logo.png + favicon + مسارات نسبية صحيحة في الصفحات الفرعية ✓؛ تحميل ZIP من نافذة التصدير بالمتصفح ✓.
+
+---
+
+## Task ID: 7-g — Integration & E2E Verification (main agent)
+
+**Task:** تحقق شامل نهاي-إلى-نهاية لكل الميزات الجديدة + إصلاح تكامل واحد + تنظيف.
+
+**Work Log:**
+1. إصلاح تكامل حرج: مكوّن HTML المخصص كان يظهر بديلاً نصياً داخل الباني (interactive=false) — أضفت علم `mini` إلى BlockCtx/PrototypeRenderer وحددت الشرط على `ctx.mini` فقط (المصغّرات)؛ الباني ووضع المعاينة يعرضان الإطار الحقيقي الآن. TemplateMiniPreview يمرر mini.
+2. E2E بالمتصفح (agent-browser) + مراجعات VLM:
+   - مكتبة القوالب بأربعة تبويبات ✓؛ معرض «صفحات الهبوط» 12 نمطاً بمعاينة حية حوارية (9.2/10) و«إنشاء مشروع» يفتح الباني بنمط مطبق ✓
+   - تدفق مشروع جديد بخطوة «شكل الصفحة الرئيسية» (12 بطاقة) → بناء بنمط الداكن الفاخر (9/10) ✓
+   - الباني: تغيير نمط صفحة هبوط فورياً (غلاف متدرج ✓ 9/10)، رفع شعار فعلي → ظهر في الرأس/الشريط/التذييل (90×36 DOM) ✓، صفحة HTML بلصق كود + حفظ بالمكتبة + إعادة استخدام من «من مكتبتي» → إطار يعرض المحتوى فعلاً ✓، حفظ كقالب من الرأس ✓
+   - الوكيل الذكي: «غيّر نمط الصفحة الرئيسية إلى عرض التطبيق» → هاتف في البطل (9/10) + «تغييرات غير محفوظة» + حفظ ✓
+   - «قوالبي»: إنشاء مشروع من قالب محفوظ فتح الباني بنسخة ✓؛ «مكتبة HTML»: إضافة الكود بنافذة + استخدام كود في مشروع قائم (متجرتي) → صفحة عرض رمضان ✓
+   - التصدير من الواجهة: فحوصات → جاهز → تحميل ZIP ✓ (تأجير-سيارات-الجزائر.zip)
+   - الجوال 390px: معرض الأنماط عمود واحد بلا فائض أفقي (390=390) — 9/10 ✓
+   - التذييل: لاصق عند 8200px (bottom=8200) ومدفوع طبيعياً عند 900px ✓
+   - 0 أخطاء متصفح، 0 أخطاء console، dev.log نظيف
+3. tsc --noEmit: نظيف. bun run lint: 0 أخطاء (تحذير الخطوط القديم وحده).
+4. تنظيف كل بيانات الاختبار (مشاريع/قوالب/أكواد) — بقيت بذور العرض الثلاثة فقط.
+
+**Stage Summary:**
+الميزات الخمس تعمل من طرف إلى طرف: (1) 12 نمط صفحة هبوط قابلة للاختيار من تدفق الإنشاء ومكتبة القوالب ولوحة الصفحات والوكيل الذكي، (2) رفع الشعار ودمجه في المعاينة والتصدير (favicon/assets)، (3) حفظ المشاريع كقوالب شخصية وإعادة استخدامها، (4) مكتبة HTML (رفع/لصق/استخدام في مشاريع) بمكوّن custom-html معزول، (5) تحسينات جودة التصدير (SEO/OG/حركات/زر أعلى/skip-link/شعار). إعادة تشغيل خادم التطوير بعد توقفه أثناء عمل الوكلاء المتوازيين.

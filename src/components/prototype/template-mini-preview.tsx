@@ -69,7 +69,7 @@ export function TemplateMiniPreview({
         className="pointer-events-none absolute top-0 right-0 origin-top-right select-none"
         style={{ width: PREVIEW_WIDTH, transform: `scale(${scale})` }}
       >
-        <PrototypeRenderer schema={schema} pageId={landingPageId} interactive={false} />
+        <PrototypeRenderer schema={schema} pageId={landingPageId} interactive={false} mini />
       </div>
 
       {/* تدرّج علوي خفيف */}

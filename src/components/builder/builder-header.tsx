@@ -1,6 +1,6 @@
 'use client'
 
-// شريط البناء العلوي: اسم المشروع + حفظ + تراجع/إعادة + أجهزة + معاينة + تحميل
+// شريط البناء العلوي: اسم المشروع + حفظ + حفظ كقالب + تراجع/إعادة + أجهزة + معاينة + تحميل
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { t } from '@/lib/i18n'
@@ -8,6 +8,7 @@ import { renameProjectInSchema } from '@/lib/project/tools'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { SaveTemplateDialog } from './save-template-dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +21,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   ArrowRight,
+  Bookmark,
   Download,
   Eye,
   History,
@@ -50,10 +52,12 @@ export function BuilderHeader() {
   const runExport = useAppStore((s) => s.runExport)
   const closeBuilder = useAppStore((s) => s.closeBuilder)
   const setRightPanel = useAppStore((s) => s.setRightPanel)
+  const projectId = useAppStore((s) => s.projectId)
 
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
   const [confirmExit, setConfirmExit] = useState(false)
+  const [templateOpen, setTemplateOpen] = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
 
   const projectName = schema?.metadata.name ?? ''
@@ -85,7 +89,7 @@ export function BuilderHeader() {
   }
 
   const handleDownload = async () => {
-    if (dirty) await saveProject('تحديث قبل التحميل')
+    if (dirty) await saveProject(t.builder.versionLabelBeforeDownload)
     openExport()
     void runExport()
   }
@@ -205,6 +209,22 @@ export function BuilderHeader() {
 
       {/* الإجراءات الأساسية */}
       <div className="flex items-center gap-1.5">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden h-9 gap-1.5 sm:inline-flex"
+              onClick={() => setTemplateOpen(true)}
+              disabled={!projectId}
+              aria-label={t.builder.saveAsTemplateBtn}
+            >
+              <Bookmark className="size-4" />
+              <span className="hidden xl:inline">{t.builder.saveAsTemplateBtn}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{t.builder.saveAsTemplateBtn}</TooltipContent>
+        </Tooltip>
         <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setPreviewOpen(true)}>
           <Eye className="size-4" />
           <span className="hidden sm:inline">{t.builder.preview}</span>
@@ -224,6 +244,9 @@ export function BuilderHeader() {
           <span className="hidden sm:inline">{saving ? t.builder.saving : t.builder.saveBtn}</span>
         </Button>
       </div>
+
+      {/* نافذة حفظ كقالب */}
+      <SaveTemplateDialog open={templateOpen} onOpenChange={setTemplateOpen} />
 
       {/* تأكيد الخروج مع تغييرات غير محفوظة */}
       <AlertDialog open={confirmExit} onOpenChange={setConfirmExit}>

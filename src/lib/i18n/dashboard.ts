@@ -66,4 +66,16 @@ export const dashboard = {
   noResultsTitle: 'لا توجد مشاريع مطابقة',
   noResultsSubtitle: 'جرّب كلمة بحث أخرى أو غيّر حالة التصفية.',
   resetFilters: 'إزالة التصفية',
+
+  // ---------- حفظ المشروع كقالب ----------
+  saveAsTemplateAction: 'حفظ كقالب',
+  saveAsTemplateTitle: 'حفظ المشروع كقالب',
+  saveAsTemplateHint: 'يُحفظ شكل المشروع الحالي في «قوالبي» لإنشاء مشاريع مشابهة بضغطة واحدة.',
+  saveAsTemplateNameLabel: 'اسم القالب',
+  saveAsTemplateDescLabel: 'الوصف (اختياري)',
+  saveAsTemplateDescPlaceholder: 'مثال: متجر إلكتروني مع لوحة تحكم وصفحة تسعير',
+  saveAsTemplateSubmit: 'حفظ القالب',
+  saveAsTemplateSaving: 'جارٍ الحفظ...',
+  saveAsTemplateSuccess: 'تم الحفظ في «قوالبي» — تجدها في مكتبة القوالب',
+  saveAsTemplateError: 'تعذّر حفظ القالب، حاول مرة أخرى.',
 } as const

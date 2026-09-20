@@ -96,6 +96,11 @@ export function ptVars(theme: ProjectTheme): CSSProperties {
 
 // ---------- PrototypeThemeScope ----------
 
+// حركة دخول خفيفة للكتل في وضع المعاينة فقط (Task 7-b)
+const PT_RISE_CSS =
+  '@keyframes pt-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}' +
+  '.pt-rise{animation:pt-rise .5s cubic-bezier(.22,.61,.36,1) both}'
+
 export function PrototypeThemeScope({
   theme,
   children,
@@ -107,6 +112,7 @@ export function PrototypeThemeScope({
 }): ReactElement {
   return (
     <div dir="rtl" style={ptVars(theme)} className={className}>
+      <style dangerouslySetInnerHTML={{ __html: PT_RISE_CSS }} />
       {children}
     </div>
   )

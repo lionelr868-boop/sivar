@@ -33,6 +33,7 @@ import {
   slugify as slugifyFn,
   uid as uidFn,
 } from '@/lib/types'
+import { buildLandingBlocks, changeLandingVariant as changeLandingVariantInSchema, getLandingVariant, LANDING_VARIANTS } from '@/lib/project/landing-kit'
 
 // ============================================================
 // helpers
@@ -93,14 +94,14 @@ function cleanNavReferences(schema: ProjectSchema, pageId: string): void {
 export function starterBlocksFor(
   schema: ProjectSchema,
   type: PageType,
-  opts?: { entity?: string; authVariant?: AuthVariant }
+  opts?: { entity?: string; authVariant?: AuthVariant; landingVariant?: string }
 ): Block[] {
   const d = (t: BlockType): Record<string, unknown> => clone(BLOCK_REGISTRY[t].defaults())
   const mk = (t: BlockType, props: Record<string, unknown>): Block => ({ id: uidFn('b_'), type: t, props })
 
   switch (type) {
     case 'landing':
-      return [mk('hero', d('hero')), mk('features', d('features')), mk('stats', d('stats')), mk('cta', d('cta'))]
+      return buildLandingBlocks(schema, opts?.landingVariant)
     case 'auth': {
       const variant: AuthVariant = opts?.authVariant ?? 'login'
       const props = d('auth-card')
@@ -169,7 +170,7 @@ export function starterBlocksFor(
 
 export function addPageToSchema(
   schema: ProjectSchema,
-  opts: { name: string; type: PageType; entity?: string; authVariant?: AuthVariant }
+  opts: { name: string; type: PageType; entity?: string; authVariant?: AuthVariant; landingVariant?: string }
 ): { schema: ProjectSchema; pageId: string } {
   const next = clone(schema)
   const type: PageType = isPageType(opts.type) ? opts.type : 'custom'
@@ -183,8 +184,42 @@ export function addPageToSchema(
     entity: opts.entity,
     title: name,
     subtitle: '',
-    blocks: starterBlocksFor(next, type, { entity: opts.entity, authVariant: opts.authVariant }),
+    blocks: starterBlocksFor(next, type, {
+      entity: opts.entity,
+      authVariant: opts.authVariant,
+      landingVariant: opts.landingVariant,
+    }),
   }
+  next.pages.push(page)
+  return { schema: next, pageId: page.id }
+}
+
+/** صفحة HTML مخصصة — كود من المستخدم داخل إطار آمن، مع هيكل الموقع أو لوحة التحكم حوله */
+export function addHtmlPageToSchema(
+  schema: ProjectSchema,
+  opts: { name: string; html: string; placement?: 'site' | 'dashboard'; height?: number }
+): { schema: ProjectSchema; pageId: string } {
+  const placement = opts.placement === 'dashboard' ? 'dashboard' : 'site'
+  const type: PageType = placement === 'dashboard' ? 'dashboard' : 'landing'
+  const name = opts.name?.trim() || (placement === 'dashboard' ? 'لوحة HTML' : 'صفحة HTML')
+  const html = typeof opts.html === 'string' && opts.html.trim() ? opts.html : String(BLOCK_REGISTRY['custom-html'].defaults().html)
+  const height = typeof opts.height === 'number' && Number.isFinite(opts.height) && opts.height > 0 ? Math.min(4000, Math.round(opts.height)) : 560
+  const page: ProjectPage = {
+    id: uidFn('page_'),
+    name,
+    slug: slugifyFn(name),
+    type,
+    title: name,
+    subtitle: '',
+    blocks: [
+      {
+        id: uidFn('b_'),
+        type: 'custom-html',
+        props: { name, html, height },
+      },
+    ],
+  }
+  const next = clone(schema)
   next.pages.push(page)
   return { schema: next, pageId: page.id }
 }
@@ -412,9 +447,15 @@ export function applyActions(schema: ProjectSchema, actions: AgentAction[]): Act
             authVariantRaw === 'login' || authVariantRaw === 'signup' || authVariantRaw === 'forgot'
               ? authVariantRaw
               : undefined
-          const { schema: next, pageId } = addPageToSchema(current, { name, type, entity, authVariant })
+          const landingVariantRaw = strArg(args, 'landingVariant')
+          const landingVariant = LANDING_VARIANTS.some((v) => v.id === landingVariantRaw) ? landingVariantRaw : undefined
+          const { schema: next, pageId } = addPageToSchema(current, { name, type, entity, authVariant, landingVariant })
           current = next
-          applied.push(`تمت إضافة صفحة «${name}»`)
+          applied.push(
+            landingVariant && type === 'landing'
+              ? `تمت إضافة صفحة هبوط «${name}» بنمط «${getLandingVariant(landingVariant).name}»`
+              : `تمت إضافة صفحة «${name}»`
+          )
           void pageId
           break
         }
@@ -544,6 +585,25 @@ export function applyActions(schema: ProjectSchema, actions: AgentAction[]): Act
           }
           current = moveBlockInSchema(current, page.id, block.id, position)
           applied.push(`تم نقل مكوّن «${blockLabel(block.type)}»`)
+          break
+        }
+
+        // ---------- landing variant ----------
+        case 'change_landing_variant': {
+          const variantRaw = strArg(args, 'variant') || strArg(args, 'landingVariant') || strArg(args, 'variantId')
+          const variantMeta = LANDING_VARIANTS.find((v) => v.id === variantRaw)
+          if (!variantMeta) {
+            pushError(action.tool, 'نمط صفحة الهبوط غير معروف')
+            break
+          }
+          const ref = args.pageId ?? args.page ?? args.name
+          const page = ref ? findPageRef(current, ref) : current.pages.find((p) => p.type === 'landing')
+          if (!page || page.type !== 'landing') {
+            pushError(action.tool, 'لم أجد صفحة هبوط لتغيير نمطها')
+            break
+          }
+          current = changeLandingVariantInSchema(current, page.id, variantMeta.id)
+          applied.push(`تم تحويل صفحة «${page.name}» إلى نمط «${variantMeta.name}»`)
           break
         }
 

@@ -115,6 +115,7 @@ export type BlockType =
   | 'loading-state'
   | 'error-state'
   | 'calendar'
+  | 'custom-html'
 
 export interface Block {
   id: string
@@ -261,6 +262,28 @@ export interface ProjectSettings {
   projectName: string
 }
 
+// ===== Landing page variants (مكتبة أنماط صفحات الهبوط) =====
+export type LandingVariantId =
+  | 'classic-split'
+  | 'centered-bold'
+  | 'gradient-cover'
+  | 'dark-premium'
+  | 'app-showcase'
+  | 'email-capture'
+  | 'video-lead'
+  | 'store-promo'
+  | 'agency-bold'
+  | 'event-announce'
+  | 'minimal-startup'
+  | 'stats-lead'
+
+// ===== Branding (الشعار) =====
+export interface ProjectBranding {
+  /** شعار المشروع — data URL (png) بعد تصغير العميل، أو رابط نسبي assets/logo.png عند التصدير */
+  logo?: string
+  logoName?: string
+}
+
 export interface ProjectSchema {
   version: 1
   metadata: ProjectMetadata
@@ -270,6 +293,8 @@ export interface ProjectSchema {
   pages: ProjectPage[]
   mockData: ProjectMockData
   settings: ProjectSettings
+  /** اختياري — التوافق مع المشاريع القديمة */
+  branding?: ProjectBranding
 }
 
 // ===== Idea Analysis =====
@@ -304,6 +329,7 @@ export type AgentToolName =
   | 'update_dashboard_nav'
   | 'rename_project'
   | 'generate_mock_data'
+  | 'change_landing_variant'
 
 export interface AgentAction {
   tool: AgentToolName
@@ -363,6 +389,36 @@ export interface ValidateCheck {
 export interface ValidateResult {
   ok: boolean
   checks: ValidateCheck[]
+}
+
+// ===== HTML snippets (مكتبة HTML القابلة لإعادة الاستخدام) =====
+export type HtmlSnippetKind = 'landing' | 'dashboard' | 'section'
+
+export const HTML_SNIPPET_KIND_LABELS: Record<HtmlSnippetKind, string> = {
+  landing: 'صفحة هبوط',
+  dashboard: 'لوحة تحكم',
+  section: 'قسم صفحة',
+}
+
+// ===== Saved templates (قوالبي المحفوظة من المشاريع) =====
+export interface SavedTemplateDTO {
+  id: string
+  name: string
+  description: string
+  icon: string
+  type: ProjectType
+  pageCount: number
+  sourceProjectId?: string | null
+  createdAt: string
+}
+
+export interface HtmlSnippetDTO {
+  id: string
+  name: string
+  kind: HtmlSnippetKind
+  html: string
+  createdAt: string
+  updatedAt: string
 }
 
 // ===== Platform helpers =====

@@ -183,6 +183,29 @@ export function validateSchema(schema: ProjectSchema): ValidateResult {
     )
   }
 
+  // ---------- 7. أقسام HTML المخصصة ----------
+  {
+    const id = 'custom-html'
+    const label = 'أقسام HTML المخصصة'
+    const problems: string[] = []
+    let count = 0
+    for (const page of schema.pages ?? []) {
+      for (const block of page.blocks ?? []) {
+        if (block.type !== 'custom-html') continue
+        count++
+        const html = block.props?.['html']
+        if (typeof html !== 'string' || !html.trim() || !html.includes('<')) {
+          problems.push(`قسم HTML فارغ في صفحة «${page.name}»`)
+        }
+      }
+    }
+    checks.push(
+      problems.length
+        ? error(id, label, problems.slice(0, 4).join('، '))
+        : ok(id, label, count ? `${count} قسماً بكود HTML سليم` : 'لا توجد أقسام HTML مخصصة')
+    )
+  }
+
   const okAll = checks.every((c) => c.status === 'ok')
   return { ok: okAll, checks }
 }

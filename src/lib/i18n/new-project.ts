@@ -57,6 +57,17 @@ export const newProject = {
   successTitle: 'تم إنشاء مشروعك',
   successSubtitle: 'جارٍ فتح المحرّر...',
 
+  // ---------- خطوة نمط الواجهة (اختيارية) ----------
+  variantStepTitle: 'شكل الصفحة الرئيسية',
+  variantStepSubtitle: 'اختر نمط الواجهة — يمكنك تغييره لاحقاً من داخل البناء.',
+  variantBackToIdea: 'رجوع إلى الفكرة',
+  stepIdea: 'الفكرة',
+  stepVariant: 'نمط الواجهة',
+  stepAnalyze: 'التحليل',
+  stepReview: 'المراجعة',
+  stepBuild: 'البناء',
+  stepIndicator: 'تقدّم إنشاء المشروع',
+
   // ---------- عام ----------
   backToProjects: 'رجوع إلى المشاريع',
   errorAnalyze: 'تعذّر تحليل الفكرة — حاول مرة أخرى.',

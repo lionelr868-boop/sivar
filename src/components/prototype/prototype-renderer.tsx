@@ -22,6 +22,7 @@ import { CalendarBlock } from './blocks/calendar-block'
 import { ChartBlock } from './blocks/chart-block'
 import { ContactFormBlock } from './blocks/contact-form-block'
 import { CtaBlock } from './blocks/cta-block'
+import { CustomHtmlBlock } from './blocks/custom-html-block'
 import { DashboardHeaderBlock } from './blocks/dashboard-header-block'
 import { DataTableBlock } from './blocks/data-table-block'
 import { EmptyStateBlock, ErrorStateBlock, LoadingStateBlock } from './blocks/state-blocks'
@@ -62,6 +63,8 @@ function renderBlock(block: Block, ctx: BlockCtx): ReactElement {
       return <FaqBlock block={block} />
     case 'cta':
       return <CtaBlock block={block} />
+    case 'custom-html':
+      return <CustomHtmlBlock key={block.id} block={block} ctx={ctx} />
     case 'contact-form':
       return <ContactFormBlock block={block} />
     case 'gallery':
@@ -115,12 +118,20 @@ function BlockList({
 }): ReactElement {
   return (
     <>
-      {page.blocks.map((block) => {
+      {page.blocks.map((block, index) => {
         const label = BLOCK_REGISTRY[block.type]?.label ?? block.type
         const selected = selectedBlockId === block.id
         const dimmed = selectedBlockId != null && selectedBlockId !== block.id
 
         if (!onBlockSelect) {
+          // حركة دخول متدرّجة في وضع المعاينة التفاعلي فقط (بلا وضع التحرير)
+          if (ctx.interactive) {
+            return (
+              <div key={block.id} className="pt-rise" style={{ animationDelay: `${Math.min(index, 6) * 60}ms` }}>
+                {renderBlock(block, ctx)}
+              </div>
+            )
+          }
           return <div key={block.id}>{renderBlock(block, ctx)}</div>
         }
 
@@ -189,6 +200,7 @@ function SiteShell({
 }): ReactElement {
   const [menuOpen, setMenuOpen] = useState(false)
   const nav = schema.navigation
+  const logo = ctx.schema.branding?.logo
   const homeId = schema.pages.find((pg) => pg.type === 'landing')?.id ?? schema.pages[0]?.id
   const go = (pageId: string) => {
     if (ctx.onNavigate) ctx.onNavigate(pageId)
@@ -228,8 +240,20 @@ function SiteShell({
             aria-label={`الذهاب إلى ${nav.brand}`}
             className="flex min-h-10 cursor-pointer items-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pt-primary)]"
           >
-            <span className="size-8 rounded-[calc(var(--pt-radius)-2px)]" style={{ background: 'var(--pt-primary)' }} />
-            <span className="text-base font-extrabold text-[var(--pt-text)] md:text-lg">{nav.brand}</span>
+            {logo ? (
+              <img
+                src={logo}
+                alt={nav.brand}
+                loading="lazy"
+                decoding="async"
+                className="h-8 w-auto max-w-[120px] object-contain md:h-9"
+              />
+            ) : (
+              <>
+                <span className="size-8 rounded-[calc(var(--pt-radius)-2px)]" style={{ background: 'var(--pt-primary)' }} />
+                <span className="text-base font-extrabold text-[var(--pt-text)] md:text-lg">{nav.brand}</span>
+              </>
+            )}
           </button>
 
           {/* تنقل سطح المكتب */}
@@ -288,8 +312,20 @@ function SiteShell({
         <div className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <div className="flex items-center gap-2">
-              <span className="size-6 rounded-[calc(var(--pt-radius)-4px)]" style={{ background: 'var(--pt-primary)' }} />
-              <span className="text-sm font-bold text-[var(--pt-text)]">{nav.brand}</span>
+              {logo ? (
+                <img
+                  src={logo}
+                  alt={nav.brand}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-7 w-auto max-w-[100px] object-contain"
+                />
+              ) : (
+                <>
+                  <span className="size-6 rounded-[calc(var(--pt-radius)-4px)]" style={{ background: 'var(--pt-primary)' }} />
+                  <span className="text-sm font-bold text-[var(--pt-text)]">{nav.brand}</span>
+                </>
+              )}
               <PBadge tone="primary">بيانات تجريبية</PBadge>
             </div>
             <nav aria-label="تنقل التذييل" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
@@ -306,9 +342,18 @@ function SiteShell({
             </nav>
           </div>
           {nav.footerNote ? (
-            <p className="mt-4 border-t border-[var(--pt-border)] pt-4 text-center text-xs text-[var(--pt-muted)]">
-              {nav.footerNote}
-            </p>
+            <div className="mt-4 flex flex-col items-center gap-2 border-t border-[var(--pt-border)] pt-4 text-center">
+              {logo ? (
+                <img
+                  src={logo}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="h-6 w-auto max-w-[90px] object-contain opacity-80"
+                />
+              ) : null}
+              <p className="text-xs text-[var(--pt-muted)]">{nav.footerNote}</p>
+            </div>
           ) : null}
         </div>
       </footer>
@@ -368,6 +413,7 @@ function DashboardShell({
   onBlockSelect?: (blockId: string | null) => void
 }): ReactElement {
   const items = schema.dashboardNav.items
+  const logo = ctx.schema.branding?.logo
   const go = (pageId: string) => {
     if (ctx.onNavigate) ctx.onNavigate(pageId)
   }
@@ -400,8 +446,20 @@ function DashboardShell({
       {/* الشريط الجانبي — سطح المكتب */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-e border-[var(--pt-border)] bg-[var(--pt-surface)] lg:flex">
         <div className="flex items-center gap-2.5 border-b border-[var(--pt-border)] px-4 py-4">
-          <span className="size-8 shrink-0 rounded-[calc(var(--pt-radius)-2px)]" style={{ background: 'var(--pt-primary)' }} />
-          <span className="truncate text-sm font-extrabold">{schema.navigation.brand}</span>
+          {logo ? (
+            <img
+              src={logo}
+              alt={schema.navigation.brand}
+              loading="lazy"
+              decoding="async"
+              className="h-8 w-auto max-w-[140px] object-contain"
+            />
+          ) : (
+            <>
+              <span className="size-8 shrink-0 rounded-[calc(var(--pt-radius)-2px)]" style={{ background: 'var(--pt-primary)' }} />
+              <span className="truncate text-sm font-extrabold">{schema.navigation.brand}</span>
+            </>
+          )}
         </div>
 
         <nav aria-label="تنقل لوحة التحكم" className="flex-1 space-y-1 overflow-y-auto p-3">
@@ -425,8 +483,20 @@ function DashboardShell({
         {/* صف التنقل الأفقي — الهاتف/اللوحي */}
         <div className="sticky top-0 z-30 border-b border-[var(--pt-border)] bg-[var(--pt-surface)] lg:hidden">
           <div className="flex items-center gap-2.5 border-b border-[var(--pt-border)] px-4 py-3">
-            <span className="size-7 shrink-0 rounded-[calc(var(--pt-radius)-4px)]" style={{ background: 'var(--pt-primary)' }} />
-            <span className="truncate text-sm font-extrabold">{schema.navigation.brand}</span>
+            {logo ? (
+              <img
+                src={logo}
+                alt={schema.navigation.brand}
+                loading="lazy"
+                decoding="async"
+                className="h-7 w-auto max-w-[110px] object-contain"
+              />
+            ) : (
+              <>
+                <span className="size-7 shrink-0 rounded-[calc(var(--pt-radius)-4px)]" style={{ background: 'var(--pt-primary)' }} />
+                <span className="truncate text-sm font-extrabold">{schema.navigation.brand}</span>
+              </>
+            )}
             <span className="ms-auto">
               <PAvatar name="م" size={30} />
             </span>
@@ -461,6 +531,7 @@ export function PrototypeRenderer({
   onBlockSelect,
   onNavigate,
   interactive,
+  mini,
 }: {
   schema: ProjectSchema
   pageId: string
@@ -471,6 +542,8 @@ export function PrototypeRenderer({
   onNavigate?: (pageId: string) => void
   /** وضع المعاينة: النماذج والأزرار حيّة */
   interactive?: boolean
+  /** معاينة مصغّرة — بديل خفيف لأقسام HTML المخصصة */
+  mini?: boolean
 }): ReactElement {
   const page =
     schema.pages.find((pg) => pg.id === pageId) ??
@@ -480,6 +553,7 @@ export function PrototypeRenderer({
   const ctx: BlockCtx = {
     schema,
     interactive: interactive ?? false,
+    mini,
     onNavigate,
   }
 

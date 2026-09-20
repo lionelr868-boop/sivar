@@ -13,7 +13,7 @@ export type FieldDefinition =
   | {
       key: string
       label: string
-      type: 'text' | 'textarea' | 'number' | 'color' | 'switch' | 'select'
+      type: 'text' | 'textarea' | 'number' | 'color' | 'switch' | 'select' | 'code'
       options?: { value: string; label: string }[]
     }
   | { key: string; label: string; type: 'list'; itemFields: FieldDefinition[]; itemLabel?: string }
@@ -41,6 +41,18 @@ const HERO_BG_OPTIONS = [
   { value: 'muted', label: 'خفيف ملوّن' },
   { value: 'dark', label: 'داكن' },
   { value: 'gradient', label: 'تدرّج لوني' },
+]
+const HERO_VISUAL_OPTIONS = [
+  { value: 'dashboard', label: 'رسم لوحة تحكم' },
+  { value: 'phone', label: 'هاتف تطبيق' },
+  { value: 'video', label: 'بطاقة فيديو' },
+  { value: 'form', label: 'نموذج بريد (جمع تسجيلات)' },
+  { value: 'none', label: 'بدون رسم' },
+]
+const HERO_TITLE_SIZE_OPTIONS = [
+  { value: 'md', label: 'عادي' },
+  { value: 'lg', label: 'كبير' },
+  { value: 'xl', label: 'ضخم' },
 ]
 const ALIGN_OPTIONS = [
   { value: 'start', label: 'بداية السطر' },
@@ -138,15 +150,25 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       layout: 'split',
       background: 'default',
       align: 'start',
+      visual: 'dashboard',
+      titleSize: 'md',
+      eyebrow: '',
+      emailPlaceholder: '',
+      emailButton: '',
     }),
     fields: [
+      { key: 'eyebrow', label: 'شعار صغير (Eyebrow)', type: 'text' },
       { key: 'title', label: 'العنوان', type: 'text' },
       { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
       { key: 'primaryButton', label: 'نص الزر الأساسي', type: 'text' },
       { key: 'secondaryButton', label: 'نص الزر الثانوي', type: 'text' },
       { key: 'layout', label: 'التخطيط', type: 'select', options: LAYOUT_OPTIONS },
+      { key: 'visual', label: 'الرسم الجانبي', type: 'select', options: HERO_VISUAL_OPTIONS },
+      { key: 'titleSize', label: 'حجم العنوان', type: 'select', options: HERO_TITLE_SIZE_OPTIONS },
       { key: 'background', label: 'الخلفية', type: 'select', options: HERO_BG_OPTIONS },
       { key: 'align', label: 'محاذاة النص', type: 'select', options: ALIGN_OPTIONS },
+      { key: 'emailPlaceholder', label: 'حقل البريد — النص التوضيحي', type: 'text' },
+      { key: 'emailButton', label: 'حقل البريد — نص الزر', type: 'text' },
     ],
   },
 
@@ -835,6 +857,28 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       { key: 'title', label: 'العنوان', type: 'text' },
       { key: 'subtitle', label: 'الوصف', type: 'textarea' },
       { key: 'actionText', label: 'نص زر الإجراء', type: 'text' },
+    ],
+  },
+
+  // ---------------- custom ----------------
+  'custom-html': {
+    type: 'custom-html',
+    label: 'HTML مخصص',
+    category: 'marketing',
+    description: 'كود HTML خاص تتحكم به بالكامل — يُعرض داخل إطار آمن',
+    icon: 'code',
+    defaults: () => ({
+      name: 'قسم HTML مخصص',
+      html: `<div style="max-width:640px;margin:0 auto;padding:40px 20px;border-radius:16px;background:linear-gradient(135deg,#7c3aed,#db2777);color:#fff;text-align:center;font-family:inherit">
+  <h2 style="margin:0 0 12px;font-size:26px">قسم HTML من تصميمك</h2>
+  <p style="margin:0;opacity:.9">استبدل هذا الكود بتصميمك الخاص — صفحات هبوط، بطاقات، أو لوحات تحكم.</p>
+</div>`,
+      height: 560,
+    }),
+    fields: [
+      { key: 'name', label: 'اسم القسم', type: 'text' },
+      { key: 'height', label: 'ارتفاع الإطار (بكسل)', type: 'number' },
+      { key: 'html', label: 'كود HTML', type: 'code' },
     ],
   },
 }

@@ -19,6 +19,8 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   projects     Project[]
+  savedTemplates SavedTemplate[]
+  snippets     HtmlSnippet[]
 }
 
 model Project {
@@ -45,4 +47,35 @@ model ProjectVersion {
   createdAt DateTime @default(now())
 
   @@index([projectId, number])
+}
+
+/// قوالب يحفظها المستخدم من مشاريعه لإعادة استعمالها
+model SavedTemplate {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  description     String   @default("")
+  icon            String   @default("layers")
+  type            String   @default("other")
+  schemaJson      String
+  sourceProjectId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+}
+
+/// مكتبة HTML — أكواد يرفعها/يلصقها المستخدم لصفحات هبوط أو لوحات تحكم
+model HtmlSnippet {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  kind      String   @default("section")
+  html      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }

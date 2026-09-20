@@ -9,6 +9,7 @@ import { analyzeIdea, sanitizeAnalysis } from '@/lib/server/analyze'
 import { createProjectFromAnalysis } from '@/lib/project/factory'
 import { renameProjectInSchema } from '@/lib/project/tools'
 import { getTemplateMeta } from '@/lib/project/templates'
+import { LANDING_VARIANTS } from '@/lib/project/landing-kit'
 import type { IdeaAnalysis, ProjectSchema, ProjectStyle, ProjectType } from '@/lib/types'
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024 // 2MB
@@ -105,8 +106,12 @@ export async function POST(request: Request): Promise<NextResponse> {
       }
     }
 
+    // ---------- نمط صفحة الهبوط (من مكتبة الأنماط الـ12) ----------
+    const landingVariantRaw = typeof body.landingVariant === 'string' ? body.landingVariant.trim() : ''
+    const landingVariant = LANDING_VARIANTS.some((v) => v.id === landingVariantRaw) ? landingVariantRaw : undefined
+
     // ---------- بناء المخطط ----------
-    let schema: ProjectSchema = createProjectFromAnalysis(analysis, { style, palette })
+    let schema: ProjectSchema = createProjectFromAnalysis(analysis, { style, palette, landingVariant })
     if (name) schema = renameProjectInSchema(schema, name)
 
     const schemaJson = JSON.stringify(schema)

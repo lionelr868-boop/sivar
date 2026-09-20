@@ -5,6 +5,7 @@
 // ============================================================
 import { getTemplateMeta, buildTemplateSchema, TEMPLATES } from '@/lib/project/templates'
 import { addPageToSchema } from '@/lib/project/tools'
+import { changeLandingVariant, LANDING_VARIANTS } from '@/lib/project/landing-kit'
 import { PROJECT_TYPE_LABELS } from '@/lib/types'
 import type {
   IdeaAnalysis,
@@ -49,6 +50,8 @@ export function createProjectFromAnalysis(
   opts?: {
     style?: ProjectStyle
     palette?: { primary: string; secondary: string; accent: string }
+    /** نمط صفحة الهبوط المختار من مكتبة الأنماط الـ12 */
+    landingVariant?: string
   }
 ): ProjectSchema {
   const templateId = pickTemplateId(analysis)
@@ -120,6 +123,16 @@ export function createProjectFromAnalysis(
     }
     return true
   })
+
+  // ---------- نمط صفحة الهبوط المختار ----------
+  // إن اختار المستخدم نمطاً من مكتبة أنماط الهبوط، نعيد بناء أول صفحة هبوط به
+  if (opts?.landingVariant && LANDING_VARIANTS.some((v) => v.id === opts.landingVariant)) {
+    const landing = schema.pages.find((p) => p.type === 'landing')
+    if (landing) {
+      const rebuilt = changeLandingVariant(schema, landing.id, opts.landingVariant)
+      schema.pages = rebuilt.pages
+    }
+  }
 
   // وقت إنشاء حقيقي للمشروع الجديد
   schema.metadata.createdAt = new Date().toISOString()

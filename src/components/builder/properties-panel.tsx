@@ -263,6 +263,31 @@ function SimpleField({
     )
   }
 
+  if (field.type === 'code') {
+    const charCount = typeof draft === 'string' ? draft.length : 0
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{field.label}</Label>
+        <div className="flex items-center justify-between gap-2">
+          <p className="min-w-0 flex-1 text-xs text-muted-foreground">{t.builder.codeFieldHint}</p>
+          <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground/70">
+            <span dir="ltr">{charCount.toLocaleString('en-US')}</span> {t.builder.charsUnit}
+          </span>
+        </div>
+        <Textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          rows={12}
+          dir="ltr"
+          spellCheck={false}
+          className="min-h-[220px] bg-muted/40 font-mono text-xs leading-relaxed"
+          aria-label={field.label}
+        />
+      </div>
+    )
+  }
+
   if (field.type === 'textarea') {
     return (
       <div className="space-y-1.5">

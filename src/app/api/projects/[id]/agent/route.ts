@@ -57,6 +57,19 @@ function autoFixSchema(schema: ProjectSchema): ProjectSchema {
     }
   }
 
+  // 4. إصلاح أقسام HTML المخصصة الفارغة — استبدالها بمثال افتراضي
+  const defaultHtml = String(BLOCK_REGISTRY['custom-html'].defaults().html)
+  for (const page of schema.pages as ProjectPage[]) {
+    for (const block of page.blocks) {
+      if (block.type === 'custom-html') {
+        const html = block.props['html']
+        if (typeof html !== 'string' || !html.trim() || !html.includes('<')) {
+          block.props = { ...block.props, html: defaultHtml }
+        }
+      }
+    }
+  }
+
   return schema
 }
 
