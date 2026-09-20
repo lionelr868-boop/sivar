@@ -1,7 +1,7 @@
 // نصوص مشتركة لكل المنصة — Arabic common strings
 export const common = {
   // brand
-  brand: 'نموذج',
+  brand: 'SIVAR',
   brandTagline: 'حوّل فكرتك إلى نموذج أولي حقيقي',
 
   // buttons

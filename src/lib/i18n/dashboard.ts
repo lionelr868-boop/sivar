@@ -14,7 +14,7 @@ export const dashboard = {
   searchPlaceholder: 'ابحث في مشاريعك...',
   notificationsLabel: 'الإشعارات',
   notificationsTitle: 'تنبيهات المنصة',
-  notifWelcomeTitle: 'مرحبًا بك في نموذج',
+  notifWelcomeTitle: 'مرحبًا بك في SIVAR',
   notifWelcomeBody: 'جرّب إنشاء أول مشروع من فكرة بسيطة — سنساعدك خطوة بخطوة.',
   notifTemplatesTitle: 'قوالب جديدة متوفرة',
   notifTemplatesBody: 'اطّلع على 14 قالبًا جاهزًا لمختلف أنواع المشاريع.',

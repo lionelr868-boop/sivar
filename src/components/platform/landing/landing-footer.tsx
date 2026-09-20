@@ -79,6 +79,13 @@ export function LandingFooter() {
             © {year} {t.common.brand} — {t.landing.footerRights}
           </p>
         </div>
+
+        {/* developer credit — golden glowing line at the very bottom */}
+        <div className="mt-7 text-center">
+          <p className="sivar-credit font-display text-base leading-relaxed font-extrabold sm:text-lg md:text-xl">
+            {t.landing.footerDevCredit}
+          </p>
+        </div>
       </div>
     </footer>
   )

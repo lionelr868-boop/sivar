@@ -43,7 +43,7 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* ===== نموذج — Violet-based Arabic-first theme ===== */
+/* ===== SIVAR — Violet-based Arabic-first theme ===== */
 :root {
   --radius: 0.75rem;
   --background: #fafafa;
@@ -184,4 +184,63 @@ section[id] {
 /* prevent horizontal overflow in RTL layouts */
 html, body {
   overflow-x: clip;
+}
+
+/* ===== SIVAR — golden glowing developer credit ===== */
+/* خط ذهبي متدرّج مضيء وواضح — يتلاءم مع الوضع الفاتح والداكن */
+.sivar-credit {
+  display: inline-block;
+  background: linear-gradient(
+    100deg,
+    #8a6508 0%,
+    #c99a2e 22%,
+    #f7df8e 45%,
+    #fff3c4 50%,
+    #f7df8e 55%,
+    #c99a2e 78%,
+    #8a6508 100%
+  );
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  /* توهّج ذهبي + ظل رقيق لزيادة الوضوح على الفاتح */
+  filter:
+    drop-shadow(0 0 3px rgb(212 175 55 / 0.55))
+    drop-shadow(0 0 12px rgb(212 175 55 / 0.32))
+    drop-shadow(0 1px 1px rgb(0 0 0 / 0.22));
+  animation: sivar-credit-shine 5.5s linear infinite;
+}
+
+/* في الوضع الداكن: ذهب أفتح وتوهّج أعمق */
+.dark .sivar-credit {
+  background: linear-gradient(
+    100deg,
+    #d4af37 0%,
+    #f0d060 22%,
+    #ffeaa0 45%,
+    #fffbe0 50%,
+    #ffeaa0 55%,
+    #f0d060 78%,
+    #d4af37 100%
+  );
+  background-size: 220% auto;
+  filter:
+    drop-shadow(0 0 4px rgb(240 208 96 / 0.65))
+    drop-shadow(0 0 18px rgb(212 175 55 / 0.40))
+    drop-shadow(0 1px 2px rgb(0 0 0 / 0.55));
+}
+
+/* لمعة تمرّ على النص ببطء */
+@keyframes sivar-credit-shine {
+  to {
+    background-position: -220% center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sivar-credit {
+    animation: none;
+  }
 }

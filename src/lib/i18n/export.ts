@@ -41,7 +41,7 @@ export const exportStrings = {
   guidePreview: 'معاينة المشروع',
   guideDownload: 'تحميل المشروع',
   guideBack: 'رجوع إلى لوحة التحكم',
-  guideNote: 'النشر يتم بحسابك أنت — منصة نموذج لا تنشر نيابة عنك، ولا تحتاج أي مفاتيح أو صلاحيات.',
+  guideNote: 'النشر يتم بحسابك أنت — منصة SIVAR لا تنشر نيابة عنك، ولا تحتاج أي مفاتيح أو صلاحيات.',
   guideFree: 'خطة Netlify المجانية كافية تمامًا لنماذجك الأولى.',
   guideManual: 'دليل مفصّل خطوة بخطوة:',
   guideManualSteps: [

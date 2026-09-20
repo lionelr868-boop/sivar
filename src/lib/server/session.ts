@@ -1,5 +1,5 @@
 // ============================================================
-// نموذج — Server Session & DTO helpers (خادم فقط)
+// SIVAR — Server Session & DTO helpers (خادم فقط)
 // Task 3-b — جلسة وهمية (cookie) + تحويلات Prisma → DTO
 // ============================================================
 import { createHash } from 'crypto'
@@ -16,14 +16,14 @@ import type {
   UserDTO,
 } from '@/lib/types'
 
-export const SESSION_COOKIE = 'namudhaj_session'
+export const SESSION_COOKIE = 'sivar_session'
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30 // 30 يوماً
 
 // ============================================================
 // كلمة المرور
 // ============================================================
 export function hashPassword(password: string): string {
-  return createHash('sha256').update(`${password}::namudhaj`).digest('hex')
+  return createHash('sha256').update(`${password}::sivar`).digest('hex')
 }
 
 // ============================================================

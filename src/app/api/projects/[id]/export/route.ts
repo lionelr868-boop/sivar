@@ -1,5 +1,5 @@
 // ============================================================
-// نموذج — GET /api/projects/[id]/export
+// SIVAR — GET /api/projects/[id]/export
 // Task 3-b — تصدير الموقع الثابت كملف ZIP (JSZip) + Netlify
 // Task 8-a — بعد التحميل: حذف صور خلفيات البطل المؤقتة من
 // قاعدة البيانات (تبقى داخل ZIP فقط — مطلب المستخدم).
@@ -71,8 +71,8 @@ export async function GET(_request: Request, { params }: RouteContext): Promise<
     })
 
     // ---------- اسم الملف (ASCII + امتداد UTF-8) ----------
-    const base = slugify(project.name || 'namudhaj-project')
-    const asciiBase = base.replace(/[^\x20-\x7E]/g, '').replace(/[^a-zA-Z0-9-]/g, '') || 'namudhaj-project'
+    const base = slugify(project.name || 'sivar-project')
+    const asciiBase = base.replace(/[^\x20-\x7E]/g, '').replace(/[^a-zA-Z0-9-]/g, '') || 'sivar-project'
     const encodedBase = encodeURIComponent(base)
 
     // ---------- حذف الصور المؤقتة من قاعدة البيانات بعد التحميل ----------

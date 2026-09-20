@@ -1,7 +1,7 @@
 'use client'
 
 // ============================================================
-// نموذج — TemplateMiniPreview: معاينة حيّة مصغّرة لقالب
+// SIVAR — TemplateMiniPreview: معاينة حيّة مصغّرة لقالب
 // Task 2-a-cont — PrototypeRenderer داخل حاوية مصغّرة بـ transform scale
 // (غير تفاعلي: pointer-events-none + بلا تنقل)
 // ============================================================

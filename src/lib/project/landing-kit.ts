@@ -1,5 +1,5 @@
 // ============================================================
-// نموذج — Landing Page Kit (مكتبة أنماط صفحات الهبوط)
+// SIVAR — Landing Page Kit (مكتبة أنماط صفحات الهبوط)
 // 12 نمطاً جاهزاً: لكل نمط شخصية بصرية ونسخ عربية مصقولة.
 // العقد المثبّت: LANDING_VARIANTS / getLandingVariant /
 //                buildLandingBlocks / changeLandingVariant

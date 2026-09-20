@@ -2,8 +2,9 @@
 
 // شريط التنقل العلوي للصفحة الرئيسية — sticky + blur + قائمة جوال
 import { useSyncExternalStore, useState } from 'react'
+import Image from 'next/image'
 import { useTheme } from 'next-themes'
-import { Layers, Menu, Moon, Sun } from 'lucide-react'
+import { Menu, Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -23,15 +24,17 @@ const NAV_LINKS = [
 ]
 
 export function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
-  const box = size === 'lg' ? 'size-11 rounded-xl' : 'size-8 rounded-lg'
-  const icon = size === 'lg' ? 'size-6' : 'size-4.5'
+  const box = size === 'lg' ? 'size-11' : 'size-8'
   return (
-    <span
-      className={`${box} bg-primary text-primary-foreground grid shrink-0 place-items-center shadow-sm shadow-primary/30`}
+    <Image
+      src="/logo-sivar.png"
+      alt=""
+      width={44}
+      height={44}
       aria-hidden="true"
-    >
-      <Layers className={icon} strokeWidth={2.2} />
-    </span>
+      priority
+      className={`${box} shrink-0 rounded-[26%] object-contain select-none`}
+    />
   )
 }
 

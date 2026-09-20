@@ -1,7 +1,7 @@
 'use client'
 
 // ============================================================
-// نموذج — PrototypeRenderer: محرّك عرض النموذج الأولي
+// SIVAR — PrototypeRenderer: محرّك عرض النموذج الأولي
 // Task 8-a — زر عودة عائم في كل صفحة غير الرئيسية +
 // تروستة لوحة تحكم حقيقية (بحث + إشعارات + قائمة مستخدم) +
 // بحث مدمج يفلتر جداول الصفحة + رابط العودة في الشريط الجانبي.
@@ -612,7 +612,7 @@ function DashboardTopbar({
               <div className="border-b border-[var(--pt-border)] px-3.5 py-2.5">
                 <p className="text-sm font-bold">مستخدم تجريبي</p>
                 <p className="truncate text-[11px] text-[var(--pt-muted)]" dir="ltr">
-                  demo@namudhaj.dz
+                  demo@sivar.dz
                 </p>
               </div>
               <div className="p-1.5">

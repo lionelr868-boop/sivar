@@ -3,7 +3,7 @@ import type { CSSProperties, ReactElement } from 'react'
 import { useState } from 'react'
 
 // ============================================================
-// نموذج — مكوّن البطل (Hero)
+// SIVAR — مكوّن البطل (Hero)
 // Task 8-a — خلفية صورة مرفوعة (bgImage + bgOverlay) +
 // خلفيات جديدة (gradient-soft / mesh) + أزرار عاملة.
 // Task 9-a — الرسم الجانبي واقعي: 10 خيارات (لوحة/هاتف/فيديو/

@@ -2,7 +2,7 @@
 import type { ReactElement } from 'react'
 
 // ============================================================
-// نموذج — PPagination: ترقيم صفحات بعناوين عربية
+// SIVAR — PPagination: ترقيم صفحات بعناوين عربية
 // ============================================================
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 

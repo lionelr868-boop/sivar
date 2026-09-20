@@ -1,7 +1,7 @@
 'use client'
 
 // ============================================================
-// نموذج — قسم "مشاريعي": بحث + تصفية بالحالة + شبكة مشاريع + حذف
+// SIVAR — قسم "مشاريعي": بحث + تصفية بالحالة + شبكة مشاريع + حذف
 // يصدّر ProjectCard (بطاقة مشتركة مع قسم الرئيسية)
 // Task 3-a
 // ============================================================
@@ -57,7 +57,7 @@ import type { ProjectStatus, ProjectSummaryDTO } from '@/lib/types'
 import { ProtoIcon } from '@/components/prototype/icon-map'
 
 // مفتاح تمرير كلمة البحث من ترويسة التطبيق إلى هذا القسم
-export const SEARCH_QUERY_KEY = 'namudhaj:project-search'
+export const SEARCH_QUERY_KEY = 'sivar:project-search'
 
 const tDash = t.dashboard
 

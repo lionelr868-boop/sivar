@@ -1,7 +1,7 @@
 // نصوص صفحات الدخول والتسجيل — auth strings (Arabic only)
 export const auth = {
   // header
-  welcomeTitle: 'مرحبًا بك في نموذج',
+  welcomeTitle: 'مرحبًا بك في SIVAR',
   welcomeSubtitle: 'سجّل دخولك أو أنشئ حسابًا جديدًا لتبدأ رحلتك',
 
   // tabs

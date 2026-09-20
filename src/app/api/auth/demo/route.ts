@@ -1,5 +1,5 @@
 // ============================================================
-// نموذج — POST /api/auth/demo
+// SIVAR — POST /api/auth/demo
 // Task 3-b — دخول تجريبي + بذر 3 مشاريع من القوالب
 // ============================================================
 import { NextResponse } from 'next/server'
@@ -8,7 +8,7 @@ import { getUserDTO, hashPassword, setSession } from '@/lib/server/session'
 import { buildTemplateSchema } from '@/lib/project/templates'
 import { renameProjectInSchema } from '@/lib/project/tools'
 
-const DEMO_EMAIL = 'demo@namudhaj.dz'
+const DEMO_EMAIL = 'demo@sivar.dz'
 
 /** مشاريع البذر التجريبية: [قالب، اسم، حالة] */
 const DEMO_PROJECTS: Array<{ templateId: string; name: string; status: string }> = [

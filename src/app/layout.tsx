@@ -4,11 +4,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/platform/theme-provider";
 
 export const metadata: Metadata = {
-  title: "نموذج — حوّل فكرتك إلى نموذج أولي حقيقي",
+  title: "SIVAR — حوّل فكرتك إلى نموذج أولي حقيقي",
   description:
     "اكتب فكرة مشروعك، ودع الذكاء الاصطناعي يساعدك على بناء موقعك ولوحة التحكم والواجهات الأساسية، ثم حمّل مشروعك وانشره بنفسك.",
-  keywords: ["نموذج", "prototype", "ذكاء اصطناعي", "مشاريع ناشئة", "الجزائر", "رائد أعمال"],
-  icons: { icon: "/logo.svg" },
+  keywords: ["SIVAR", "prototype", "ذكاء اصطناعي", "مشاريع ناشئة", "الجزائر", "رائد أعمال"],
+  icons: { icon: "/favicon-sivar.png" },
 };
 
 export const viewport: Viewport = {

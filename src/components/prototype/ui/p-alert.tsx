@@ -1,7 +1,7 @@
 'use client'
 
 // ============================================================
-// نموذج — PAlert: تنبيه ناعم بدرجات دلالية
+// SIVAR — PAlert: تنبيه ناعم بدرجات دلالية
 // ============================================================
 import type { ReactElement, CSSProperties, ReactNode } from 'react'
 import { CheckCircle2, Info, TriangleAlert, XCircle } from 'lucide-react'

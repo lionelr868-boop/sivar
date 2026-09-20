@@ -1,7 +1,7 @@
 'use client'
 
 // ============================================================
-// نموذج — جدول البيانات: كيان حقيقي + بحث + ترقيم صفحات
+// SIVAR — جدول البيانات: كيان حقيقي + بحث + ترقيم صفحات
 // ============================================================
 import { type ReactElement, useMemo, useState } from 'react'
 import type { Block, EntityColumn, EntityData } from '@/lib/types'

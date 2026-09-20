@@ -1,5 +1,5 @@
 // ============================================================
-// نموذج — Project Templates (14 قالباً كاملاً)
+// SIVAR — Project Templates (14 قالباً كاملاً)
 // Task 2-a — كل قالب يُنتج ProjectSchema كاملاً بمحتوى عربي
 // خاص بالقطاع، هوية لونية مميزة، وصفحات جاهزة للمعاينة.
 // العقد المثبّت: TEMPLATES / getTemplateMeta / buildTemplateSchema

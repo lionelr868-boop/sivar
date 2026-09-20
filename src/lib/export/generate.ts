@@ -1,5 +1,5 @@
 // ============================================================
-// نموذج — Static Site Generator (خادم فقط)
+// SIVAR — Static Site Generator (خادم فقط)
 // Task 3-b — يحوّل ProjectSchema إلى موقع ثابت كامل (HTML/CSS/JS)
 // جاهز للنشر على Netlify: styles.css + script.js + كل صفحة.
 // كل نصوص المستخدم تُهرَّب (htmlEscape) — لا حقن HTML إطلاقاً.
@@ -1078,7 +1078,7 @@ body:has(.pt-back) .pt-demo-badge{display:none}
 // script.js
 // ============================================================
 function buildScriptJs(): string {
-  return `// نموذج — سلوك الموقع الثابت (بدون أي مكتبات)
+  return `// SIVAR — سلوك الموقع الثابت (بدون أي مكتبات)
 (function () {
   'use strict'
 
@@ -1375,7 +1375,7 @@ function buildScriptJs(): string {
 // netlify.toml + README.md
 // ============================================================
 function buildNetlifyToml(): string {
-  return `# نموذج — إعداد النشر على Netlify (موقع ثابت، لا خطوات بناء)
+  return `# SIVAR — إعداد النشر على Netlify (موقع ثابت، لا خطوات بناء)
 [build]
   publish = "."
 `
@@ -1388,7 +1388,7 @@ function buildReadmeMd(schema: ProjectSchema): string {
   const hasBrandBg = !!dataUrlToAsset(brandingBgImage(schema))
   return `# ${name} — نموذج أولي جاهز للنشر
 
-مشروعك جاهز! هذه حزمة موقع ثابت (HTML + CSS + JS بدون أي مكتبات) أُنشئت بواسطة منصة **نموذج**.
+مشروعك جاهز! هذه حزمة موقع ثابت (HTML + CSS + JS بدون أي مكتبات) أُنشئت بواسطة منصة **SIVAR**.
 
 ## محتويات الملفات
 
@@ -1419,7 +1419,7 @@ ${hasLogo ? '| \`assets/logo.*\` | شعار مشروعك — يظهر في ال�
 
 ## دعم
 
-أُنشئ هذا النموذج بواسطة منصة **نموذج** — منصة جزائرية لتحويل الأفكار إلى نماذج أولية.
+أُنشئ هذا النموذج بواسطة منصة **SIVAR** — منصة جزائرية لتحويل الأفكار إلى نماذج أولية.
 `
 }
 
@@ -3043,7 +3043,7 @@ function dashboardTopbarHtml(ctx: RenderCtx): string {
         <span class="pt-user__name">مستخدم تجريبي</span>
       </button>
       <div class="pt-dropdown pt-dropdown--user" id="${userMenuId}" role="menu" aria-label="قائمة الحساب">
-        <div class="pt-dropdown__user"><p>مستخدم تجريبي</p><p dir="ltr">demo@namudhaj.dz</p></div>
+        <div class="pt-dropdown__user"><p>مستخدم تجريبي</p><p dir="ltr">demo@sivar.dz</p></div>
         <div class="pt-dropdown__body">
           ${profilePage ? `<a role="menuitem" class="pt-dropdown__link" href="${esc(ctx.hrefOf(profilePage.id))}">${iconSvg('user', 16)}<span>الملف الشخصي</span></a>` : ''}
           ${settingsPage ? `<a role="menuitem" class="pt-dropdown__link" href="${esc(ctx.hrefOf(settingsPage.id))}">${iconSvg('settings', 16)}<span>الإعدادات</span></a>` : ''}
@@ -3202,8 +3202,8 @@ const FONTS_HREF =
 
 /** أيقونة افتراضية: حرف العلامة داخل مربع بحافة دائرية بلون السمة الأساسي */
 function letterFavicon(schema: ProjectSchema): string {
-  const brand = (schema.navigation.brand || schema.metadata.name || 'ن').trim()
-  const letter = Array.from(brand)[0] ?? 'ن'
+  const brand = (schema.navigation.brand || schema.metadata.name || 'م').trim()
+  const letter = Array.from(brand)[0] ?? 'م'
   const primary = schema.theme.mode === 'dark' ? hexLighten(schema.theme.primary, 0.18) : schema.theme.primary
   const fg = schema.theme.primaryForeground || '#ffffff'
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="${esc(primary)}"/><text x="16" y="22.5" font-size="16" font-weight="700" text-anchor="middle" fill="${esc(fg)}" font-family="system-ui,sans-serif">${esc(letter)}</text></svg>`
@@ -3308,7 +3308,7 @@ function notFoundHtml(
   logo: { src: string; mime: string } | null,
   pageBg: { file: string | null; overlay: string } = { file: null, overlay: 'medium' }
 ): string {
-  const brand = schema.navigation.brand || 'نموذج'
+  const brand = schema.navigation.brand || schema.metadata.name || 'موقعك'
   const bodyAttr = pageBg.file ? ` class="pt-hasbg pt-hasbg--${esc(pageBg.overlay)}"` : ''
   const pageBgDiv = pageBg.file
     ? `<div class="pt-pagebg" aria-hidden="true" style="background-image:url('${esc(rel)}assets/${esc(pageBg.file)})"></div>\n`

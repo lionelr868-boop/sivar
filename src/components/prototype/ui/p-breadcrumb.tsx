@@ -2,7 +2,7 @@
 import type { ReactElement } from 'react'
 
 // ============================================================
-// نموذج — PBreadcrumb: مسار تنقّل نصي بسيط
+// SIVAR — PBreadcrumb: مسار تنقّل نصي بسيط
 // ============================================================
 import { ChevronLeft } from 'lucide-react'
 

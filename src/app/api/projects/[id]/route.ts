@@ -1,5 +1,5 @@
 // ============================================================
-// نموذج — GET/PATCH/DELETE /api/projects/[id]
+// SIVAR — GET/PATCH/DELETE /api/projects/[id]
 // Task 3-b — جلب المشروع / الحفظ مع إصدار / الحذف
 // ============================================================
 import { NextResponse } from 'next/server'

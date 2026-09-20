@@ -1,5 +1,5 @@
 // ============================================================
-// نموذج — GET /api/projects/[id]/validate
+// SIVAR — GET /api/projects/[id]/validate
 // Task 3-b — التحقق من سلامة المخطط قبل التصدير
 // ============================================================
 import { NextResponse } from 'next/server'

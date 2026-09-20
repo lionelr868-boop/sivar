@@ -1,5 +1,5 @@
 // ============================================================
-// نموذج — POST /api/auth/complete-onboarding
+// SIVAR — POST /api/auth/complete-onboarding
 // Task 3-b — إكمال التهيئة الأولى (اسم/نوع/فكرة/نمط)
 // ============================================================
 import { NextResponse } from 'next/server'

@@ -1,5 +1,5 @@
 // ============================================================
-// نموذج — GET/POST /api/projects/[id]/versions
+// SIVAR — GET/POST /api/projects/[id]/versions
 // Task 3-b — قائمة الإصدارات / استعادة إصدار سابق
 // ============================================================
 import { NextResponse } from 'next/server'

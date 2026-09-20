@@ -1,7 +1,7 @@
 'use client'
 
 // ============================================================
-// نموذج — PDropdown: قائمة منسدلة بصفر اعتماديات (native details)
+// SIVAR — PDropdown: قائمة منسدلة بصفر اعتماديات (native details)
 // ============================================================
 import type { ReactElement, ReactNode } from 'react'
 import { ChevronDown } from 'lucide-react'
