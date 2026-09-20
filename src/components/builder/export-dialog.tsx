@@ -1,13 +1,16 @@
 'use client'
 
 // نافذة التصدير: تجهيز → فحوصات متحركة → جاهز للتحميل / خطأ
+// Task 8 — بعد التحميل: مزامنة حذف الصور المؤقتة محلياً (كما في الخادم)
 import { useState } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { t } from '@/lib/i18n'
 import { downloadProjectZip } from '@/lib/api-client'
+import { stripTransientImages } from '@/lib/project/tools'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Check, Download, ExternalLink, FileCheck2, Loader2, XCircle, Wrench } from 'lucide-react'
+import { toast } from 'sonner'
 
 export function ExportDialog() {
   const exportState = useAppStore((s) => s.exportState)
@@ -16,6 +19,8 @@ export function ExportDialog() {
   const projectId = useAppStore((s) => s.projectId)
   const setView = useAppStore((s) => s.setView)
   const sendAgent = useAppStore((s) => s.sendAgent)
+  const schema = useAppStore((s) => s.schema)
+  const applySchemaFn = useAppStore((s) => s.applySchemaFn)
   const [downloaded, setDownloaded] = useState(false)
 
   const phase = exportState.phase
@@ -25,6 +30,15 @@ export function ExportDialog() {
     if (!projectId) return
     downloadProjectZip(projectId)
     setDownloaded(true)
+    // مطلب المستخدم: صور الخلفية تُحذف من قاعدة البيانات بعد التحميل —
+    // نحاذي الحالة المحلية بالخادم حتى لا تُعاد الكتابة عند الحفظ التالي
+    const hasTransientImage = (schema?.pages ?? []).some((p) =>
+      (p.blocks ?? []).some((b) => b.type === 'hero' && (b.props?.bgImage || b.props?.bgImageName))
+    )
+    if (hasTransientImage && schema) {
+      applySchemaFn((s) => stripTransientImages(s))
+      toast.info(t.builder.heroImageCleared, { duration: 6000 })
+    }
   }
 
   return (

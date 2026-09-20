@@ -16,6 +16,8 @@ export type FieldDefinition =
       type: 'text' | 'textarea' | 'number' | 'color' | 'switch' | 'select' | 'code'
       options?: { value: string; label: string }[]
     }
+  | { key: string; label: string; type: 'page' }
+  | { key: string; label: string; type: 'image'; accept?: string }
   | { key: string; label: string; type: 'list'; itemFields: FieldDefinition[]; itemLabel?: string }
 
 export interface BlockDefinition {
@@ -41,6 +43,14 @@ const HERO_BG_OPTIONS = [
   { value: 'muted', label: 'خفيف ملوّن' },
   { value: 'dark', label: 'داكن' },
   { value: 'gradient', label: 'تدرّج لوني' },
+  { value: 'gradient-soft', label: 'تدرّج ناعم' },
+  { value: 'mesh', label: 'شبكية توهج' },
+]
+const HERO_OVERLAY_OPTIONS = [
+  { value: 'dark', label: 'تعتيم داكن (نص أبيض)' },
+  { value: 'medium', label: 'تعتيم متوسط (نص أبيض)' },
+  { value: 'light', label: 'غلالة فاتحة (نص داكن)' },
+  { value: 'none', label: 'بدون تعتيم' },
 ]
 const HERO_VISUAL_OPTIONS = [
   { value: 'dashboard', label: 'رسم لوحة تحكم' },
@@ -128,6 +138,10 @@ export const ICON_FIELD_OPTIONS: { value: string; label: string }[] = [
   { value: 'briefcase', label: 'حقيبة عمل' },
   { value: 'calendar', label: 'تقويم' },
   { value: 'search', label: 'بحث' },
+  { value: 'plus', label: 'إضافة' },
+  { value: 'file-text', label: 'ملف' },
+  { value: 'settings', label: 'إعدادات' },
+  { value: 'user', label: 'مستخدم' },
 ]
 
 // ============================================================
@@ -149,6 +163,7 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       secondaryButton: 'تعرّف على المميزات',
       layout: 'split',
       background: 'default',
+      bgOverlay: 'dark',
       align: 'start',
       visual: 'dashboard',
       titleSize: 'md',
@@ -161,11 +176,14 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       { key: 'title', label: 'العنوان', type: 'text' },
       { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
       { key: 'primaryButton', label: 'نص الزر الأساسي', type: 'text' },
+      { key: 'primaryButtonPage', label: 'هدف الزر الأساسي (اختياري — تلقائي ذكي)', type: 'page' },
       { key: 'secondaryButton', label: 'نص الزر الثانوي', type: 'text' },
       { key: 'layout', label: 'التخطيط', type: 'select', options: LAYOUT_OPTIONS },
       { key: 'visual', label: 'الرسم الجانبي', type: 'select', options: HERO_VISUAL_OPTIONS },
       { key: 'titleSize', label: 'حجم العنوان', type: 'select', options: HERO_TITLE_SIZE_OPTIONS },
       { key: 'background', label: 'الخلفية', type: 'select', options: HERO_BG_OPTIONS },
+      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
       { key: 'align', label: 'محاذاة النص', type: 'select', options: ALIGN_OPTIONS },
       { key: 'emailPlaceholder', label: 'حقل البريد — النص التوضيحي', type: 'text' },
       { key: 'emailButton', label: 'حقل البريد — نص الزر', type: 'text' },
@@ -806,6 +824,105 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
         itemFields: [
           { key: 'day', label: 'اليوم (رقم)', type: 'number' },
           { key: 'label', label: 'الوصف', type: 'text' },
+        ],
+      },
+    ],
+  },
+
+  // ---------------- dashboard: كتل الجولة 8 ----------------
+  'activity-feed': {
+    type: 'activity-feed',
+    label: 'سجل النشاطات',
+    category: 'dashboard',
+    description: 'خط زمني لآخر عمليات المستخدمين مع صور رمزية وأوقات',
+    icon: 'bell',
+    defaults: () => ({
+      title: 'آخر النشاطات',
+      items: [
+        { user: 'أحمد بن علي', action: 'أضاف منتجاً جديداً', target: 'حقيبة جلدية فاخرة', time: 'قبل 5 دقائق' },
+        { user: 'سارة بوزيد', action: 'أكملت طلباً', target: '#1024', time: 'قبل 18 دقيقة' },
+        { user: 'محمد قادري', action: 'حدّث مخزون', target: 'فرع وهران', time: 'قبل ساعة' },
+        { user: 'ياسين مراد', action: 'أرسل تقريراً', target: 'مبيعات الأسبوع', time: 'أمس' },
+        { user: 'ليلى مزيان', action: 'ردّت على رسالة زبون', target: '', time: 'أمس' },
+      ],
+    }),
+    fields: [
+      { key: 'title', label: 'العنوان', type: 'text' },
+      {
+        key: 'items',
+        label: 'النشاطات',
+        type: 'list',
+        itemLabel: 'نشاط',
+        itemFields: [
+          { key: 'user', label: 'المستخدم', type: 'text' },
+          { key: 'action', label: 'الإجراء', type: 'text' },
+          { key: 'target', label: 'الهدف', type: 'text' },
+          { key: 'time', label: 'الوقت', type: 'text' },
+        ],
+      },
+    ],
+  },
+
+  'tasks-list': {
+    type: 'tasks-list',
+    label: 'المهام',
+    category: 'dashboard',
+    description: 'قائمة مهام بمربعات اختيار عاملة وشريط تقدّم حي',
+    icon: 'check',
+    defaults: () => ({
+      title: 'مهام اليوم',
+      subtitle: '',
+      items: [
+        { label: 'مراجعة الطلب #1024', done: true, meta: 'اليوم 14:00' },
+        { label: 'تحديث أسعار قائمة رمضان', done: true, meta: 'اليوم 16:30' },
+        { label: 'الاتصال بالمورد في سطيف', done: false, meta: 'غداً 09:00' },
+        { label: 'إعداد تقرير الأسبوع', done: false, meta: 'الخميس' },
+        { label: 'موافقة طلبات الانضمام', done: false, meta: '' },
+      ],
+    }),
+    fields: [
+      { key: 'title', label: 'العنوان', type: 'text' },
+      { key: 'subtitle', label: 'العنوان الفرعي', type: 'text' },
+      {
+        key: 'items',
+        label: 'المهام',
+        type: 'list',
+        itemLabel: 'مهمة',
+        itemFields: [
+          { key: 'label', label: 'المهمة', type: 'text' },
+          { key: 'done', label: 'منجزة', type: 'switch' },
+          { key: 'meta', label: 'معلومة إضافية', type: 'text' },
+        ],
+      },
+    ],
+  },
+
+  'quick-actions': {
+    type: 'quick-actions',
+    label: 'إجراءات سريعة',
+    category: 'dashboard',
+    description: 'أزرار تنقل سريعة إلى صفحات المشروع بأيقونات ملوّنة',
+    icon: 'zap',
+    defaults: () => ({
+      title: 'إجراءات سريعة',
+      actions: [
+        { icon: 'package', label: 'إضافة منتج', pageId: '' },
+        { icon: 'users', label: 'إدارة العملاء', pageId: '' },
+        { icon: 'trending-up', label: 'تقرير الأداء', pageId: '' },
+        { icon: 'file-text', label: 'الفواتير', pageId: '' },
+      ],
+    }),
+    fields: [
+      { key: 'title', label: 'العنوان', type: 'text' },
+      {
+        key: 'actions',
+        label: 'الإجراءات',
+        type: 'list',
+        itemLabel: 'إجراء',
+        itemFields: [
+          { key: 'icon', label: 'الأيقونة', type: 'select', options: ICON_FIELD_OPTIONS },
+          { key: 'label', label: 'التسمية', type: 'text' },
+          { key: 'pageId', label: 'الصفحة الهدف', type: 'page' },
         ],
       },
     ],

@@ -114,6 +114,25 @@ export const builder = {
   previewMode: 'وضع المعاينة',
   exitPreview: 'خروج من المعاينة',
   previewHint: 'هكذا سيرى زوّار موقعك صفحاتك',
+  // ===== Task 8-a: المعاينة والتنقل =====
+  backBtn: 'رجوع',
+  backToHome: 'العودة إلى الرئيسية',
+  backToSite: 'العودة إلى الموقع',
+  topbarSearchPlaceholder: 'ابحث في الصفحة...',
+  notificationsBtn: 'الإشعارات',
+  notificationsTitle: 'الإشعارات',
+  notificationsMarkAll: 'تحديد الكل كمقروء',
+  notificationsEmpty: 'لا إشعارات جديدة',
+  userMenuBtn: 'قائمة الحساب',
+  userMenuProfile: 'الملف الشخصي',
+  userMenuSettings: 'الإعدادات',
+  userMenuLogout: 'تسجيل الخروج',
+  imageFieldRemove: 'إزالة الصورة',
+  imageFieldReplace: 'استبدال',
+  imageFieldUpload: 'رفع صورة',
+  imageFieldTooLarge: 'حجم الصورة يتجاوز 5 ميغابايت',
+  imageFieldHint: 'تُستخدم كخلفية لقسم البطل — تُضمَّن في ملفات التحميل ثم تُحذف من قاعدة البيانات',
+  heroImageCleared: 'أُدرجت صورة الخلفية في ملف التحميل وحُذفت من قاعدة البيانات — أعد رفعها إن أردت تصديراً جديداً بها',
   // mobile builder
   openPages: 'الصفحات',
   openAgent: 'المساعد',
@@ -188,4 +207,9 @@ export const builder = {
   codeFieldHint: 'كود HTML — يُعرض داخل إطار آمن',
   // توحيد مخارج أخرى
   versionLabelBeforeDownload: 'تحديث قبل التحميل',
+  // ===== Task 8-c: كتل اللوحة + حقول الصفحة/الصورة =====
+  tasksProgressOf: 'منجزة',
+  pageFieldAuto: 'تلقائي (ذكي)',
+  imageFieldInvalid: 'تعذّر قراءة الصورة — جرّب ملفاً آخر',
+  imageFieldUploaded: 'تم رفع الصورة',
 } as const

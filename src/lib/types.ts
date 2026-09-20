@@ -116,6 +116,9 @@ export type BlockType =
   | 'error-state'
   | 'calendar'
   | 'custom-html'
+  | 'activity-feed'
+  | 'tasks-list'
+  | 'quick-actions'
 
 export interface Block {
   id: string

@@ -8,17 +8,22 @@ import type { Block } from '@/lib/types'
 import { Check } from 'lucide-react'
 import { PButton } from '../ui/p-button'
 import { num } from '@/lib/content/mock-data'
-import { L, S, iB, iN, iS, SectionHeading, SectionShell } from './shared'
+import { pricingButtonTarget } from '@/lib/project/nav-targets'
+import { L, S, iB, iN, iS, SectionHeading, SectionShell, type BlockCtx } from './shared'
 
-export function PricingBlock({ block }: { block: Block }): ReactElement {
+export function PricingBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): ReactElement {
   const p = block.props
   const title = S(p, 'title')
   const subtitle = S(p, 'subtitle')
   const currency = S(p, 'currency', 'دج') || 'دج'
   const plans = L(p, 'plans')
+  const buttonTarget = pricingButtonTarget(ctx.schema)
+  const planGo = () => {
+    if (ctx.onNavigate && buttonTarget) ctx.onNavigate(buttonTarget)
+  }
 
   return (
-    <SectionShell>
+    <SectionShell id="pricing">
       <SectionHeading title={title} subtitle={subtitle} />
       {plans.length > 0 ? (
         <div
@@ -91,6 +96,7 @@ export function PricingBlock({ block }: { block: Block }): ReactElement {
                   variant={highlighted ? 'primary' : 'outline'}
                   size="lg"
                   className="mt-6 w-full"
+                  onClick={planGo}
                 >
                   {iS(plan, 'buttonText', 'اشترك الآن')}
                 </PButton>

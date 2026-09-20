@@ -6,6 +6,10 @@
 // Task 7-f — ترقيات الجودة: بطل موسّع (eyebrow/visual/titleSize/نموذج بريد)،
 // custom-html، الشعار (assets/logo + favicon)، SEO/OG، ظهور الأقسام عند
 // التمرير، زر العودة للأعلى، وتحسينات الوصول (skip link/focus-visible).
+// Task 8-b — أزرار عاملة (عقد nav-targets المشترك)، زر عودة للخلف في كل
+// صفحة غير رئيسية، تروستة لوحة تحكم (بحث/إشعارات/قائمة مستخدم)، ترقيم
+// الجداول، خلفية صور البطل (assets/hero-bg)، خلفيتا gradient-soft/mesh،
+// كتل جديدة (activity-feed/tasks-list/quick-actions) وتحسينات جمالية.
 // ============================================================
 import type {
   Block,
@@ -17,6 +21,17 @@ import type {
 } from '@/lib/types'
 import { slugify } from '@/lib/types'
 import { ENTITY_LABELS } from '@/lib/content/mock-data'
+import {
+  bannerButtonTarget,
+  ctaButtonTarget,
+  dashboardActionTarget,
+  findDashboardPage,
+  findHomePage,
+  heroPrimaryTarget,
+  heroSecondaryTarget,
+  pricingButtonTarget,
+  stateActionTarget,
+} from '@/lib/project/nav-targets'
 
 // ============================================================
 // أدوات عامة
@@ -167,6 +182,45 @@ function avatarHtml(name: string, size = 32): string {
 }
 
 // ============================================================
+// أيقونات SVG مضمّنة (بدون أي مكتبات) — مسارات بنمط lucide
+// stroke يتبع currentColor — تُستخدم في التروستة/الزر الخلفي/الكتل الجديدة
+// ============================================================
+const ICON_SVG: Record<string, string> = {
+  'arrow-right': '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  'arrow-left': '<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  'log-out': '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  sparkles: '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>',
+  zap: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+  star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  heart: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7z"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  'trending-up': '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  package: '<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  'credit-card': '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
+  wallet: '<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>',
+  target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  award: '<path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/>',
+  smartphone: '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
+  briefcase: '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+  calendar: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+}
+
+/** أيقونة مضمّنة بالاسم (Sparkles بديلاً عند الاسم غير المعروف) */
+function iconSvg(name: string, size = 20): string {
+  const inner = ICON_SVG[name] ?? ICON_SVG.sparkles
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`
+}
+
+// ============================================================
 // خريطة حالات الجداول (مطابقة لعارض React)
 // ============================================================
 const STATUS_TONES: Record<string, string> = {
@@ -278,7 +332,9 @@ main{display:block}
 .pt-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;font-weight:600;border-radius:var(--pt-radius);min-height:40px;padding:0 20px;font-size:14px;transition:filter .15s ease,background .15s ease,transform .1s ease}
 .pt-btn:hover{filter:brightness(1.08)}
 .pt-btn:active{transform:translateY(1px)}
-.pt-btn--primary{background:var(--pt-primary);color:var(--pt-primary-fg);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.pt-btn--primary{background:var(--pt-primary);color:var(--pt-primary-fg);box-shadow:0 4px 14px color-mix(in srgb,var(--pt-primary) 35%,transparent)}
+.pt-btn--primary:hover{transform:translateY(-1px)}
+.pt-btn:disabled{opacity:.5;cursor:not-allowed}
 .pt-btn--secondary{background:var(--pt-secondary);color:var(--pt-text);border:1px solid var(--pt-border)}
 .pt-btn--outline{background:transparent;color:var(--pt-text);border:1px solid var(--pt-border)}
 .pt-btn--ghost{background:transparent;color:var(--pt-text)}
@@ -339,7 +395,9 @@ main{display:block}
 .pt-sidebar__item.active{background:var(--pt-secondary);color:var(--pt-primary)}
 .pt-sidebar__dot{width:9px;height:9px;border-radius:999px;background:var(--pt-muted);flex-shrink:0}
 .pt-sidebar__item.active .pt-sidebar__dot,.pt-sidebar__item:hover .pt-sidebar__dot{background:var(--pt-primary)}
-.pt-sidebar__user{border-top:1px solid var(--pt-border);padding:12px;display:flex;align-items:center;gap:10px}
+.pt-sidebar__bottom{border-top:1px solid var(--pt-border);padding:12px;display:flex;flex-direction:column;gap:8px}
+.pt-sidebar__user{display:flex;align-items:center;gap:10px}
+.pt-sidebar__item--muted{color:var(--pt-muted);font-size:13px}
 .pt-sidebar__user-info{min-width:0;flex:1}
 .pt-sidebar__user-name{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pt-sidebar-top{display:none;border-bottom:1px solid var(--pt-border);background:var(--pt-surface)}
@@ -364,7 +422,7 @@ main{display:block}
 .pt-demo-badge{position:fixed;bottom:14px;inset-inline-start:14px;z-index:50;border-radius:999px;padding:6px 14px;font-size:11.5px;font-weight:700;background:color-mix(in srgb,var(--pt-primary) 92%,#000);color:var(--pt-primary-fg);box-shadow:0 4px 14px rgba(0,0,0,.18);user-select:none}
 
 /* ===== عناوين الأقسام ===== */
-.blk-section{padding-block:56px}
+.blk-section{padding-block:56px;scroll-margin-top:76px}
 .blk-section--tight{padding-block:32px}
 .blk-section__inner{max-width:1120px;margin-inline:auto;padding-inline:16px}
 .blk-heading{margin-bottom:40px;max-width:640px;margin-inline:auto;text-align:center}
@@ -380,6 +438,12 @@ main{display:block}
 .blk-hero--gradient{background:linear-gradient(135deg,var(--pt-primary),#db2777)}
 .blk-hero--gradient .blk-hero__title{color:#fff}
 .blk-hero--gradient .blk-hero__subtitle{color:rgba(255,255,255,.85)}
+.blk-hero--gradient-soft{background:linear-gradient(180deg,color-mix(in srgb,var(--pt-primary) 10%,var(--pt-bg)) 0%,var(--pt-bg) 100%)}
+.blk-hero--mesh{background:radial-gradient(42rem 24rem at 85% -10%,color-mix(in srgb,var(--pt-primary) 14%,transparent),transparent 60%),radial-gradient(38rem 22rem at 8% 0%,color-mix(in srgb,var(--pt-accent) 16%,transparent),transparent 55%),var(--pt-bg)}
+.blk-hero--image{background-size:cover;background-position:center}
+.blk-hero--image-dark .blk-hero__title{color:#fff}
+.blk-hero--image-dark .blk-hero__subtitle{color:rgba(255,255,255,.85)}
+.blk-hero--image-none .blk-hero__title{text-shadow:0 2px 12px rgba(0,0,0,.45)}
 .blk-hero__inner{max-width:1120px;margin-inline:auto;padding-inline:16px}
 .blk-hero__split{display:flex;flex-direction:column-reverse;align-items:center;gap:40px}
 .blk-hero__text{max-width:640px}
@@ -435,7 +499,19 @@ main{display:block}
 .pt-video__caption span{height:8px;border-radius:999px;background:color-mix(in srgb,var(--pt-text) 14%,transparent)}
 .pt-play{position:relative;width:60px;height:60px;border-radius:999px;border:none;background:var(--pt-primary);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,.22);transition:transform .2s ease,opacity .2s ease}
 .pt-play:hover{filter:brightness(1.08)}
-.pt-play--clicked{opacity:.35;transform:scale(.88)}
+.pt-play.playing .pt-play__triangle{display:none}
+.pt-play__pause{display:none;gap:5px;direction:ltr}
+.pt-play__pause span{display:block;width:6px;height:22px;border-radius:3px;background:var(--pt-primary-fg)}
+.pt-play.playing .pt-play__pause{display:flex}
+.pt-wave{display:none;position:absolute;bottom:14px;inset-inline-end:14px;align-items:flex-end;gap:4px;pointer-events:none;z-index:2}
+.pt-video.playing .pt-wave{display:flex}
+.pt-wave span{display:block;width:4px;border-radius:999px;background:var(--pt-primary);opacity:.85;transform-origin:bottom center;animation:pt-wave .9s ease-in-out infinite alternate}
+.pt-wave span:nth-child(1){height:10px}
+.pt-wave span:nth-child(2){height:18px;animation-delay:.12s}
+.pt-wave span:nth-child(3){height:12px;animation-delay:.24s}
+.pt-wave span:nth-child(4){height:22px;animation-delay:.36s}
+.pt-wave span:nth-child(5){height:14px;animation-delay:.48s}
+@keyframes pt-wave{from{transform:scaleY(.35)}to{transform:scaleY(1)}}
 .pt-play__triangle{display:block;width:0;height:0;border-style:solid;border-width:11px 0 11px 18px;border-color:transparent transparent transparent #fff;margin-left:5px}
 /* نموذج جمع البريد */
 .pt-lead-wrap{margin-top:24px;max-width:440px}
@@ -456,9 +532,9 @@ main{display:block}
 
 /* ===== features ===== */
 .blk-features__grid{display:grid;grid-template-columns:repeat(var(--cols,3),1fr);gap:20px}
-.blk-feature{padding:24px;border-radius:var(--pt-radius);border:1px solid var(--pt-border);background:var(--pt-surface);box-shadow:var(--pt-shadow);transition:transform .2s}
-.blk-feature:hover{transform:translateY(-3px)}
-.blk-feature__icon{width:44px;height:44px;border-radius:calc(var(--pt-radius) - 2px);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:19px;background:color-mix(in srgb,var(--pt-primary) 12%,transparent);color:var(--pt-primary);margin-bottom:14px}
+.blk-feature{padding:24px;border-radius:var(--pt-radius);border:1px solid var(--pt-border);background:var(--pt-surface);box-shadow:var(--pt-shadow);transition:transform .2s,border-color .2s}
+.blk-feature:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--pt-primary) 35%,transparent)}
+.blk-feature__icon{width:44px;height:44px;border-radius:calc(var(--pt-radius) - 2px);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:19px;background:linear-gradient(135deg,color-mix(in srgb,var(--pt-primary) 14%,transparent),color-mix(in srgb,var(--pt-accent) 18%,transparent));color:var(--pt-primary);margin-bottom:14px}
 .blk-feature__title{font-size:16.5px;font-weight:700}
 .blk-feature__desc{margin-top:6px;font-size:14px;color:var(--pt-muted)}
 
@@ -466,7 +542,7 @@ main{display:block}
 .blk-stats{background:var(--pt-surface);border-block:1px solid var(--pt-border)}
 .blk-stats__grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding-block:40px}
 .blk-stat{text-align:center}
-.blk-stat__value{font-size:30px;font-weight:800;color:var(--pt-primary)}
+.blk-stat__value{font-size:30px;font-weight:800;background:linear-gradient(135deg,var(--pt-primary),var(--pt-accent));-webkit-background-clip:text;background-clip:text;color:transparent}
 .blk-stat__label{margin-top:4px;font-size:13px;color:var(--pt-muted)}
 .blk-stat__change{display:block;margin-top:6px}
 
@@ -492,7 +568,10 @@ main{display:block}
 
 /* ===== testimonials ===== */
 .blk-testimonials__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
-.blk-testimonial{padding:24px;border-radius:var(--pt-radius);border:1px solid var(--pt-border);background:var(--pt-surface);box-shadow:var(--pt-shadow)}
+.blk-testimonial{position:relative;overflow:hidden;padding:24px;border-radius:var(--pt-radius);border:1px solid var(--pt-border);background:var(--pt-surface);box-shadow:var(--pt-shadow);transition:transform .2s}
+.blk-testimonial:hover{transform:translateY(-4px)}
+.blk-testimonial::before{content:'”';position:absolute;top:12px;inset-inline-start:16px;font-size:48px;line-height:1;font-weight:900;pointer-events:none;background:linear-gradient(135deg,color-mix(in srgb,var(--pt-primary) 30%,transparent),color-mix(in srgb,var(--pt-accent) 12%,transparent));-webkit-background-clip:text;background-clip:text;color:transparent}
+.blk-testimonial__person .pt-avatar{box-shadow:0 0 0 2px color-mix(in srgb,var(--pt-primary) 30%,transparent)}
 .blk-testimonial__stars{color:#f59e0b;letter-spacing:2px;font-size:15px}
 .blk-testimonial__text{margin-top:12px;font-size:14.5px}
 .blk-testimonial__person{margin-top:18px;display:flex;align-items:center;gap:10px}
@@ -509,17 +588,20 @@ main{display:block}
 .blk-faq__answer{padding:0 20px 18px;font-size:14px;color:var(--pt-muted)}
 
 /* ===== cta / banner ===== */
-.blk-cta__card{border-radius:calc(var(--pt-radius) + 4px);padding:44px 24px;text-align:center;box-shadow:var(--pt-shadow)}
-.blk-cta__card--gradient{background:linear-gradient(135deg,var(--pt-primary),#db2777);color:#fff}
+.blk-cta__card{position:relative;overflow:hidden;border-radius:calc(var(--pt-radius) + 4px);padding:44px 24px;text-align:center;box-shadow:var(--pt-shadow)}
+.blk-cta__card::before{content:'';position:absolute;top:0;inset-inline:0;height:160px;background:radial-gradient(60% 100% at 50% 0%,rgba(255,255,255,.18),transparent 70%);pointer-events:none;z-index:0}
+.blk-cta__card>*{position:relative;z-index:1}
+.blk-cta__card--gradient{background:linear-gradient(135deg,var(--pt-primary),var(--pt-accent));color:#fff}
 .blk-cta__card--dark{background:#16121f;color:#fff}
 .blk-cta__card--default{background:var(--pt-secondary);border:1px solid var(--pt-border)}
 .blk-cta__title{font-size:clamp(22px,4vw,32px);font-weight:800}
 .blk-cta__subtitle{margin-top:10px;opacity:.85;font-size:15px}
 .blk-cta__actions{margin-top:26px}
-.blk-banner{padding:22px 24px;border-radius:var(--pt-radius)}
-.blk-banner--gradient{background:linear-gradient(135deg,var(--pt-primary),var(--pt-accent));color:#fff}
+.blk-banner{position:relative;overflow:hidden;padding:22px 24px;border-radius:var(--pt-radius)}
+.blk-banner::before{content:'';position:absolute;top:0;inset-inline:0;height:96px;background:radial-gradient(55% 100% at 50% 0%,rgba(255,255,255,.16),transparent 70%);pointer-events:none;z-index:0}
+.blk-banner--gradient{background:linear-gradient(120deg,var(--pt-primary),var(--pt-accent));color:#fff}
 .blk-banner--dark{background:#16121f;color:#fff}
-.blk-banner__inner{max-width:1120px;margin-inline:auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px}
+.blk-banner__inner{position:relative;z-index:1;max-width:1120px;margin-inline:auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px}
 .blk-banner__title{font-size:17px;font-weight:800}
 .blk-banner__subtitle{margin-top:2px;font-size:13.5px;opacity:.85}
 
@@ -570,6 +652,13 @@ main{display:block}
 .blk-auth__title{font-size:22px;font-weight:800}
 .blk-auth__subtitle{margin-top:8px;font-size:14px;color:var(--pt-muted)}
 .blk-auth__hint{margin-top:20px}
+.pt-auth{position:relative;overflow:hidden}
+.pt-auth .blk-auth{min-height:auto;padding-block:0}
+.pt-auth__glow{position:absolute;border-radius:999px;filter:blur(64px);pointer-events:none}
+.pt-auth__glow--a{top:-96px;inset-inline-start:-96px;width:384px;height:384px;background:var(--pt-primary);opacity:.14}
+.pt-auth__glow--b{bottom:-128px;inset-inline-end:-96px;width:384px;height:384px;background:var(--pt-accent);opacity:.1}
+.pt-auth__back{position:relative;display:inline-flex;align-items:center;gap:6px;margin-top:24px;min-height:40px;font-size:14px;font-weight:600;color:var(--pt-muted);transition:color .15s}
+.pt-auth__back:hover{color:var(--pt-primary)}
 
 /* ===== dashboard blocks ===== */
 .blk-dash-header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px}
@@ -618,6 +707,83 @@ main{display:block}
 .pt-progress__fill{display:block;height:100%;border-radius:999px;background:var(--pt-primary)}
 .pt-progress__pct{font-size:12px;font-weight:700;color:var(--pt-muted)}
 .blk-table__foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--pt-border);padding:12px 20px;font-size:12px;color:var(--pt-muted)}
+.blk-table__pager{display:flex;align-items:center;gap:10px}
+.blk-table__pager-count{font-size:12px;color:var(--pt-muted);white-space:nowrap}
+
+/* ===== تروستة لوحة التحكم (بحث + إشعارات + مستخدم) ===== */
+.pt-topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:8px;padding:10px 16px;background:color-mix(in srgb,var(--pt-surface) 95%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--pt-border)}
+.pt-topbar__search{position:relative;flex:1;min-width:0;max-width:360px}
+.pt-topbar__search svg{position:absolute;inset-inline-start:10px;top:50%;transform:translateY(-50%);color:var(--pt-muted);pointer-events:none}
+.pt-topbar__search input{width:100%;min-height:36px;border-radius:calc(var(--pt-radius) - 2px);border:1px solid var(--pt-border);background:var(--pt-bg);color:var(--pt-text);padding:6px 12px;padding-inline-start:32px;font-size:13px;transition:border-color .15s}
+.pt-topbar__search input::placeholder{color:var(--pt-muted)}
+.pt-topbar__search input:focus{outline:2px solid var(--pt-primary);outline-offset:1px;border-color:var(--pt-primary)}
+.pt-topbar__actions{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-inline-start:auto}
+.pt-topbar__item{position:relative;flex-shrink:0}
+.pt-topbar__btn{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:36px;border:1px solid var(--pt-border);border-radius:calc(var(--pt-radius) - 2px);background:transparent;color:var(--pt-text);cursor:pointer;transition:background .15s}
+.pt-topbar__btn:hover{background:var(--pt-secondary)}
+.pt-bell{width:36px;justify-content:center}
+.pt-bell__dot{position:absolute;top:-3px;inset-inline-end:-3px;width:10px;height:10px;border-radius:999px;background:#dc2626;border:2px solid var(--pt-surface)}
+.pt-user{padding-inline:10px;border-radius:999px}
+.pt-user__name{font-size:13px;font-weight:700}
+.pt-dropdown{display:none;position:absolute;top:calc(100% + 8px);inset-inline-end:0;z-index:60;width:288px;border:1px solid var(--pt-border);border-radius:var(--pt-radius);background:var(--pt-surface);box-shadow:var(--pt-shadow);overflow:hidden}
+.pt-dropdown.open{display:block}
+.pt-dropdown--user{width:210px}
+.pt-dropdown__head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;border-bottom:1px solid var(--pt-border);font-size:14px;font-weight:700}
+.pt-dropdown__action{border:none;background:transparent;color:var(--pt-primary);font-size:11px;font-weight:600;cursor:pointer;min-height:32px;padding:2px 8px;border-radius:calc(var(--pt-radius) - 6px);transition:background .15s}
+.pt-dropdown__action:hover{background:var(--pt-secondary)}
+.pt-dropdown__list{max-height:256px;overflow-y:auto}
+.pt-dropdown__list li{display:flex;gap:10px;padding:12px 14px}
+.pt-dropdown__list li+li{border-top:1px solid var(--pt-border)}
+.pt-dropdown__dot{width:8px;height:8px;border-radius:999px;background:var(--pt-primary);margin-top:6px;flex-shrink:0}
+.pt-dropdown__title{font-size:13px;font-weight:700}
+.pt-dropdown__detail{margin-top:2px;font-size:12px;color:var(--pt-muted)}
+.pt-dropdown__time{margin-top:4px;font-size:10px;color:var(--pt-muted);opacity:.8}
+.pt-dropdown__user{padding:10px 14px;border-bottom:1px solid var(--pt-border)}
+.pt-dropdown__user p:first-child{font-size:14px;font-weight:700}
+.pt-dropdown__user p:last-child{margin-top:2px;font-size:11px;color:var(--pt-muted)}
+.pt-dropdown__body{padding:6px}
+.pt-dropdown__link{display:flex;align-items:center;gap:8px;min-height:36px;padding:0 10px;border-radius:calc(var(--pt-radius) - 4px);font-size:13px;font-weight:500;color:var(--pt-text);transition:background .15s}
+.pt-dropdown__link:hover{background:var(--pt-secondary)}
+.pt-dropdown__link--danger{color:#dc2626;font-weight:600}
+.pt-dropdown__divider{height:1px;background:var(--pt-border);margin:6px 4px}
+
+/* ===== سجل النشاطات (activity-feed) ===== */
+.blk-activity__head{padding:14px 20px;border-bottom:1px solid var(--pt-border);font-size:14px;font-weight:700}
+.blk-activity__list li{display:flex;align-items:flex-start;gap:12px;padding:14px 20px}
+.blk-activity__list li+li{border-top:1px solid var(--pt-border)}
+.blk-activity__dot{width:8px;height:8px;border-radius:999px;background:var(--pt-primary);flex-shrink:0;margin-top:14px}
+.blk-activity__body{flex:1;min-width:0}
+.blk-activity__text{font-size:13.5px}
+.blk-activity__text strong{font-weight:700}
+.blk-activity__time{margin-top:3px;font-size:11.5px;color:var(--pt-muted)}
+
+/* ===== قائمة المهام (tasks-list) ===== */
+.blk-tasks__head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid var(--pt-border)}
+.blk-tasks__title{font-size:14px;font-weight:700}
+.blk-tasks__sub{margin-top:2px;font-size:12.5px;color:var(--pt-muted)}
+.blk-tasks__count{font-size:12px;font-weight:700;color:var(--pt-primary);background:color-mix(in srgb,var(--pt-primary) 10%,transparent);border-radius:999px;padding:4px 12px;white-space:nowrap;flex-shrink:0}
+.blk-tasks__progress{height:8px;border-radius:999px;background:var(--pt-secondary);overflow:hidden;margin:16px 20px 0}
+.blk-tasks__progress-fill{display:block;height:100%;border-radius:999px;background:var(--pt-primary);transition:width .35s ease}
+.blk-tasks__list{padding:12px 20px 16px;display:flex;flex-direction:column}
+.blk-tasks__item{display:flex;align-items:center;gap:10px;padding:8px 0}
+.blk-tasks__item+.blk-tasks__item{border-top:1px solid color-mix(in srgb,var(--pt-border) 60%,transparent)}
+.blk-tasks__check{width:22px;height:22px;flex-shrink:0;border:2px solid var(--pt-border);border-radius:calc(var(--pt-radius) - 6px);background:var(--pt-bg);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:transparent;transition:background .15s,border-color .15s,color .15s}
+.blk-tasks__check:hover{border-color:var(--pt-primary)}
+.blk-tasks__check.on{background:var(--pt-primary);border-color:var(--pt-primary);color:var(--pt-primary-fg)}
+.blk-tasks__item.done .blk-tasks__label{text-decoration:line-through;color:var(--pt-muted)}
+.blk-tasks__label{font-size:14px;font-weight:500}
+.blk-tasks__meta{margin-inline-start:auto;font-size:12px;color:var(--pt-muted);flex-shrink:0}
+
+/* ===== الإجراءات السريعة (quick-actions) ===== */
+.blk-quick__title{font-size:16px;font-weight:800;margin-bottom:14px}
+.blk-quick__grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.blk-quick__item{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:16px;border:1px solid var(--pt-border);border-radius:var(--pt-radius);background:var(--pt-surface);box-shadow:var(--pt-shadow);transition:transform .2s,border-color .2s}
+.blk-quick__item:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--pt-primary) 35%,transparent)}
+.blk-quick__icon{width:40px;height:40px;border-radius:calc(var(--pt-radius) - 2px);display:inline-flex;align-items:center;justify-content:center;color:var(--pt-primary);background:linear-gradient(135deg,color-mix(in srgb,var(--pt-primary) 14%,transparent),color-mix(in srgb,var(--pt-accent) 18%,transparent))}
+.blk-quick__row{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%}
+.blk-quick__label{font-size:13.5px;font-weight:600}
+.blk-quick__arrow{color:var(--pt-muted);flex-shrink:0}
+@media (min-width:769px){.blk-quick__grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}}
 
 /* ===== settings / profile / states / calendar ===== */
 .blk-settings__card{max-width:760px;margin-inline:auto;padding:0;overflow:hidden}
@@ -675,7 +841,18 @@ main{display:block}
 @media (prefers-reduced-motion: reduce){
   .pt-reveal{opacity:1;transform:none;transition:none}
   .pt-top{transition:none}
+  .pt-wave span{animation:none}
+  .pt-back__label{transition:none}
 }
+
+/* ===== زر العودة للخلف (صفحات غير الرئيسية) ===== */
+.pt-back{position:fixed;bottom:20px;inset-inline-start:20px;z-index:40;display:inline-flex;align-items:center;height:44px;border:none;border-radius:999px;background:var(--pt-primary);color:var(--pt-primary-fg);cursor:pointer;padding-inline:13px;font-size:13px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.25);transition:filter .15s ease}
+.pt-back:hover{filter:brightness(1.08)}
+.pt-back:active{transform:translateY(1px)}
+.pt-back__label{display:inline-block;max-width:0;overflow:hidden;white-space:nowrap;opacity:0;transition:max-width .25s ease,opacity .25s ease,margin .25s ease}
+.pt-back:hover .pt-back__label,.pt-back:focus-visible .pt-back__label{max-width:96px;opacity:1;margin-inline-start:7px}
+.pt-back~.pt-demo-badge{display:none}
+body:has(.pt-back) .pt-demo-badge{display:none}
 
 /* ===== 404 ===== */
 .pt-404{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px}
@@ -687,7 +864,7 @@ main{display:block}
   .pt-nav__links{display:none;position:absolute;inset-inline:0;top:100%;flex-direction:column;align-items:stretch;background:var(--pt-surface);border-bottom:1px solid var(--pt-border);padding:12px 16px;gap:2px}
   .pt-nav__links.open{display:flex}
   .pt-nav__burger{display:flex}
-  .pt-sidebar-layout{grid-template-columns:1fr}
+  .pt-sidebar-layout{grid-template-columns:minmax(0,1fr)}
   .pt-sidebar{display:none}
   .pt-sidebar-top{display:block}
   .blk-hero__split{flex-direction:column-reverse}
@@ -697,6 +874,8 @@ main{display:block}
   .blk-plan--highlight{transform:none}
   .blk-list__meta{display:none}
   .blk-donut-wrap{justify-content:center}
+  .pt-user__name{display:none}
+  .pt-topbar{padding:8px 12px}
 }
 @media (max-width:480px){
   .blk-features__grid{grid-template-columns:1fr}
@@ -742,23 +921,80 @@ function buildScriptJs(): string {
     })
   })
 
-  // بحث الجداول
+  // ===== الجداول: بحث الجدول + بحث التروستة (دمج AND) + ترقيم الصفحات =====
+  var topbarSearch = document.querySelector('[data-topbar-search]')
+  var allTables = Array.prototype.slice.call(document.querySelectorAll('.pt-table'))
+
+  function refreshTable(table) {
+    if (!table || !table.id) return
+    var own = document.querySelector('[data-table-search="' + table.id + '"]')
+    var q1 = own ? own.value.trim().toLowerCase() : ''
+    var q2 = topbarSearch ? topbarSearch.value.trim().toLowerCase() : ''
+    var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr'))
+    var matched = []
+    rows.forEach(function (row) {
+      var text = row.textContent.toLowerCase()
+      var ok = (!q1 || text.indexOf(q1) !== -1) && (!q2 || text.indexOf(q2) !== -1)
+      row.setAttribute('data-match', ok ? '1' : '0')
+      if (ok) matched.push(row)
+    })
+    var counter = document.getElementById(table.id + '-count')
+    if (counter) counter.textContent = 'عرض ' + matched.length + ' من ' + rows.length + ' صف'
+    var card = table.closest('.blk-table')
+    var pager = card ? card.querySelector('[data-pager]') : null
+    if (!pager) {
+      rows.forEach(function (row) {
+        row.style.display = row.getAttribute('data-match') === '1' ? '' : 'none'
+      })
+      return
+    }
+    var pageSize = parseInt(pager.getAttribute('data-page-size') || '5', 10) || 5
+    var pages = Math.max(1, Math.ceil(matched.length / pageSize))
+    var current = parseInt(pager.getAttribute('data-current') || '1', 10) || 1
+    if (current > pages) current = pages
+    if (current < 1) current = 1
+    pager.setAttribute('data-current', String(current))
+    if (matched.length <= pageSize) {
+      pager.hidden = true
+      rows.forEach(function (row) {
+        row.style.display = row.getAttribute('data-match') === '1' ? '' : 'none'
+      })
+      return
+    }
+    pager.hidden = false
+    matched.forEach(function (row, i) {
+      row.style.display = Math.floor(i / pageSize) + 1 === current ? '' : 'none'
+    })
+    var pageCount = pager.querySelector('.blk-table__pager-count')
+    if (pageCount) pageCount.textContent = 'صفحة ' + current + ' من ' + pages
+    var prevBtn = pager.querySelector('[data-page="prev"]')
+    var nextBtn = pager.querySelector('[data-page="next"]')
+    if (prevBtn) prevBtn.disabled = current <= 1
+    if (nextBtn) nextBtn.disabled = current >= pages
+  }
+
+  if (topbarSearch) {
+    topbarSearch.addEventListener('input', function () {
+      allTables.forEach(refreshTable)
+    })
+  }
   document.querySelectorAll('[data-table-search]').forEach(function (input) {
     input.addEventListener('input', function () {
-      var table = document.getElementById(input.getAttribute('data-table-search'))
-      if (!table) return
-      var q = input.value.trim().toLowerCase()
-      var rows = table.querySelectorAll('tbody tr')
-      var visible = 0
-      rows.forEach(function (row) {
-        var match = !q || row.textContent.toLowerCase().indexOf(q) !== -1
-        row.style.display = match ? '' : 'none'
-        if (match) visible++
-      })
-      var counter = document.getElementById(input.getAttribute('data-table-search') + '-count')
-      if (counter) counter.textContent = 'عرض ' + visible + ' من ' + rows.length + ' صف'
+      refreshTable(document.getElementById(input.getAttribute('data-table-search')))
     })
   })
+  document.querySelectorAll('[data-pager]').forEach(function (pager) {
+    pager.querySelectorAll('[data-page]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var dir = btn.getAttribute('data-page') === 'next' ? 1 : -1
+        var current = parseInt(pager.getAttribute('data-current') || '1', 10) || 1
+        pager.setAttribute('data-current', String(current + dir))
+        refreshTable(document.getElementById(pager.getAttribute('data-pager')))
+      })
+    })
+  })
+  // الحالة الأولى: طبّق البحث والترقيم على كل الجداول
+  allTables.forEach(refreshTable)
 
   // مفاتيح الإعدادات
   document.querySelectorAll('[data-switch]').forEach(function (btn) {
@@ -780,10 +1016,85 @@ function buildScriptJs(): string {
     })
   })
 
-  // زر تشغيل الفيديو (ديكوري — لا فيديو حقيقي)
+  // زر تشغيل الفيديو: يتبدّل تشغيل/إيقاف + موجة صوت متحركة
   document.querySelectorAll('.pt-play').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      btn.classList.add('pt-play--clicked')
+      var playing = btn.classList.toggle('playing')
+      btn.setAttribute('aria-pressed', playing ? 'true' : 'false')
+      btn.setAttribute('aria-label', playing ? 'إيقاف الفيديو' : 'تشغيل الفيديو')
+      var stage = btn.closest('.pt-video')
+      if (stage) stage.classList.toggle('playing', playing)
+    })
+  })
+
+  // ===== قوائم التروستة المنسدلة (الإشعارات + قائمة المستخدم) =====
+  function closeMenu(menu) {
+    menu.classList.remove('open')
+    var btn = document.querySelector('[data-menu-toggle="' + menu.id + '"]')
+    if (btn) btn.setAttribute('aria-expanded', 'false')
+  }
+  document.querySelectorAll('[data-menu-toggle]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation()
+      var menu = document.getElementById(btn.getAttribute('data-menu-toggle'))
+      if (!menu) return
+      var willOpen = !menu.classList.contains('open')
+      document.querySelectorAll('.pt-dropdown.open').forEach(function (other) {
+        if (other !== menu) closeMenu(other)
+      })
+      menu.classList.toggle('open', willOpen)
+      btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false')
+    })
+  })
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('.pt-dropdown.open').forEach(function (menu) {
+      if (menu.contains(e.target)) return
+      var btn = document.querySelector('[data-menu-toggle="' + menu.id + '"]')
+      if (btn && btn.contains(e.target)) return
+      closeMenu(menu)
+    })
+  })
+  document.querySelectorAll('[data-read-all]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation()
+      var dot = document.getElementById(btn.getAttribute('data-read-all'))
+      if (dot) dot.hidden = true
+    })
+  })
+
+  // ===== المهام: تبديل الإنجاز + تحديث التقدّم والعداد داخل نفس البطاقة =====
+  document.querySelectorAll('[data-task]').forEach(function (box) {
+    box.addEventListener('click', function () {
+      var on = box.classList.toggle('on')
+      box.setAttribute('aria-checked', on ? 'true' : 'false')
+      var item = box.closest('.blk-tasks__item')
+      if (item) item.classList.toggle('done', on)
+      var card = box.closest('.blk-tasks')
+      if (!card) return
+      var boxes = card.querySelectorAll('[data-task]')
+      var done = 0
+      boxes.forEach(function (b) {
+        if (b.classList.contains('on')) done++
+      })
+      var pct = boxes.length ? Math.round((done / boxes.length) * 100) : 0
+      var fill = card.querySelector('[data-tasks-progress]')
+      if (fill) fill.style.width = pct + '%'
+      var count = card.querySelector('[data-tasks-count]')
+      if (count) count.textContent = done + ' من ' + boxes.length + ' منجزة'
+      var bar = card.querySelector('[data-tasks-bar]')
+      if (bar) bar.setAttribute('aria-valuenow', String(pct))
+    })
+  })
+
+  // ===== زر العودة للخلف (الصفحات غير الرئيسية) =====
+  document.querySelectorAll('[data-back]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var home = btn.getAttribute('data-home')
+      if (history.length > 1 && document.referrer && document.referrer.indexOf(location.origin) === 0) {
+        history.back()
+      } else if (home) {
+        window.location.href = home
+      }
     })
   })
 
@@ -833,6 +1144,7 @@ function buildNetlifyToml(): string {
 function buildReadmeMd(schema: ProjectSchema): string {
   const name = schema.metadata.name || 'مشروعك'
   const hasLogo = !!dataUrlToAsset(schema.branding?.logo ?? '')
+  const hasHeroBg = !!findHeroImage(schema)
   return `# ${name} — نموذج أولي جاهز للنشر
 
 مشروعك جاهز! هذه حزمة موقع ثابت (HTML + CSS + JS بدون أي مكتبات) أُنشئت بواسطة منصة **نموذج**.
@@ -843,10 +1155,10 @@ function buildReadmeMd(schema: ProjectSchema): string {
 | --- | --- |
 | \`index.html\` | الصفحة الرئيسية لموقعك |
 | \`styles.css\` | كل التنسيقات والألوان (سهل التعديل) |
-| \`script.js\` | تفاعلات خفيفة: القائمة، النماذج، بحث الجداول، ظهور الأقسام عند التمرير، زر العودة للأعلى |
+| \`script.js\` | تفاعلات خفيفة: القائمة، النماذج، بحث الجداول وترقيم صفحاتها، تروستة اللوحة (بحث/إشعارات/قائمة المستخدم)، مهام قابلة للتحديد، زر العودة للخلف والأعلى، ظهور الأقسام عند التمرير |
 | \`404.html\` | صفحة الخطأ |
 | \`netlify.toml\` | إعداد النشر على Netlify |
-${hasLogo ? '| \`assets/\` | شعار مشروعك — يظهر في الترويسة والتذييل وكأيقونة المتصفح |\n' : ''}| باقي المجلدات | صفحة لكل قسم من موقعك |
+${hasLogo ? '| \`assets/logo\` | شعار مشروعك — يظهر في الترويسة والتذييل وكأيقونة المتصفح |\n' : ''}${hasHeroBg ? '| \`assets/hero-bg\` | خلفية صورة قسم البطل في الصفحة الرئيسية |\n' : ''}| باقي المجلدات | صفحة لكل قسم من موقعك |
 
 ## خطوات النشر على Netlify
 
@@ -1047,6 +1359,10 @@ interface RenderCtx {
   seq: { n: number }
   /** الشعار المُصدَّر (مسار نسبي من هذه الصفحة) أو null إن لا شعار */
   logo: { src: string; mime: string } | null
+  /** خلفية صور البطل المُصدَّرة (مسار نسبي) أو null إن لا صورة */
+  heroBg: { src: string } | null
+  /** معرّف الصفحة الجاري عرضها (لأهداف الأزرار الذكية) */
+  pageId: string
 }
 
 function nextId(ctx: RenderCtx, prefix: string): string {
@@ -1062,8 +1378,8 @@ function sectionHeading(title: string, subtitle: string): string {
   return `<div class="blk-heading">${title ? `<h2>${esc(title)}</h2>` : ''}${subtitle ? `<p>${esc(subtitle)}</p>` : ''}</div>`
 }
 
-function sectionWrap(inner: string, tight = false): string {
-  return `<section class="blk-section${tight ? ' blk-section--tight' : ''}"><div class="blk-section__inner">${inner}</div></section>`
+function sectionWrap(inner: string, tight = false, id = ''): string {
+  return `<section${id ? ` id="${esc(id)}"` : ''} class="blk-section${tight ? ' blk-section--tight' : ''}"><div class="blk-section__inner">${inner}</div></section>`
 }
 
 // ============================================================
@@ -1101,7 +1417,7 @@ function applyReveal(html: string, delayMs: number): string {
 }
 
 // ============================================================
-// عرض المكوّنات — 25 نوعاً
+// عرض المكوّنات — 28 نوعاً
 // ============================================================
 function renderBlock(block: Block, ctx: RenderCtx): string {
   const p = block.props ?? {}
@@ -1115,19 +1431,19 @@ function renderBlock(block: Block, ctx: RenderCtx): string {
     case 'steps':
       return renderSteps(p)
     case 'pricing':
-      return renderPricing(p)
+      return renderPricing(p, ctx)
     case 'testimonials':
       return renderTestimonials(p)
     case 'faq':
       return renderFaq(p)
     case 'cta':
-      return renderCta(p)
+      return renderCta(p, ctx)
     case 'contact-form':
       return renderContactForm(p)
     case 'gallery':
       return renderGallery(p)
     case 'banner':
-      return renderBanner(p)
+      return renderBanner(p, ctx)
     case 'list':
       return renderList(p)
     case 'team':
@@ -1135,7 +1451,7 @@ function renderBlock(block: Block, ctx: RenderCtx): string {
     case 'auth-card':
       return renderAuthCard(p, ctx)
     case 'dashboard-header':
-      return renderDashboardHeader(p)
+      return renderDashboardHeader(p, ctx)
     case 'stats-row':
       return renderStatsRow(p)
     case 'chart':
@@ -1149,15 +1465,21 @@ function renderBlock(block: Block, ctx: RenderCtx): string {
     case 'profile-card':
       return renderProfileCard(p)
     case 'empty-state':
-      return renderState('empty', p)
+      return renderState('empty', p, ctx)
     case 'loading-state':
-      return renderState('loading', p)
+      return renderState('loading', p, ctx)
     case 'error-state':
-      return renderState('error', p)
+      return renderState('error', p, ctx)
     case 'calendar':
       return renderCalendar(p)
     case 'custom-html':
       return renderCustomHtml(p)
+    case 'activity-feed':
+      return renderActivityFeed(p)
+    case 'tasks-list':
+      return renderTasksList(p)
+    case 'quick-actions':
+      return renderQuickActions(p, ctx)
     default:
       return ''
   }
@@ -1225,14 +1547,15 @@ function heroPhoneVisualHtml(): string {
 </div>`
 }
 
-/** بطاقة فيديو 16:9 بزر تشغيل ديكوري (visual = video) */
+/** بطاقة فيديو 16:9 بزر تشغيل حقيقي يتبدّل + موجة صوت (visual = video) */
 function heroVideoVisualHtml(): string {
   return `<div class="blk-hero__visual pt-video-wrap">
   <span class="blk-hero__glow1" aria-hidden="true"></span>
   <span class="blk-hero__glow2" aria-hidden="true"></span>
   <div class="pt-video">
     <span class="pt-video__veil" aria-hidden="true"></span>
-    <button type="button" class="pt-play" aria-label="تشغيل الفيديو"><span class="pt-play__triangle" aria-hidden="true"></span></button>
+    <span class="pt-wave" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></span>
+    <button type="button" class="pt-play" aria-label="تشغيل الفيديو" aria-pressed="false"><span class="pt-play__triangle" aria-hidden="true"></span><span class="pt-play__pause" aria-hidden="true"><span></span><span></span></span></button>
     <div class="pt-video__caption" aria-hidden="true"><span style="width:62%"></span><span style="width:42%"></span></div>
   </div>
 </div>`
@@ -1258,6 +1581,13 @@ function heroLeadFormHtml(p: Record<string, unknown>, dark: boolean, centered: b
 </div>`
 }
 
+/** غطاء تدرّج الصورة الخلفية حسب شدة التعتيم (مطابق لعارض React) */
+const HERO_OVERLAY_GRADIENTS: Record<string, string> = {
+  dark: 'linear-gradient(180deg,rgba(13,10,25,.62),rgba(13,10,25,.78))',
+  medium: 'linear-gradient(180deg,rgba(13,10,25,.38),rgba(13,10,25,.55))',
+  light: 'linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,.72))',
+}
+
 function renderHero(p: Record<string, unknown>, ctx: RenderCtx): string {
   const title = S(p, 'title')
   const subtitle = S(p, 'subtitle')
@@ -1266,28 +1596,38 @@ function renderHero(p: Record<string, unknown>, ctx: RenderCtx): string {
   const primaryButtonPage = S(p, 'primaryButtonPage')
   const secondaryButton = S(p, 'secondaryButton')
   const layout = S(p, 'layout', 'split') === 'centered' ? 'centered' : 'split'
-  const background = (['default', 'muted', 'dark', 'gradient'] as const).includes(S(p, 'background') as 'default')
+  const background = (
+    ['default', 'muted', 'dark', 'gradient', 'gradient-soft', 'mesh'] as const
+  ).includes(S(p, 'background') as 'default')
     ? S(p, 'background')
     : 'default'
   const align = S(p, 'align', 'start') === 'center' ? 'center' : 'start'
-  const dark = background === 'dark' || background === 'gradient'
   const visual = (['dashboard', 'phone', 'video', 'form', 'none'] as const).includes(S(p, 'visual') as 'dashboard')
     ? S(p, 'visual')
     : 'dashboard'
   const titleSize = (['md', 'lg', 'xl'] as const).includes(S(p, 'titleSize') as 'md') ? S(p, 'titleSize') : 'md'
 
-  let primaryHref = '#'
-  if (primaryButtonPage.trim()) {
-    const page = ctx.schema.pages.find((pg) => pg.id === primaryButtonPage.trim())
-    if (page) primaryHref = ctx.hrefOf(page.id)
-  } else {
-    const auth = ctx.schema.pages.find((pg) => pg.type === 'auth' && pg.authVariant !== 'forgot')
-    if (auth) primaryHref = ctx.hrefOf(auth.id)
-  }
+  // ---- خلفية الصورة المرفوعة (Task 8): تُكتب كملف داخل الحزمة ----
+  const bgImage = S(p, 'bgImage')
+  const bgOverlay = (['dark', 'medium', 'light', 'none'] as const).includes(S(p, 'bgOverlay') as 'dark')
+    ? S(p, 'bgOverlay')
+    : 'dark'
+  const hasImage = bgImage.trim() !== '' && !!ctx.heroBg
+  const dark = hasImage ? bgOverlay !== 'light' : background === 'dark' || background === 'gradient'
+
+  // ---- الأزرار: أهداف ذكية دائماً (نفس عقد عارض React / nav-targets) ----
+  const primaryId = heroPrimaryTarget(ctx.schema, primaryButtonPage)
+  const primaryHref = primaryId ? ctx.hrefOf(primaryId) : '#'
+  const secondary = heroSecondaryTarget(ctx.schema, ctx.pageId)
+  const secondaryHref = secondary.anchor
+    ? `#${secondary.anchor}`
+    : secondary.pageId
+      ? ctx.hrefOf(secondary.pageId)
+      : '#'
 
   const actions =
     primaryButton || secondaryButton
-      ? `<div class="blk-hero__actions">${primaryButton ? `<a class="pt-btn pt-btn--primary pt-btn--lg" href="${esc(primaryHref)}">${esc(primaryButton)}</a>` : ''}${secondaryButton ? `<a class="pt-btn pt-btn--${dark ? 'on-dark' : 'outline'} pt-btn--lg" href="#">${esc(secondaryButton)}</a>` : ''}</div>`
+      ? `<div class="blk-hero__actions">${primaryButton ? `<a class="pt-btn pt-btn--primary pt-btn--lg" href="${esc(primaryHref)}">${esc(primaryButton)}</a>` : ''}${secondaryButton ? `<a class="pt-btn pt-btn--${dark ? 'on-dark' : 'outline'} pt-btn--lg" href="${esc(secondaryHref)}">${esc(secondaryButton)}</a>` : ''}</div>`
       : ''
 
   // الرسم الجانبي: فقط في التخطيط المقسّم (dashboard/phone/video)
@@ -1321,7 +1661,14 @@ function renderHero(p: Record<string, unknown>, ctx: RenderCtx): string {
     inner = textCol
   }
 
-  return `<section class="blk-hero blk-hero--${esc(background)}"><div class="blk-hero__inner${centeredCol ? ' blk-hero--centered' : ''}">${inner}</div></section>`
+  // خلفية الصورة: تدرّج الغطاء + الصورة (مسار الملف داخل الحزمة — لا data URL في HTML)
+  const heroSrc = ctx.heroBg?.src ?? ''
+  const heroStyle = hasImage
+    ? ` style="background-image:${HERO_OVERLAY_GRADIENTS[bgOverlay] ? `${HERO_OVERLAY_GRADIENTS[bgOverlay]},` : ''}url('${esc(heroSrc)}');background-size:cover;background-position:center"`
+    : ''
+  const heroClass = `blk-hero blk-hero--${esc(background)}${hasImage ? ' blk-hero--image blk-hero--image-' + (bgOverlay === 'light' ? 'light' : 'dark') : ''}${hasImage && bgOverlay === 'none' ? ' blk-hero--image-none' : ''}`
+
+  return `<section class="${heroClass}"${heroStyle}><div class="blk-hero__inner${centeredCol ? ' blk-hero--centered' : ''}">${inner}</div></section>`
 }
 
 // ---------- features ----------
@@ -1343,7 +1690,9 @@ function renderFeatures(p: Record<string, unknown>): string {
     })
     .join('')
   return sectionWrap(
-    `${sectionHeading(title, subtitle)}<div class="blk-features__grid" style="--cols:${columns}">${cards}</div>`
+    `${sectionHeading(title, subtitle)}<div class="blk-features__grid" style="--cols:${columns}">${cards}</div>`,
+    false,
+    'features'
   )
 }
 
@@ -1387,11 +1736,14 @@ function renderSteps(p: Record<string, unknown>): string {
 }
 
 // ---------- pricing ----------
-function renderPricing(p: Record<string, unknown>): string {
+function renderPricing(p: Record<string, unknown>, ctx: RenderCtx): string {
   const title = S(p, 'title')
   const subtitle = S(p, 'subtitle')
   const currency = S(p, 'currency', 'دج') || 'دج'
   const plans = L(p, 'plans')
+  // كل الخطط تنقل إلى نفس الهدف الذكي: إنشاء حساب ← نموذج ← رئيسية
+  const targetId = pricingButtonTarget(ctx.schema)
+  const targetHref = targetId ? ctx.hrefOf(targetId) : '#'
   const cards = plans
     .map((plan) => {
       const name = iS(plan, 'name')
@@ -1411,11 +1763,11 @@ function renderPricing(p: Record<string, unknown>): string {
       ${name ? `<h3 class="blk-plan__name">${esc(name)}</h3>` : ''}
       <p class="blk-plan__price"><span class="blk-plan__amount">${esc(fmtNum(price))}</span><span class="blk-plan__period">${esc(currency)} / ${esc(period)}</span></p>
       <ul class="blk-plan__features">${featureList}</ul>
-      ${buttonText ? `<a class="pt-btn ${highlighted ? 'pt-btn--primary' : 'pt-btn--outline'} pt-btn--block" href="#">${esc(buttonText)}</a>` : ''}
+      ${buttonText ? `<a class="pt-btn ${highlighted ? 'pt-btn--primary' : 'pt-btn--outline'} pt-btn--block" href="${esc(targetHref)}">${esc(buttonText)}</a>` : ''}
     </article>`
     })
     .join('')
-  return sectionWrap(`${sectionHeading(title, subtitle)}<div class="blk-pricing__grid">${cards}</div>`)
+  return sectionWrap(`${sectionHeading(title, subtitle)}<div class="blk-pricing__grid">${cards}</div>`, false, 'pricing')
 }
 
 // ---------- testimonials ----------
@@ -1431,7 +1783,7 @@ function renderTestimonials(p: Record<string, unknown>): string {
       const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating)
       return `<article class="blk-testimonial">
       <div class="blk-testimonial__stars" aria-label="التقييم ${rating} من 5">${stars}</div>
-      ${text ? `<p class="blk-testimonial__text">${esc(text)}</p>` : ''}
+      ${text ? `<p class="blk-testimonial__text">«${esc(text)}»</p>` : ''}
       <div class="blk-testimonial__person">
         ${avatarHtml(name, 40)}
         <div><p class="blk-testimonial__name">${esc(name)}</p><p class="blk-testimonial__role">${esc(role)}</p></div>
@@ -1439,7 +1791,7 @@ function renderTestimonials(p: Record<string, unknown>): string {
     </article>`
     })
     .join('')
-  return sectionWrap(`${sectionHeading(title, '')}<div class="blk-testimonials__grid">${cards}</div>`)
+  return sectionWrap(`${sectionHeading(title, '')}<div class="blk-testimonials__grid">${cards}</div>`, false, 'testimonials')
 }
 
 // ---------- faq ----------
@@ -1454,20 +1806,22 @@ function renderFaq(p: Record<string, unknown>): string {
       return `<details class="blk-faq__item"><summary>${esc(q)}</summary><div class="blk-faq__answer">${esc(a)}</div></details>`
     })
     .join('')
-  return sectionWrap(`${sectionHeading(title, subtitle)}<div class="blk-faq__list">${list}</div>`)
+  return sectionWrap(`${sectionHeading(title, subtitle)}<div class="blk-faq__list">${list}</div>`, false, 'faq')
 }
 
 // ---------- cta ----------
-function renderCta(p: Record<string, unknown>): string {
+function renderCta(p: Record<string, unknown>, ctx: RenderCtx): string {
   const title = S(p, 'title')
   const subtitle = S(p, 'subtitle')
   const buttonText = S(p, 'buttonText')
   const style = (['default', 'gradient', 'dark'] as const).includes(S(p, 'style') as 'default') ? S(p, 'style') : 'default'
+  const targetId = ctaButtonTarget(ctx.schema)
+  const targetHref = targetId ? ctx.hrefOf(targetId) : '#'
   return sectionWrap(
     `<div class="blk-cta__card blk-cta__card--${esc(style)}">
   ${title ? `<h2 class="blk-cta__title">${esc(title)}</h2>` : ''}
   ${subtitle ? `<p class="blk-cta__subtitle">${esc(subtitle)}</p>` : ''}
-  ${buttonText ? `<div class="blk-cta__actions"><a class="pt-btn ${style === 'default' ? 'pt-btn--primary' : 'pt-btn--on-dark'} pt-btn--lg" href="#">${esc(buttonText)}</a></div>` : ''}
+  ${buttonText ? `<div class="blk-cta__actions"><a class="pt-btn ${style === 'default' ? 'pt-btn--primary' : 'pt-btn--on-dark'} pt-btn--lg" href="${esc(targetHref)}">${esc(buttonText)}</a></div>` : ''}
 </div>`,
     true
   )
@@ -1538,15 +1892,17 @@ function renderGallery(p: Record<string, unknown>): string {
 }
 
 // ---------- banner ----------
-function renderBanner(p: Record<string, unknown>): string {
+function renderBanner(p: Record<string, unknown>, ctx: RenderCtx): string {
   const title = S(p, 'title')
   const subtitle = S(p, 'subtitle')
   const buttonText = S(p, 'buttonText')
   const style = S(p, 'style') === 'dark' ? 'dark' : 'gradient'
+  const targetId = bannerButtonTarget(ctx.schema)
+  const targetHref = targetId ? ctx.hrefOf(targetId) : '#'
   return `<section class="blk-section blk-section--tight"><div class="blk-section__inner">
 <div class="blk-banner blk-banner--${esc(style)}"><div class="blk-banner__inner">
   <div>${title ? `<p class="blk-banner__title">${esc(title)}</p>` : ''}${subtitle ? `<p class="blk-banner__subtitle">${esc(subtitle)}</p>` : ''}</div>
-  ${buttonText ? `<a class="pt-btn pt-btn--on-dark" href="#">${esc(buttonText)}</a>` : ''}
+  ${buttonText ? `<a class="pt-btn pt-btn--on-dark" href="${esc(targetHref)}">${esc(buttonText)}</a>` : ''}
 </div></div>
 </div></section>`
 }
@@ -1613,8 +1969,10 @@ function renderAuthCard(p: Record<string, unknown>, ctx: RenderCtx): string {
   const buttonText = S(p, 'buttonText', 'دخول')
   const demoHint = S(p, 'demoHint')
 
-  const dash = ctx.schema.pages.find((pg) => pg.type === 'dashboard')
-  const redirect = variant === 'login' && dash ? ctx.hrefOf(dash.id) : ''
+  // الدخول والتسجيل كلاهما ينتقلان إلى لوحة التحكم (data-redirect) —
+  // الاستعادة تُظهر رسالة نجاح كما هي
+  const dash = findDashboardPage(ctx.schema)
+  const redirect = (variant === 'login' || variant === 'signup') && dash ? ctx.hrefOf(dash.id) : ''
   const success =
     variant === 'forgot'
       ? 'أرسلنا لك رابط الاستعادة — تحقق من بريدك الوارد.'
@@ -1649,15 +2007,21 @@ function renderAuthCard(p: Record<string, unknown>, ctx: RenderCtx): string {
 }
 
 // ---------- dashboard-header ----------
-function renderDashboardHeader(p: Record<string, unknown>): string {
+function renderDashboardHeader(p: Record<string, unknown>, ctx: RenderCtx): string {
   const title = S(p, 'title')
   const subtitle = S(p, 'subtitle')
   const actions = S(p, 'actions')
+  // كل أزرار الترويسة تنقل إلى نفس الهدف الذكي: نموذج ← جدول ← اللوحة
+  const targetId = dashboardActionTarget(ctx.schema)
+  const targetHref = targetId && ctx.schema.pages.some((pg) => pg.id === targetId) ? ctx.hrefOf(targetId) : '#'
   const buttons = actions
-    .split(',')
+    .split(/[,،]/)
     .map((a) => a.trim())
     .filter(Boolean)
-    .map((a, i) => `<button class="pt-btn ${i === 0 ? 'pt-btn--primary' : 'pt-btn--outline'} pt-btn--sm" type="button">${esc(a)}</button>`)
+    .map(
+      (a, i) =>
+        `<a class="pt-btn ${i === 0 ? 'pt-btn--primary' : 'pt-btn--outline'} pt-btn--sm" href="${esc(targetHref)}">${i === 0 ? iconSvg('plus', 16) : ''}${esc(a)}</a>`
+    )
     .join('')
   return `<div class="blk-dash-header">
   <div>${title ? `<h1 class="blk-dash-header__title">${esc(title)}</h1>` : ''}${subtitle ? `<p class="blk-dash-header__subtitle">${esc(subtitle)}</p>` : ''}</div>
@@ -1724,11 +2088,15 @@ function renderDataTable(p: Record<string, unknown>, ctx: RenderCtx): string {
   const tableId = nextId(ctx, 'tbl')
 
   if (!entity || entity.rows.length === 0) {
-    return renderState('empty', {
-      title: 'لا توجد بيانات',
-      subtitle: 'ستظهر العناصر هنا بعد إضافتها أو توليدها.',
-      actionText: '',
-    })
+    return renderState(
+      'empty',
+      {
+        title: 'لا توجد بيانات',
+        subtitle: 'ستظهر العناصر هنا بعد إضافتها أو توليدها.',
+        actionText: '',
+      },
+      ctx
+    )
   }
 
   const columns: EntityColumn[] = entity.columns
@@ -1773,7 +2141,15 @@ function renderDataTable(p: Record<string, unknown>, ctx: RenderCtx): string {
       <tbody>${rows}</tbody>
     </table>
   </div>
-  <div class="blk-table__foot"><p id="${tableId}-count">عرض ${entity.rows.length} من ${entity.rows.length} صف</p><p>بيانات تجريبية</p></div>
+  <div class="blk-table__foot">
+    <p id="${tableId}-count">عرض ${entity.rows.length} من ${entity.rows.length} صف</p>
+    <div class="blk-table__pager" data-pager="${tableId}" data-page-size="5" data-current="1" hidden>
+      <button type="button" class="pt-btn pt-btn--sm pt-btn--outline" data-page="prev" aria-label="الصفحة السابقة">${iconSvg('arrow-right', 16)}</button>
+      <span class="blk-table__pager-count">صفحة 1 من 1</span>
+      <button type="button" class="pt-btn pt-btn--sm pt-btn--outline" data-page="next" aria-label="الصفحة التالية">${iconSvg('arrow-left', 16)}</button>
+    </div>
+    <p>بيانات تجريبية</p>
+  </div>
 </div>`
 }
 
@@ -1895,16 +2271,23 @@ function renderProfileCard(p: Record<string, unknown>): string {
 }
 
 // ---------- states ----------
-function renderState(kind: 'empty' | 'loading' | 'error', p: Record<string, unknown>): string {
+function renderState(kind: 'empty' | 'loading' | 'error', p: Record<string, unknown>, ctx: RenderCtx): string {
   const title = S(p, 'title', kind === 'error' ? 'حدث خطأ ما' : 'لا توجد بيانات بعد')
   const subtitle = S(p, 'subtitle', kind === 'loading' ? '' : 'ستظهر العناصر هنا بمجرد إضافتها.')
   const actionText = S(p, 'actionText')
   const icon = kind === 'error' ? '⚠' : kind === 'loading' ? '' : '📦'
+  // زر الحالة: لوحة التحكم داخل صفحات اللوحات، وإلا الرئيسية (عقد nav-targets)
+  const page = ctx.schema.pages.find((pg) => pg.id === ctx.pageId)
+  const fromDashboard = !!page && ['dashboard', 'table', 'form', 'settings', 'profile'].includes(page.type)
+  const actionTarget = stateActionTarget(ctx.schema, fromDashboard)
+  const actionHtml = actionText
+    ? `<div class="blk-state__actions"><a class="pt-btn pt-btn--primary" href="${esc(actionTarget ? ctx.hrefOf(actionTarget) : '#')}">${esc(actionText)}</a></div>`
+    : ''
   return `<div class="pt-card blk-state">
   ${kind === 'loading' ? '<div class="blk-loading__spinner" aria-hidden="true"></div>' : `<div class="blk-state__icon" aria-hidden="true">${icon}</div>`}
   <h3 class="blk-state__title">${esc(title)}</h3>
   ${subtitle ? `<p class="blk-state__subtitle">${esc(subtitle)}</p>` : ''}
-  ${actionText ? `<div class="blk-state__actions"><button class="pt-btn pt-btn--primary" type="button">${esc(actionText)}</button></div>` : ''}
+  ${actionHtml}
 </div>`
 }
 
@@ -1951,13 +2334,163 @@ function renderCalendar(p: Record<string, unknown>): string {
 }
 
 // ============================================================
+// الكتل الجديدة (Task 8) — عقود 8-spec حرفياً
+// ============================================================
+
+// ---------- activity-feed (سجل النشاطات) ----------
+function renderActivityFeed(p: Record<string, unknown>): string {
+  const title = S(p, 'title', 'آخر النشاطات')
+  // بحد أقصى 6 عناصر (عقد المواصفات)
+  const items = L(p, 'items').slice(0, 6)
+  const list = items
+    .map((item) => {
+      const user = iS(item, 'user')
+      const action = iS(item, 'action')
+      const target = iS(item, 'target')
+      const time = iS(item, 'time')
+      return `<li class="blk-activity__item">
+      <span class="blk-activity__dot" aria-hidden="true"></span>
+      ${avatarHtml(user || '؟', 36)}
+      <div class="blk-activity__body">
+        <p class="blk-activity__text">${esc(user)} ${esc(action)}${target ? ` <strong>${esc(target)}</strong>` : ''}</p>
+        ${time ? `<p class="blk-activity__time">${esc(time)}</p>` : ''}
+      </div>
+    </li>`
+    })
+    .join('')
+  return `<div class="pt-card blk-activity">
+  ${title ? `<div class="blk-activity__head"><h3>${esc(title)}</h3></div>` : ''}
+  <ul class="blk-activity__list">${list}</ul>
+</div>`
+}
+
+// ---------- tasks-list (المهام — مربعات اختيار تعمل) ----------
+function renderTasksList(p: Record<string, unknown>): string {
+  const title = S(p, 'title', 'مهام اليوم')
+  const subtitle = S(p, 'subtitle')
+  const items = L(p, 'items')
+  const total = items.length
+  const doneCount = items.filter((it) => iB(it, 'done')).length
+  const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0
+  const list = items
+    .map((item) => {
+      const label = iS(item, 'label')
+      const done = iB(item, 'done')
+      const meta = iS(item, 'meta')
+      return `<li class="blk-tasks__item${done ? ' done' : ''}">
+      <button type="button" class="blk-tasks__check${done ? ' on' : ''}" role="checkbox" aria-checked="${done ? 'true' : 'false'}" data-task aria-label="${esc(label)}">${iconSvg('check', 14)}</button>
+      <span class="blk-tasks__label">${esc(label)}</span>
+      ${meta ? `<span class="blk-tasks__meta">${esc(meta)}</span>` : ''}
+    </li>`
+    })
+    .join('')
+  return `<div class="pt-card blk-tasks">
+  <div class="blk-tasks__head">
+    <div>${title ? `<h3 class="blk-tasks__title">${esc(title)}</h3>` : ''}${subtitle ? `<p class="blk-tasks__sub">${esc(subtitle)}</p>` : ''}</div>
+    <span class="blk-tasks__count" data-tasks-count>${doneCount} من ${total} منجزة</span>
+  </div>
+  <div class="blk-tasks__progress" data-tasks-bar role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span class="blk-tasks__progress-fill" data-tasks-progress style="width:${pct}%"></span></div>
+  <ul class="blk-tasks__list">${list}</ul>
+</div>`
+}
+
+// ---------- quick-actions (إجراءات سريعة — أزرار تعمل) ----------
+function renderQuickActions(p: Record<string, unknown>, ctx: RenderCtx): string {
+  const title = S(p, 'title', 'إجراءات سريعة')
+  const cards = L(p, 'actions')
+    .map((action) => {
+      const pageId = iS(action, 'pageId')
+      const page = ctx.schema.pages.find((pg) => pg.id === pageId)
+      // pageId غير صالح → تجاهل الإجراء كلياً (عقد المواصفات)
+      if (!page) return ''
+      const icon = iS(action, 'icon')
+      const label = iS(action, 'label')
+      return `<a class="blk-quick__item" href="${esc(ctx.hrefOf(page.id))}">
+      <span class="blk-quick__icon">${iconSvg(icon)}</span>
+      <span class="blk-quick__row"><span class="blk-quick__label">${esc(label)}</span><span class="blk-quick__arrow" aria-hidden="true">${iconSvg('arrow-left', 16)}</span></span>
+    </a>`
+    })
+    .join('')
+  if (!cards) return ''
+  return `<div class="blk-quick">${title ? `<h3 class="blk-quick__title">${esc(title)}</h3>` : ''}<div class="blk-quick__grid">${cards}</div></div>`
+}
+
+// ============================================================
 // قشور الصفحات
 // ============================================================
+
+/** زر العودة للخلف العائم (كل صفحة غير الرئيسية) — RTL: السهم يشير يميناً */
+function backButtonHtml(homeHref: string): string {
+  return `<button type="button" class="pt-back" data-back data-home="${esc(homeHref)}" aria-label="العودة إلى الصفحة السابقة">
+  ${iconSvg('arrow-right', 20)}
+  <span class="pt-back__label">عودة</span>
+</button>`
+}
+
+/** إشعارات التروستة (بيانات تجريبية جزائرية — مطابقة لعارض React) */
+const TOPBAR_NOTIFICATIONS: Array<{ title: string; detail: string; time: string }> = [
+  { title: 'طلب جديد من وهران', detail: 'قيمة 12,500 دج — بانتظار التأكيد', time: 'قبل 4 دقائق' },
+  { title: 'تم تحديث تقرير الأسبوع', detail: 'نمو 8.2% عن الأسبوع الماضي', time: 'قبل ساعة' },
+  { title: 'رسالة من سارة بوزيد', detail: '«متى يجهز طلبي؟» — تحتاج رداً', time: 'قبل 3 ساعات' },
+]
+
+/** تروستة لوحة التحكم: بحث الصفحة + إشعارات + قائمة المستخدم (Task 8) */
+function dashboardTopbarHtml(ctx: RenderCtx): string {
+  const profilePage = ctx.schema.pages.find((pg) => pg.type === 'profile')
+  const settingsPage = ctx.schema.pages.find((pg) => pg.type === 'settings')
+  const loginPage = ctx.schema.pages.find(
+    (pg) => pg.type === 'auth' && (pg.authVariant ?? 'login') === 'login'
+  )
+  const notifMenuId = nextId(ctx, 'notif')
+  const userMenuId = nextId(ctx, 'usermenu')
+  const dotId = nextId(ctx, 'belldot')
+
+  const notifItems = TOPBAR_NOTIFICATIONS.map(
+    (n) => `<li>
+      <span class="pt-dropdown__dot" aria-hidden="true"></span>
+      <div><p class="pt-dropdown__title">${esc(n.title)}</p><p class="pt-dropdown__detail">${esc(n.detail)}</p><p class="pt-dropdown__time">${esc(n.time)}</p></div>
+    </li>`
+  ).join('')
+
+  return `<div class="pt-topbar">
+  <div class="pt-topbar__search">
+    ${iconSvg('search', 16)}
+    <input type="search" placeholder="ابحث في الصفحة..." aria-label="ابحث في جداول الصفحة" data-topbar-search>
+  </div>
+  <div class="pt-topbar__actions">
+    <div class="pt-topbar__item">
+      <button type="button" class="pt-topbar__btn pt-bell" data-menu-toggle="${notifMenuId}" aria-label="الإشعارات" aria-expanded="false" aria-haspopup="true">
+        ${iconSvg('bell', 18)}
+        <span class="pt-bell__dot" id="${dotId}" aria-hidden="true"></span>
+      </button>
+      <div class="pt-dropdown pt-dropdown--notif" id="${notifMenuId}" role="menu" aria-label="الإشعارات">
+        <div class="pt-dropdown__head"><p>الإشعارات</p><button type="button" class="pt-dropdown__action" data-read-all="${dotId}">تحديد الكل كمقروء</button></div>
+        <ul class="pt-dropdown__list">${notifItems}</ul>
+      </div>
+    </div>
+    <div class="pt-topbar__item">
+      <button type="button" class="pt-topbar__btn pt-user" data-menu-toggle="${userMenuId}" aria-label="قائمة الحساب" aria-expanded="false" aria-haspopup="true">
+        ${avatarHtml('م', 28)}
+        <span class="pt-user__name">مستخدم تجريبي</span>
+      </button>
+      <div class="pt-dropdown pt-dropdown--user" id="${userMenuId}" role="menu" aria-label="قائمة الحساب">
+        <div class="pt-dropdown__user"><p>مستخدم تجريبي</p><p dir="ltr">demo@namudhaj.dz</p></div>
+        <div class="pt-dropdown__body">
+          ${profilePage ? `<a role="menuitem" class="pt-dropdown__link" href="${esc(ctx.hrefOf(profilePage.id))}">${iconSvg('user', 16)}<span>الملف الشخصي</span></a>` : ''}
+          ${settingsPage ? `<a role="menuitem" class="pt-dropdown__link" href="${esc(ctx.hrefOf(settingsPage.id))}">${iconSvg('settings', 16)}<span>الإعدادات</span></a>` : ''}
+          ${loginPage ? `<div class="pt-dropdown__divider"></div><a role="menuitem" class="pt-dropdown__link pt-dropdown__link--danger" href="${esc(ctx.hrefOf(loginPage.id))}">${iconSvg('log-out', 16)}<span>تسجيل الخروج</span></a>` : ''}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>`
+}
+
 function siteShell(page: ProjectPage, ctx: RenderCtx): string {
   const nav = ctx.schema.navigation
-  const homeHref = ctx.hrefOf(
-    (ctx.schema.pages.find((pg) => pg.type === 'landing') ?? ctx.schema.pages[0])?.id ?? page.id
-  )
+  const home = findHomePage(ctx.schema)
+  const homeHref = ctx.hrefOf(home?.id ?? page.id)
+  const isHome = !!home && home.id === page.id
   const links = nav.items
     .map((item) => {
       const target = ctx.schema.pages.find((pg) => pg.id === item.pageId)
@@ -2014,18 +2547,24 @@ function siteShell(page: ProjectPage, ctx: RenderCtx): string {
     ${nav.footerNote ? `<p class="pt-footer__note">${esc(nav.footerNote)}</p>` : ''}
   </div>
 </footer>
-<button type="button" class="pt-top" aria-label="العودة إلى الأعلى"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg></button>`
+<button type="button" class="pt-top" aria-label="العودة إلى الأعلى"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg></button>
+${isHome ? '' : backButtonHtml(homeHref)}`
 }
 
 function authShell(page: ProjectPage, ctx: RenderCtx): string {
-  const home = ctx.schema.pages.find((pg) => pg.type === 'landing') ?? ctx.schema.pages[0]
+  const home = findHomePage(ctx.schema)
+  const homeHref = home ? ctx.hrefOf(home.id) : '#'
   const blocks = page.blocks.map((b) => renderBlock(b, ctx)).join('\n')
   const brandMark = ctx.logo
     ? `<img class="pt-logo" src="${esc(ctx.logo.src)}" alt="${esc(ctx.schema.navigation.brand)}" loading="lazy">`
     : `<span class="blk-auth__logo" aria-hidden="true"></span>`
-  return `<div class="blk-auth">
-  <a class="blk-auth__brand" href="${esc(home ? ctx.hrefOf(home.id) : '#')}" aria-label="الذهاب إلى ${esc(ctx.schema.navigation.brand)}">${brandMark}<span>${esc(ctx.schema.navigation.brand)}</span></a>
+  return `<div class="blk-auth pt-auth">
+  <span class="pt-auth__glow pt-auth__glow--a" aria-hidden="true"></span>
+  <span class="pt-auth__glow pt-auth__glow--b" aria-hidden="true"></span>
+  <a class="blk-auth__brand" href="${esc(homeHref)}" aria-label="الذهاب إلى ${esc(ctx.schema.navigation.brand)}">${brandMark}<span>${esc(ctx.schema.navigation.brand)}</span></a>
   <main id="pt-main" style="width:100%">${blocks}</main>
+  <a class="pt-auth__back" href="${esc(homeHref)}">${iconSvg('arrow-right', 16)}<span>العودة إلى الرئيسية</span></a>
+  ${backButtonHtml(homeHref)}
 </div>`
 }
 
@@ -2052,6 +2591,8 @@ function dashboardShell(page: ProjectPage, ctx: RenderCtx): string {
   const blocks = page.blocks.map((b) => renderBlock(b, ctx)).join('\n')
 
   const brand = ctx.schema.navigation.brand
+  const home = findHomePage(ctx.schema)
+  const homeHref = home ? ctx.hrefOf(home.id) : '#'
   const logoImg = ctx.logo
     ? `<img class="pt-logo" src="${esc(ctx.logo.src)}" alt="${esc(brand)}" loading="lazy">`
     : ''
@@ -2064,9 +2605,12 @@ function dashboardShell(page: ProjectPage, ctx: RenderCtx): string {
   <aside class="pt-sidebar">
     <div class="pt-sidebar__brand">${sidebarMark}<span>${esc(brand)}</span></div>
     <nav class="pt-sidebar__nav" aria-label="تنقل لوحة التحكم">${navHtml}</nav>
-    <div class="pt-sidebar__user">
-      ${avatarHtml('م', 34)}
-      <div class="pt-sidebar__user-info"><p class="pt-sidebar__user-name">مستخدم تجريبي</p>${badgeHtml('بيانات تجريبية', 'primary')}</div>
+    <div class="pt-sidebar__bottom">
+      <div class="pt-sidebar__user">
+        ${avatarHtml('م', 34)}
+        <div class="pt-sidebar__user-info"><p class="pt-sidebar__user-name">مستخدم تجريبي</p>${badgeHtml('بيانات تجريبية', 'primary')}</div>
+      </div>
+      ${home ? `<a class="pt-sidebar__item pt-sidebar__item--muted" href="${esc(homeHref)}">${iconSvg('globe', 16)}<span>العودة إلى الموقع</span></a>` : ''}
     </div>
   </aside>
   <div>
@@ -2074,9 +2618,11 @@ function dashboardShell(page: ProjectPage, ctx: RenderCtx): string {
       <div class="pt-sidebar-top__head">${topMark}<span>${esc(brand)}</span></div>
       <nav class="pt-sidebar-top__pills" aria-label="تنقل لوحة التحكم">${pills}</nav>
     </div>
+    ${dashboardTopbarHtml(ctx)}
     <main id="pt-main" class="pt-sidebar-content"><div class="pt-sidebar-content__inner">${blocks}</div></main>
   </div>
-</div>`
+</div>
+${backButtonHtml(homeHref)}`
 }
 
 // ============================================================
@@ -2156,9 +2702,10 @@ function pageHtml(
   page: ProjectPage,
   rel: string,
   hrefOf: (pageId: string) => string,
-  logo: { src: string; mime: string } | null
+  logo: { src: string; mime: string } | null,
+  heroBg: { src: string } | null
 ): string {
-  const ctx: RenderCtx = { schema, rel, hrefOf, seq: { n: 0 }, logo }
+  const ctx: RenderCtx = { schema, rel, hrefOf, seq: { n: 0 }, logo, heroBg, pageId: page.id }
   return htmlDocument(schema, page, shellFor(page, ctx), ctx)
 }
 
@@ -2204,8 +2751,24 @@ ${faviconLink(schema, logo)}
 // ============================================================
 // نقطة الدخول — generateStaticSite
 // ============================================================
+
+/** أول كتلة بطل تحمل صورة خلفية صالحة → أصل ثنائي (مثل آلية الشعار) */
+function findHeroImage(schema: ProjectSchema): { buffer: Uint8Array; ext: string; mime: string } | null {
+  const pages = Array.isArray(schema?.pages) ? schema.pages : []
+  for (const page of pages) {
+    for (const block of page.blocks ?? []) {
+      if (block.type !== 'hero') continue
+      const bg = S(block.props ?? {}, 'bgImage')
+      if (!bg.trim()) continue
+      const asset = dataUrlToAsset(bg)
+      if (asset) return asset
+    }
+  }
+  return null
+}
+
 export function generateStaticSite(schema: ProjectSchema): {
-  /** نص الملفات كنص، والشعار كـ Uint8Array ثنائي */
+  /** نص الملفات كنص، والشعار/خلفية البطل كـ Uint8Array ثنائي */
   files: Record<string, string | Uint8Array>
   landingSlug: string
 } {
@@ -2244,15 +2807,19 @@ export function generateStaticSite(schema: ProjectSchema): {
     return `../${slug}/`
   }
 
-  // ---------- الشعار: data URL → ملف ثنائي في الحزمة ----------
+  // ---------- الشعار وخلفية البطل: data URL → ملفات ثنائية في الحزمة ----------
   const logoAsset = schema.branding?.logo ? dataUrlToAsset(schema.branding.logo) : null
   const rootLogo = logoAsset ? { src: `assets/logo.${logoAsset.ext}`, mime: logoAsset.mime } : null
   const folderLogo = logoAsset ? { src: `../assets/logo.${logoAsset.ext}`, mime: logoAsset.mime } : null
+  const heroAsset = findHeroImage(schema)
+  const rootHeroBg = heroAsset ? { src: `assets/hero-bg.${heroAsset.ext}` } : null
+  const folderHeroBg = heroAsset ? { src: `../assets/hero-bg.${heroAsset.ext}` } : null
 
   const files: Record<string, string | Uint8Array> = {}
 
   // ---------- الملفات المشتركة ----------
   if (logoAsset) files[`assets/logo.${logoAsset.ext}`] = logoAsset.buffer
+  if (heroAsset) files[`assets/hero-bg.${heroAsset.ext}`] = heroAsset.buffer
   files['styles.css'] = buildStylesCss(schema.theme)
   files['script.js'] = buildScriptJs()
   files['netlify.toml'] = buildNetlifyToml()
@@ -2261,12 +2828,12 @@ export function generateStaticSite(schema: ProjectSchema): {
   // ---------- الصفحات ----------
   for (const page of pages) {
     const slug = slugOf.get(page.id) ?? 'page'
-    files[`${slug}/index.html`] = pageHtml(schema, page, '../', hrefFromFolder, folderLogo)
+    files[`${slug}/index.html`] = pageHtml(schema, page, '../', hrefFromFolder, folderLogo, folderHeroBg)
   }
 
   // ---------- الجذر: الصفحة الرئيسية + 404 ----------
   files['index.html'] = landing
-    ? pageHtml(schema, landing, '', hrefFromRoot, rootLogo)
+    ? pageHtml(schema, landing, '', hrefFromRoot, rootLogo, rootHeroBg)
     : notFoundHtml(schema, '', './', rootLogo)
   files['404.html'] = notFoundHtml(schema, '', './', rootLogo)
 

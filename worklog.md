@@ -488,3 +488,122 @@ Stage Summary:
 
 **Stage Summary:**
 الميزات الخمس تعمل من طرف إلى طرف: (1) 12 نمط صفحة هبوط قابلة للاختيار من تدفق الإنشاء ومكتبة القوالب ولوحة الصفحات والوكيل الذكي، (2) رفع الشعار ودمجه في المعاينة والتصدير (favicon/assets)، (3) حفظ المشاريع كقوالب شخصية وإعادة استخدامها، (4) مكتبة HTML (رفع/لصق/استخدام في مشاريع) بمكوّن custom-html معزول، (5) تحسينات جودة التصدير (SEO/OG/حركات/زر أعلى/skip-link/شعار). إعادة تشغيل خادم التطوير بعد توقفه أثناء عمل الوكلاء المتوازيين.
+
+---
+
+## Task ID: 8-a (foundation — main agent)
+
+**Agent:** main agent
+**Task:** أساس الجولة 8: أنواع الكتل الجديدة + عقد التنقل الذكي + إصلاح أزرار React + زر العودة + تروستة لوحة التحكم + خلفية صور البطل (React) + حذف الصور بعد التحميل (خادم).
+
+**Work Log:**
+- `agent-ctx/8-spec.md` (جديد): العقد الملزم الكامل للجولة 8 (ملكية الملفات + عقود nav-targets والكتل الجديدة وخلفية الصورة وزر العودة والتروستة وقواعد الجمالية).
+- `src/lib/types.ts`: BlockType += 'activity-feed' | 'tasks-list' | 'quick-actions'.
+- `src/lib/project/nav-targets.ts` (جديد): دوال نقية مشتركة (findHomePage/AuthPage/PricingPage/DashboardPage/FormPage/TablePage + heroPrimaryTarget/heroSecondaryTarget/pricingButtonTarget/ctaButtonTarget/bannerButtonTarget/stateActionTarget/dashboardActionTarget).
+- `src/lib/project/tools.ts`: + stripTransientImages (يزيل bgImage/bgImageName من كتل البطل).
+- `src/app/api/projects/[id]/export/route.ts`: بعد توليد ZIP → stripTransientImages → حفظ project.schemaJson + الإصدار بالمخطط المنقّى (مطلب: الصور لا تبقى في DB بعد التحميل).
+- `src/app/api/projects/[id]/route.ts`: نسخ الإصدارات التاريخية تُنقّى من الصور المؤقتة أيضاً.
+- `src/components/builder/export-dialog.tsx`: بعد الضغط على التحميل → مزامنة الحالة المحلية (strip) + toast يشرح الحذف (مفتاح heroImageCleared).
+- React blocks — أزرار عاملة: hero (أساسي→هدف ذكي، ثانوي→مرساة/صفحة، بريد→هدف، فيديو→زر تشغيل حقيقي يتبدّل)، pricing (ctx + planGo)، cta (ctx + ctaGo + توهج داخلي)، banner (ctx + bannerGo + توهج)، state-blocks (onAction → dashboard/home)، dashboard-header (أزرار→form/table)، auth-card (login + signup كلاهما → لوحة التحكم).
+- hero-block: خلفية صورة (bgImage/bgOverlay dark|medium|light|none + نص أبيض/داكن + textShadow عند none) + خلفيتا gradient-soft وmesh + pt-wave في theme-provider.
+- جمالية: features (بلاطة أيقونة بتدرج + حدّ hover primary)، stats (قيم بتدرج نصي)، testimonials (علامة اقتباس متدرجة + حلقة أفاتار) + SectionShell ids: features/pricing/testimonials.
+- `prototype-renderer.tsx`: FloatingBackButton عائم (غير الرئيسية، تفاعلي فقط) + SiteShell/AuthShell/DashboardShell محدثة + AuthShell (توهجات + رابط عودة + شعار) + DashboardTopbar (بحث يفلتر الجداول عبر ctx.tableSearch + جرس إشعارات بقائمة تعمل + قائمة مستخدم بروابط حقيقية profile/settings/logout) + رابط «العودة إلى الموقع» في الشريط الجانبي والجوال + data-table يدمج بحث التروستة.
+- `preview-mode.tsx`: زر «رجوع» بمكدس تاريخ + selectPage متزامن.
+- i18n/builder.ts: مفاتيح 8-a (backBtn/backToHome/topbarSearch/notifications/userMenu/imageField*/heroImageCleared...).
+- tsc: يتبقى خطأ registry وحده (مسؤولية 8-c) — dev server 200.
+
+**Stage Summary:**
+- الأساس المشترك جاهز: nav-targets يعمل React-side وسيستورده 8-b للتصدير (نفس القواعد).
+- الصور المؤقتة: تدخل ZIP ثم تُحذف من كل مستويات DB (صفحة المشروع + الإصدارات) وتُزامن محلياً مع toast.
+- في انتظار 8-b (generate.ts) و8-c (كتل جديدة + registry + محرر الصور + إثراء القوالب).
+
+---
+
+## Task ID: 8-c — كتل لوحة التحكم الجديدة + حقول الصفحة/الصورة + إثراء القوالب
+
+**Agent:** full-stack-developer (subagent — owns blocks components, registry, properties-panel, templates, i18n tail)
+
+**Files (ملكية صارمة — لم يُلمس ملف خارجها):**
+- `src/components/prototype/blocks/activity-feed-block.tsx` (جديد)
+- `src/components/prototype/blocks/tasks-list-block.tsx` (جديد)
+- `src/components/prototype/blocks/quick-actions-block.tsx` (جديد)
+- `src/lib/registry/blocks.ts` — `src/components/builder/properties-panel.tsx` — `src/lib/project/templates.ts` — `src/lib/i18n/builder.ts` (إلحاق فقط في النهاية) — worklog.
+
+**Work Log:**
+1. **activity-feed** (سجل النشاطات): بطاقة --pt-* بترويسة bold text-sm + قائمة عمودية بحد أقصى 6 عناصر — كل صف: نقطة primary (خط زمني) + PAvatar (حرفا الاسم) + سطر «{user} {action} {target}» (المستخدم font-semibold 13px، الهدف muted) + وقت 11px muted تحت السطر، divide-y بين الصفوف + hover secondary. قُرّاء آمنون S/L/iS. items فارغة → الترويسة فقط.
+2. **tasks-list** (المهام): بطاقة بترويسة (عنوان + subtitle اختياري) + شريط تقدّم h-1.5 (bg secondary، المfüllعرض % بلون primary مع transition-all) + عدّاد «X من Y منجزة» + قائمة مهام: زر checkbox حقيقي (role="checkbox" + aria-checked + focus-visible) حجم size-5 عند done يتحول primary مع أيقونة Check بيضاء strokeWidth 3، label يُخطّ (line-through + muted) عند done + meta 11px. **التبديل محلي (useState يبدأ من props) ويحدّث الشريط والعدّاد لحظياً** — مفعّل دائماً حتى في وضع الباني (عرض توضيحي).
+3. **quick-actions** (إجراءات سريعة): section بعنوان text-sm font-bold mb-3 + شبكة متجاوبة حسب العدد (2 / md:3 / lg:4 أعمدة) من أزرار-بطاقات min-h-[76px]: بلاطة أيقونة size-10 بتدرج `color-mix(primary 14%, accent 18%, transparent)` + ProtoIcon بلون primary + label + سهم ArrowLeft (للأمام RTL) muted يتحرك hover. **النقر → ctx.onNavigate(pageId) فقط إذا كان pageId صفحة حقيقية في ctx.schema.pages ووُجد onNavigate — وإلا زر معطّل (opacity-50 + cursor-not-allowed)**.
+4. **registry/blocks.ts**: نوعا حقل جديدان في FieldDefinition — `'page'` و`'image'` (مع accept?) — + HERO_BG_OPTIONS += «تدرّج ناعم» (gradient-soft) و«شبكية توهج» (mesh) + HERO_OVERLAY_OPTIONS (dark/medium/light/none) + hero: افتراضي bgOverlay='dark' وحقول primaryButtonPage (page) وbgImage (image) وbgOverlay (select) + ICON_FIELD_OPTIONS += plus/file-text/settings/user (لضمان ظهور منتقي الأيقونات لكل قيمة نستعملها) + تعريفات الكتل الثلاث (فئة dashboard، أيقونات bell/check/zap، defaults جزائرية واقعية: أحمد بن علي/سارة بوزيد/محمد قادري/ياسين مراد/ليلى مزيان + مهام اليوم 2 منجزة/3 معلّقة + 4 إجراءات pageId فارغ يملؤه المستخدم من اللوحة). إصلاح خطأ tsc الوحيد المتبقي (Record<BlockType, BlockDefinition> ناقص الكتل الثلاث).
+5. **properties-panel.tsx**: PageField — Select من صفحات المخطط + أول خيار «تلقائي (ذكي)» (حارس `__auto__` لأن Radix لا يقبل قيمة فارغة)، يعرض اسم الصفحة الحالية، بدون schema → null. ImageField — زر رفع outline h-11 (ImagePlus) + إدخال ملف مخفي (png/jpeg/webp) + تحقق ≤5MB (toast imageFieldTooLarge) + **تصغير canvas بحد 1600px** (ملء أبيض خلف الشفافية) + تصدير **JPEG جودة 0.82** + commit dataURL وbgImageName (نفس الباتش عند bgImage) + معاينة h-28 bg-cover + استبدال/إزالة (destructive ghost → undefined) + تلميح + Loader2 أثناء المعالجة. توصيل النوعين في SimpleField (قبل فرع النص الافتراضي) فيعملان حتى داخل عناصر القوائم (pageId في quick-actions). 'bgOverlay' أُضيف إلى APPEARANCE_KEYS.
+6. **templates.ts — إثراء لوحات التحكم للقوالب الـ14 كلها** (buildDashboardBlocks): الترتيب النهائي dashboard-header(0), stats-row(1), chart(2), chart(3), **quick-actions(4), data-table(5), tasks-list(6), activity-feed(7)**. الإجراءات السريعة تُبنى بمعرفات صفحات حقيقية (`${p.id}-${key}`): «إضافة {مفرد كيان أول صفحة جدول}» → أول table، «تقرير الأداء» → اللوحة نفسها، «الإعدادات» → settings، «الملف الشخصي» → profile (كل هدف بشرط توفر specه — خرائط ENTITY_SINGULAR جديدة). المهام: 5 (أولاها «مراجعة أحدث {الكيان}») + سجل النشاطات من p.activity (title→action, subtitle→target, meta→time) مع تدوير 6 أسماء جزائرية، بحد 5.
+7. **i18n/builder.ts** (إلحاق في نهاية الكائن): tasksProgressOf/pageFieldAuto/imageFieldInvalid/imageFieldUploaded فقط — بقية النصوص حرفية عربية في السجل والمكوّنات (نمط الكتل القائمة).
+
+**Verification:**
+- `npx tsc --noEmit`: **صفر أخطاء في src/** (خطأ registry الوحيد المتبقي من 8-a أُصلح). `bun run lint`: 0 أخطاء (تحذير الخطوط القديم وحده). dev.log نظيف (Compiles بلا أخطاء).
+- سكربت bun مؤقت (حُذف): 48/48 فحصاً — saas-suite يحوي الكتل الثلاث بالترتيب المطلوب، pageIds الإجراءات كلها تُحل لصفحات موجودة، 5 مهام (2 منجزة)، نشاطات بصيغة العقد، **والقوالب الـ14 كلها مُثراة** بأهداف صالحة + السجل (الكتل الثلاث + hero bgImage/bgOverlay/primaryButtonPage + 6 خلفيات + نوعا الحقلين). + اختبار SSR مؤقت (renderToString): 12/12 — أفاتار/نقطة زمنية/وقت، role=checkbox + aria-checked + line-through + width:40%، الشبكة 2/3/4، الأزرار مفعّلة عند onNavigate ومعطّلة عند pageId فاسد أو بلا onNavigate.
+- أيقونات: bell/check/zap/plus/file-text/settings/user/package/users/trending-up كلها في icon-map (ProtoIcon) — الأربع الأخيرة أُضيفت أيضاً إلى ICON_FIELD_OPTIONS.
+
+**Stage Summary — مطلوب من الوكيل الرئيسي (وصل جاهزاً للدمج الفوري):**
+- ⚠️ **prototype-renderer.tsx (ملف الرئيسي — لم ألمسه): حالة switch الكتل الثلاث غير موجودة بعد** (قرأت الملف: 26 حالة بلا activity-feed/tasks-list/quick-actions → تسقط في default `''`). المطلوب إضافته: 3 استيرادات + `case 'activity-feed': return <ActivityFeedBlock block={block} ctx={ctx} />` ومثلها للاثنين (المكوّنان الأولان يقبلان ctx اختيارياً وquick-actions يطلبه — توقيع الجميع متوافق مع تمرير ctx دائماً). بدونها تُضاف الكتل من «+ مكوّن» وتحرَّر خصائصها لكنها لا تظهر في العرض.
+- 8-b (generate.ts): لا مرجع للكتل الثلاث بعد — التصدير بانتظاره (نفس الخصائص في 8-spec: items[{user,action,target,time}] / items[{label,done,meta}] / actions[{icon,label,pageId}] — إجراءات pageId الفارغة تُخفى والفاسدة تُخفى/تعطَّل).
+- ملاحظة تصميم واحدة: ملصق «إضافة …» في الإجراءات السريعة يستعمل مفرد كيان **صفحة الجدول الهدف** (لا كيان اللوحة) حتى يتطابق النص مع الوجهة (مثال saas-suite: «إضافة عميل» → صفحة العملاء).
+
+## Task ID: 8-b — Export Generator (subagent)
+
+**Agent:** 8-b (export generator — `src/lib/export/generate.ts` فقط)
+
+**Work Log:**
+- **أزرار عاملة (عقد nav-targets المشترك):** استيراد `heroPrimaryTarget/heroSecondaryTarget/pricingButtonTarget/ctaButtonTarget/bannerButtonTarget/stateActionTarget/dashboardActionTarget` من `src/lib/project/nav-targets` — نفس قواعد عارض React حرفياً: بطل أساسي/ثانوي (الثانوي ← مرساة `#features/#pricing/#testimonials/#faq` أو صفحة)، أزرار كل خطط التسعير، CTA، الشريط الإعلاني، أزرار الحالات (فارغ/خطأ) كروابط `<a>` (dashboard داخل صفحات اللوحات)، وأزرار ترويسة اللوحة كروابط `<a class="pt-btn">` مع أيقونة Plus للأول (تقسيم على الفاصلة العربية أيضاً).
+- **مراسي الأقسام:** `sectionWrap(id?)` — features/pricing/testimonials/faq تحمل `id` + `scroll-margin-top:76px` (smooth-scroll موجود مسبقاً خلف prefers-reduced-motion).
+- **مصادقة:** login **و signup** كلاهما يحمل `data-redirect` إلى لوحة التحكم (findDashboardPage)؛ forgot يبقى برسالة نجاح.
+- **زر العودة للخلف:** `backButtonHtml` عائم ثابت (bottom:20px / inset-inline-start:20px / 44px دائري primary) بسهم SVG يشير يميناً (RTL) + تسمية «عودة» تتمدد عند hover/focus — في كل قشور غير الرئيسية (site/auth/dashboard) بلا 404 ولا الرئيسية؛ `data-home` + معالج script.js (history.back إن كان المُحيل نفس الأصل وإلا الرئيسية). إخفاء شارة البيانات التجريبية الثابتة على تلك الصفحات عبر `.pt-back~.pt-demo-badge` (تتجنب التزاحم؛ الشارة باقية في التذييل/الشريط الجانبي/بطاقة الدخول).
+- **تروستة لوحة التحكم (desktop+mobile):** `.pt-topbar` لاصقة أعلى العمود الرئيسي (تحت صفحة الجوال العلوية): بحث `data-topbar-search` «ابحث في الصفحة...» بأيقونة + جرس بنقطة حمراء وقائمة منسدلة (3 إشعارات جزائرية + «تحديد الكل كمقروء» يعمل) + قائمة مستخدم (أفاتار «م» + demo@namudhaj.dz + الملف الشخصي/الإعدادات/تسجيل الخروج روابط حقيقية تُخفى عند غياب الصفحات) — فتح/إغلاق عبر `[data-menu-toggle]` + إغلاق عند النقر خارجها. + رابط «العودة إلى الموقع» (أيقونة globe) أسفل بطاقة المستخدم في الشريط الجانبي.
+- **الجداول:** بحث الجدول + بحث التروستة مدمجان (AND) في `refreshTable` واحدة + **ترقيم صفحات** خفيف: `[data-pager]` مع `data-page-size="5"` وأزرار سابق/تالي (أسهم RTL: السابق →، التالي ←) وعداد «صفحة X من Y» — يُخفى كلياً حين ≤ 5 صفوف، ويُعاد الضبط عند البحث.
+- **خلفية صورة البطل:** `findHeroImage` (أول بطل بصورة صالحة) → `dataUrlToAsset` → `assets/hero-bg.{ext}` ثنائي داخل الحزمة (مثل الشعار، عبر `RenderCtx.heroBg` الجديد) — الجذر `assets/...` والمجلدات `../assets/...`؛ الأقسمة inline-style: `background-image:{overlay},url(...)` مع أغطية dark/medium/light/none حرفياً من العقد، نص أبيض إلا light، وظل نص عند none. لا data URL في HTML إطلاقاً. + خلفيتا hero الجديدتان `gradient-soft` و`mesh` (نفس قيم عارض React).
+- **تشغيل الفيديو:** الزر يتبدّل فعلياً: مثلث ↔ أيقونة إيقاف (شريطان) + موجة صوت متحركة `pt-wave` (5 أعمدة scaleY keyframes متدرجة التأخير) تحترم prefers-reduced-motion (aria-pressed/aria-label يتحدثان).
+- **الكتل الجديدة (عقود 8-spec حرفياً):** activity-feed (بطاقة + ≤6 عناصر: نقطة primary + أفاتار ملوّن + نص بهدف غامق + وقت + فواصل)، tasks-list (شريط تقدّم متحرك + مربعات `data-task` role=checkbox مخصصة + شطب عند الإنجاز + تحديث فوري للتقدّم والعداد «X من Y منجزة» داخل نفس البطاقة)، quick-actions (شبكة 2→auto-fill 150px من بطاقات روابط بأيقونة SVG بتدرج primary→accent وسهم ‹ — الإجراءات ذات pageId غير الصالح تُهمل كلياً). + خريطة `ICON_SVG` (26 أيقونة بنمط lucide مضمّنة بلا مكتبات).
+- **تحسينات جمالية (مطابقة React):** pt-btn--primary بتوهج `0 4px 14px color-mix(primary 35%)` + hover -1px؛ بلاطة أيقونة features بتدرج + hover بطاقة -2px وحد primary 35%؛ قيم stats بتدرج نصي clipped؛ شهادات: علامة اقتباس ” متدرجة شفافة + حلقة أفاتار + «...» حول النص؛ CTA/Banner: توهج داخلي علوي (radial أبيض 16-18%) خلف المحتوى + تدرجات primary→accent؛ صفحة الدخول: توهجان ضبابيان (primary 14% / accent 10%) + رابط «العودة إلى الرئيسية» أسفل البطاقة + إصلاح التداخل المزدوج لـ blk-auth (min-height:auto للمتداخلة).
+- **README:** صف assets/hero-bg عند وجود الصورة + تحديث وصف script.js (ترقيم/تروستة/مهام/زر عودة).
+
+**QA (سكربت تحقق مؤقت بـ bun على مخطط وهمي كامل — 49/49 ✓):**
+1. index.html: hero أساسي → `signup/`، ثانوي → `#features`، أزرار الخطط وCTA → `signup/` (4 روابط) ✓
+2. كل الصفحات غير الرئيسية فيها `pt-back` مع `data-home` والرئيسية بدونها ✓
+3. dashboard: pt-topbar + بحث التروستة + جرس/قائمة إشعارات وهران + قائمة مستخدم بروابط profile/settings/logout حقيقية ✓
+4. `assets/hero-bg.png` ثنائي داخل الحزمة + `url('assets/hero-bg.png')` في الجذر + `../assets` في المجلد + الأغطية dark/medium ✓
+5. tasks بمربعات data-task حقيقية، quick-actions برابط صالح واحد (غير الصالح مهمل)، activity-feed بثلاثة عناصر ✓
+6. script.js يحوي كل المعالجات (back/topbar/tasks/pager/menus/read-all/play) وصالح نحوياً، styles.css أقواسها متوازنة (501/501) ✓
+7. signup + login يحملان `data-redirect="../dashboard/"`، empty-state زر رابط للوحة ✓
+8. كل الميزات القديمة باقية (reveal/top/skip/SEO/404/netlify.toml/nav toggle/نماذج/مفاتيح) ✓
+- `npx tsc --noEmit`: صفر أخطاء في generate.ts (خطأ registry اختفى — أنجزه 8-c بالتوازي)؛ `bun run lint`: 0 أخطاء (تحذير الخطوط القديم فقط)؛ dev.log نظيف. السكربت المؤقت حُذف بعد التشغيل.
+
+**Stage Summary:**
+التصدير الآن يعكس كل عقود الجولة 8 حرفياً: كل زر في الموقع الثابت يعمل بهدف ذكي مطابق للمعاينة الحية (nav-targets مشترك بلا ازدواج منطق)، كل صفحة غير رئيسية فيها زر عودة خلف عائم RTL + مسارات عودة نصية في الدخول واللوحات، لوحات التحكم اكتسبت تروستة حقيقية (بحث يفلتر الجداول فعلياً + إشعارات + قائمة مستخدم بروابط حقيقية) وجداول مرقّمة، وصورة البطل تُحزم كملف binary وتُحذف خصائصها من HTML، مع الكتل الثلاث الجديدة عاملة بالكامل في JS خالص صالح لـ Netlify مباشرة.
+
+---
+
+## Task ID: 8-d (تكامل وتحقق نهائي — main agent)
+
+**Agent:** main agent
+**Task:** ربط كتل 8-c في العارض + تعليم الوكيل الذكي + إصلاحا خللين في التصدير + تحقق E2E شامل بالمتصفح.
+
+**Work Log:**
+- prototype-renderer.tsx: استيراد + حالات renderBlock للكتل الثلاث الجديدة (activity-feed / tasks-list / quick-actions) بتمرير ctx.
+- agent.ts: موجه النظام يشرح الكتل الجديدة + خصائص hero الموسعة (background الجديدة وbgOverlay مع منع صريح لوضع bgImage) + قواعد الأزرار الذكية + استدلال عربي مباشر: «أضف سجل النشاطات/المهام/إجراءات سريعة».
+- إصلاحان في generate.ts (اكتشفا في E2E):
+  1. `.pt-demo-badge` كان يغطي زر العودة في صفحات الدخول (القشرة متداخلة فأخفق المحدد الأخوي) → أضيف `body:has(.pt-back) .pt-demo-badge{display:none}`.
+  2. بحث الجداول في التصدير: فرع «النتائج ≤ حجم الصفحة» كان يُظهر المتطابق فقط دون إخفاء البقية (سارة → 5 ظاهرة والعداد يقول 1) → الآن `rows.forEach` يخفي غير المتطابق.
+  3. فائض أفقي في لوحات التحكم المصدَّرة على الجوال (390px): `grid-template-columns:1fr` في الميديا كويري يسمح بامتداد المحتوى (pills بـ 870px) → `minmax(0,1fr)`.
+- E2E كامل (agent-browser على المنصة + على موقع مصدَّر يُخدم عبر خادم محلي):
+  - إنشاء مشروع «متجر الأناقة» بنمط الداكن الفاخر → الباني → لوحة التاجر تحوي إجراءات سريعة + مهام (2 من 5) + سجل نشاطات + تروستة (بحث/جرس/مستخدم).
+  - المعاينة: زر البطل الأساسي → إنشاء حساب، النموذج submit → لوحة التاجر، زر «عودة» العائم → الرئيسية، «العودة إلى الموقع» → الرئيسية، بحث التروستة يفلتر الجدول (سارة→1 ثم تفريغ→5)، الجرس (3 إشعارات + تحديد الكل كمقروء يزيل النقطة)، قائمة المستخدم (الملف/الإعدادات/تسجيل الخروج → صفحات حقيقية)، مهام checkbox (2→1 من 5 مع تحديث التقدّم).
+  - رفع صورة خلفية للبطل (16KB→57KB dataURL بعد تصغير canvas) → ظهرت فوراً بالتدرج الداكن فوقها في المحرر (VLM: blobs بنفسجية/قرمزية ونص أبيض مقروء).
+  - الحفظ → التصدير: ZIP يحوي assets/hero-bg.jpg + url('assets/hero-bg.jpg') في الجذر و'../assets/' في المجلدات + التراكب 0.62/0.78 ✓؛ أزرار البطل/التسعير/CTA → signup/ والثانوي → #pricing ✓؛ pt-back في login/dashboard لا في الرئيسية ✓؛ التروستة + data-task + blk-quick/blk-activity ✓؛ روابط ../profile/ و../settings/ و../login/ ✓.
+  - **بعد التحميل: bgImage/bgImageName حُذفا من قاعدة البيانات والحالة صارت downloaded ✓** (والمزامنة المحلية + toast جاهزان في نافذة التصدير).
+  - الموقع المصدَّر (HTTP حقيقي): زر البطل → /signup/، زر العودة → history.back() → /، تسجيل الحساب → /dashboard/ (data-redirect)، بحث التروستة سارة→1 صف ثم تفريغ→5، مهام 2→1 مع تحديث العداد، إجراء سريع → ../products/، كشف الأقسام عند التمرير يعمل (IO).
+  - الجوال 390px: الرئيسية 390=390، اللوحة 390=390 بعد الإصلاح، products/settings/login كلها 390=390؛ لقطة اللوحة (VLM): تروستة بحث+جرس+أفاتار، بطاقات إحصائية، تخطيط نظيف.
+  - توافق خلفي: تصدير مشروع بذري قديم (متجرتي) يعمل بكل الميزات الجديدة.
+- tsc --noEmit: صفر أخطاء src. lint: صفر أخطاء (تحذير الخطوط القديم وحده). dev.log نظيف. حذف مشروع الاختبار وتنظيف الملفات المؤقتة.
+
+**Stage Summary:**
+- الخطوات الثلاث مكتملة ومتحقق منها طرفا-إلى-طرف: (1) كل الأزرار تعمل في المعاينة والتصدير + زر عودة عائم في كل صفحة غير رئيسية + رجوع بمكدس في شريط المعاينة، (2) رفع صورة خلفية البطل مع تراكب قابل للاختيار وحذف من DB بعد التحميل حرفياً، (3) جودة مرفوعة: خلفيتا تدرّج جديدتان، توهجات، تدرّج أرقام وأيقونات، اقتباسات آراء، تروستة لوحة حقيقية (بحث/إشعارات/مستخدم) + 3 كتل غنية (سجل/مهام/إجراءات) مدمجة في كل قوالب المشاريع الجديدة + ترقيم صفحات الجداول المصدَّرة.
+- إصلاحات جودة أثناء التحقق: تغطية زر العودة بالشارة، فلترة الجداول، الفائض الأفقي للجوال.

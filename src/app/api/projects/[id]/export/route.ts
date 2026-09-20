@@ -1,6 +1,8 @@
 // ============================================================
 // نموذج — GET /api/projects/[id]/export
 // Task 3-b — تصدير الموقع الثابت كملف ZIP (JSZip) + Netlify
+// Task 8-a — بعد التحميل: حذف صور خلفيات البطل المؤقتة من
+// قاعدة البيانات (تبقى داخل ZIP فقط — مطلب المستخدم).
 // ============================================================
 import JSZip from 'jszip'
 import { db } from '@/lib/db'
@@ -13,6 +15,8 @@ import {
 import { generateStaticSite } from '@/lib/export/generate'
 import { validateSchema } from '@/lib/project/validate'
 import { slugify } from '@/lib/types'
+import { stripTransientImages } from '@/lib/project/tools'
+import type { ProjectSchema } from '@/lib/types'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -54,7 +58,7 @@ export async function GET(_request: Request, { params }: RouteContext): Promise<
       )
     }
 
-    // ---------- توليد الموقع + الضغط ----------
+    // ---------- توليد الموقع + الضغط (الصور مضمّنة في ZIP) ----------
     const { files } = generateStaticSite(schema)
     const zip = new JSZip()
     for (const [name, content] of Object.entries(files)) {
@@ -71,12 +75,17 @@ export async function GET(_request: Request, { params }: RouteContext): Promise<
     const asciiBase = base.replace(/[^\x20-\x7E]/g, '').replace(/[^a-zA-Z0-9-]/g, '') || 'namudhaj-project'
     const encodedBase = encodeURIComponent(base)
 
-    // ---------- تحديث الحالة + إصدار (المخطط دون تغيير) ----------
+    // ---------- حذف الصور المؤقتة من قاعدة البيانات بعد التحميل ----------
+    // (تبقى الصور داخل ملف ZIP فقط — أعد رفعها إن احتجت تصديراً جديداً بها)
+    const stripped = stripTransientImages(schema)
+    const schemaJsonToStore = stripped === schema ? project.schemaJson : JSON.stringify(stripped)
+
+    // ---------- تحديث الحالة + إصدار ----------
     await db.project.update({
       where: { id: project.id },
-      data: { status: 'downloaded' },
+      data: { status: 'downloaded', schemaJson: schemaJsonToStore },
     })
-    await createProjectVersion(project.id, 'تم تحميل المشروع', project.schemaJson)
+    await createProjectVersion(project.id, 'تم تحميل المشروع', schemaJsonToStore)
 
     return new Response(new Uint8Array(buffer), {
       status: 200,

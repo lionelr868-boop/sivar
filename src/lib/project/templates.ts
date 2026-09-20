@@ -2374,16 +2374,81 @@ function buildFaqPageBlocks(pageId: string, p: TemplatePack): Block[] {
   ]
 }
 
+// أسماء جزائرية لدوران مستخدمي سجل النشاطات (Task 8-c)
+const ACTIVITY_USERS = ['أحمد بن علي', 'سارة بوزيد', 'محمد قادري', 'ياسين مراد', 'ليلى مزيان', 'أمينة حساني'] as const
+
+// مفرد الكيانات لملصقات «إضافة …» في الإجراءات السريعة (Task 8-c)
+const ENTITY_SINGULAR: Record<string, string> = {
+  customers: 'عميل',
+  orders: 'طلب',
+  products: 'منتج',
+  bookings: 'حجز',
+  invoices: 'فاتورة',
+  services: 'خدمة',
+  users: 'مستخدم',
+  clients: 'زبون',
+  tasks: 'مهمة',
+  teamMembers: 'عضو',
+  courses: 'دورة',
+  students: 'طالب',
+  properties: 'عقار',
+  appointments: 'موعد',
+  menuItems: 'صنف',
+  transactions: 'معاملة',
+  subscriptions: 'اشتراك',
+}
+
 function buildDashboardBlocks(
   pageId: string,
   p: TemplatePack,
   statsForPreset: Array<Record<string, unknown>>
 ): Block[] {
   const entityLabel = ENTITY_LABELS[p.dashboard.entity] ?? 'العناصر'
+  const entitySingular = ENTITY_SINGULAR[p.dashboard.entity] ?? 'عنصر'
   const secondChartKey = ['ecommerce', 'marketplace', 'restaurant', 'delivery'].includes(p.category)
     ? 'salesByCategory'
     : 'ordersWeekly'
   const secondChartType = secondChartKey === 'salesByCategory' ? 'donut' : 'line'
+
+  // ---- إجراءات سريعة: أهداف حقيقية من صفحات القالب (id = `${p.id}-${key}`) ----
+  const idOf = (key: string): string => `${p.id}-${key}`
+  const firstTableSpec = p.pages.find((s) => s.type === 'table')
+  const dashboardSpec = p.pages.find((s) => s.type === 'dashboard')
+  const settingsSpec = p.pages.find((s) => s.type === 'settings')
+  const profileSpec = p.pages.find((s) => s.type === 'profile')
+
+  const quickActions: Array<{ icon: string; label: string; pageId: string }> = []
+  if (firstTableSpec) {
+    const addTargetSingular = ENTITY_SINGULAR[firstTableSpec.entity ?? ''] ?? entitySingular
+    quickActions.push({ icon: 'plus', label: `إضافة ${addTargetSingular}`, pageId: idOf(firstTableSpec.key) })
+  }
+  if (dashboardSpec) {
+    quickActions.push({ icon: 'trending-up', label: 'تقرير الأداء', pageId: idOf(dashboardSpec.key) })
+  }
+  if (settingsSpec) {
+    quickActions.push({ icon: 'settings', label: 'الإعدادات', pageId: idOf(settingsSpec.key) })
+  }
+  if (profileSpec) {
+    quickActions.push({ icon: 'user', label: 'الملف الشخصي', pageId: idOf(profileSpec.key) })
+  }
+
+  // ---- سجل النشاطات من بيانات القالب (تدوير أسماء المستخدمين) ----
+  const activityItems = p.activity.slice(0, 5).map((it, i) => ({
+    user: ACTIVITY_USERS[i % ACTIVITY_USERS.length],
+    action: it.title,
+    target: it.subtitle,
+    time: it.meta,
+  }))
+
+  // ---- مهام اليوم: 2 منجزة + 3 معلّقة (تكييف الأولى بالكيان) ----
+  const taskItems = [
+    { label: `مراجعة أحدث ${entityLabel}`, done: true, meta: 'اليوم 14:00' },
+    { label: 'تحديث بيانات الفرع', done: true, meta: 'اليوم 16:30' },
+    { label: 'الرد على رسائل الزبائن', done: false, meta: 'غداً 09:00' },
+    { label: 'إعداد تقرير الأسبوع', done: false, meta: 'الخميس' },
+    { label: 'موافقة طلبات جديدة', done: false, meta: '' },
+  ]
+
   return [
     blk(pageId, 0, 'dashboard-header', {
       title: p.dashboard.title,
@@ -2401,10 +2466,23 @@ function buildDashboardBlocks(
       chartType: secondChartType,
       dataKey: secondChartKey,
     }),
-    blk(pageId, 4, 'data-table', {
+    blk(pageId, 4, 'quick-actions', {
+      title: 'إجراءات سريعة',
+      actions: quickActions,
+    }),
+    blk(pageId, 5, 'data-table', {
       entity: p.dashboard.entity,
       title: `أحدث ${entityLabel}`,
       pageSize: 5,
+    }),
+    blk(pageId, 6, 'tasks-list', {
+      title: 'مهام اليوم',
+      subtitle: '',
+      items: taskItems,
+    }),
+    blk(pageId, 7, 'activity-feed', {
+      title: 'آخر النشاطات',
+      items: activityItems,
     }),
   ]
 }

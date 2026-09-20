@@ -24,20 +24,20 @@ export function FeaturesBlock({ block }: { block: Block }): ReactElement {
         : 'sm:grid-cols-2 lg:grid-cols-3'
 
   return (
-    <SectionShell>
+    <SectionShell id="features">
       <SectionHeading title={title} subtitle={subtitle} />
       {items.length > 0 ? (
         <div className={`grid grid-cols-1 gap-4 md:gap-6 ${gridClass}`}>
           {items.map((item, i) => (
             <article
               key={i}
-              className="group rounded-[var(--pt-radius)] border border-[var(--pt-border)] bg-[var(--pt-surface)] p-5 transition-all duration-200 hover:-translate-y-1"
+              className="group rounded-[var(--pt-radius)] border border-[var(--pt-border)] bg-[var(--pt-surface)] p-5 transition-all duration-200 hover:-translate-y-1 hover:border-[color-mix(in_srgb,var(--pt-primary)_35%,var(--pt-border))]"
               style={{ boxShadow: 'var(--pt-shadow)' }}
             >
               <span
                 className="mb-4 flex size-12 items-center justify-center rounded-[calc(var(--pt-radius)-2px)] transition-transform duration-200 group-hover:scale-110"
                 style={{
-                  background: 'color-mix(in srgb, var(--pt-primary) 11%, transparent)',
+                  background: 'linear-gradient(135deg, color-mix(in srgb, var(--pt-primary) 14%, transparent), color-mix(in srgb, var(--pt-accent) 18%, transparent))',
                   color: 'var(--pt-primary)',
                 }}
               >

@@ -2,14 +2,16 @@
 import type { ReactElement } from 'react'
 
 // ============================================================
-// نموذج — ترويسة اللوحة: عنوان + فرعي + أزرار إجراءات
+// نموذج — ترويسة اللوحة: عنوان + فرعي + أزرار إجراءات تعمل
+// Task 8-a — الأزرار تنقل إلى أفضل هدف (نموذج/جدول/لوحة)
 // ============================================================
 import type { Block } from '@/lib/types'
 import { Plus } from 'lucide-react'
 import { PButton } from '../ui/p-button'
-import { S } from './shared'
+import { dashboardActionTarget } from '@/lib/project/nav-targets'
+import { S, type BlockCtx } from './shared'
 
-export function DashboardHeaderBlock({ block }: { block: Block }): ReactElement {
+export function DashboardHeaderBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): ReactElement {
   const p = block.props
   const title = S(p, 'title')
   const subtitle = S(p, 'subtitle')
@@ -17,6 +19,11 @@ export function DashboardHeaderBlock({ block }: { block: Block }): ReactElement 
     .split(/[,،]/)
     .map((a) => a.trim())
     .filter(Boolean)
+
+  const target = dashboardActionTarget(ctx.schema)
+  const go = () => {
+    if (ctx.onNavigate && target) ctx.onNavigate(target)
+  }
 
   return (
     <header className="flex flex-col gap-4 pb-5 sm:flex-row sm:items-end sm:justify-between">
@@ -28,12 +35,12 @@ export function DashboardHeaderBlock({ block }: { block: Block }): ReactElement 
         <div className="flex flex-wrap items-center gap-2.5">
           {actions.map((a, i) =>
             i === 0 ? (
-              <PButton key={i} size="sm">
+              <PButton key={i} size="sm" onClick={go}>
                 <Plus aria-hidden className="size-4" />
                 {a}
               </PButton>
             ) : (
-              <PButton key={i} size="sm" variant="outline">
+              <PButton key={i} size="sm" variant="outline" onClick={go}>
                 {a}
               </PButton>
             ),

@@ -723,3 +723,29 @@ export function applyActions(schema: ProjectSchema, actions: AgentAction[]): Act
 
 // تصدير الأنواع المستعملة داخلياً لفائدة بقية الوحدات
 export type { PageType, BlockType, AuthVariant, ProjectPage, ProjectSchema }
+
+// ============================================================
+// Task 8 — الصور المؤقتة (خلفية البطل)
+// ============================================================
+
+/**
+ * يزيل خصائص الصور المؤقتة (bgImage/bgImageName) من كل كتل البطل.
+ * الصور لا تبقى في قاعدة البيانات: تُحذف بعد تحميل المشروع ZIP،
+ * وتُنقّى من نسخ الإصدارات التاريخية (المشروع الحي يحتفظ بها
+ * حتى التحميل كنسخة عمل للمعاينة والتصدير).
+ */
+export function stripTransientImages(schema: ProjectSchema): ProjectSchema {
+  let changed = false
+  const pages = (schema.pages ?? []).map((page) => ({
+    ...page,
+    blocks: (page.blocks ?? []).map((block) => {
+      if (block?.type !== 'hero') return block
+      const props = block.props ?? {}
+      if (props.bgImage === undefined && props.bgImageName === undefined) return block
+      changed = true
+      const { bgImage: _i, bgImageName: _n, ...rest } = props
+      return { ...block, props: rest }
+    }),
+  }))
+  return changed ? { ...schema, pages } : schema
+}

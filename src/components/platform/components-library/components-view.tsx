@@ -471,7 +471,7 @@ export function ComponentsView() {
                 <FeaturesBlock block={demoBlocks.features} />
               </div>
               <div className="overflow-hidden rounded-[var(--pt-radius)] border border-[var(--pt-border)]">
-                <PricingBlock block={demoBlocks.pricing} />
+                <PricingBlock block={demoBlocks.pricing} ctx={ctx} />
               </div>
               <div className="overflow-hidden rounded-[var(--pt-radius)] border border-[var(--pt-border)]">
                 <FaqBlock block={demoBlocks.faq} />

@@ -2,7 +2,7 @@
 
 // لوحة الخصائص: محرّر بصري لمكوّنات الصفحة (المحتوى/التخطيط/المظهر)
 // + إعدادات الصفحة عند عدم تحديد مكوّن
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore, findBlock, findPage } from '@/store/app-store'
 import { t } from '@/lib/i18n'
 import { type FieldDefinition, BLOCK_REGISTRY } from '@/lib/registry/blocks'
@@ -14,12 +14,13 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { MousePointerClick, MoveDown, MoveUp, Trash2 } from 'lucide-react'
+import { ImagePlus, Loader2, MousePointerClick, MoveDown, MoveUp, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 const LAYOUT_KEYS = new Set([
   'layout', 'columns', 'align', 'background', 'variant', 'position', 'pageSize', 'chartType', 'dataKey', 'mode', 'radius', 'shadow', 'fontFamily',
 ])
-const APPEARANCE_KEYS = new Set(['color', 'bg', 'background2', 'border', 'style', 'theme'])
+const APPEARANCE_KEYS = new Set(['color', 'bg', 'background2', 'border', 'style', 'theme', 'bgOverlay'])
 
 function fieldGroup(field: FieldDefinition): 'content' | 'layout' | 'appearance' {
   if (LAYOUT_KEYS.has(field.key)) return 'layout'
@@ -288,6 +289,14 @@ function SimpleField({
     )
   }
 
+  if (field.type === 'page') {
+    return <PageField field={field} value={value} onCommit={onCommit} />
+  }
+
+  if (field.type === 'image') {
+    return <ImageField field={field} value={value} onCommit={onCommit} />
+  }
+
   if (field.type === 'textarea') {
     return (
       <div className="space-y-1.5">
@@ -312,6 +321,202 @@ function SimpleField({
         }}
         className="h-9 text-xs"
       />
+    </div>
+  )
+}
+
+// ============================================================
+// حقل «صفحة» — منتقي من صفحات المخطط + خيار «تلقائي (ذكي)»
+// (Task 8-c — Radix لا يقبل قيمة فارغة، لذا نستعمل حارساً)
+// ============================================================
+const PAGE_AUTO_VALUE = '__auto__'
+
+function PageField({
+  field,
+  value,
+  onCommit,
+}: {
+  field: Extract<FieldDefinition, { type: 'page' }>
+  value: unknown
+  onCommit: (patch: Record<string, unknown>) => void
+}) {
+  const schema = useAppStore((s) => s.schema)
+  if (!schema) return null
+
+  const raw = typeof value === 'string' ? value : ''
+  const current = raw === '' ? PAGE_AUTO_VALUE : raw
+  const options = [
+    { value: PAGE_AUTO_VALUE, label: t.builder.pageFieldAuto },
+    ...schema.pages.map((pg) => ({ value: pg.id, label: pg.name })),
+  ]
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{field.label}</Label>
+      <Select
+        value={current}
+        onValueChange={(v) => onCommit({ [field.key]: v === PAGE_AUTO_VALUE ? '' : v })}
+      >
+        <SelectTrigger className="h-9 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => (
+            <SelectItem key={o.value} value={o.value} className="text-xs">
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
+// ============================================================
+// حقل «صورة» — رفع خلفية البطل: تحقق ≤5MB + تصغير canvas
+// (أقصى بعد 1600px) + تصدير JPEG بجودة 0.82 + معاينة/إزالة
+// ============================================================
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024
+const IMAGE_MAX_DIMENSION = 1600
+const IMAGE_JPEG_QUALITY = 0.82
+
+/** يحمّل الملف ويصدّره dataURL JPEG مصغّراً (خلفية بطل — الشفافية تُملأ بأبيض) */
+function processImageFile(file: File): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      try {
+        const naturalW = img.naturalWidth || IMAGE_MAX_DIMENSION
+        const naturalH = img.naturalHeight || IMAGE_MAX_DIMENSION
+        const scale = Math.min(1, IMAGE_MAX_DIMENSION / Math.max(naturalW, naturalH))
+        const w = Math.max(1, Math.round(naturalW * scale))
+        const h = Math.max(1, Math.round(naturalH * scale))
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')
+        if (!ctx) throw new Error('canvas-error')
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, w, h)
+        ctx.drawImage(img, 0, 0, w, h)
+        const out = canvas.toDataURL('image/jpeg', IMAGE_JPEG_QUALITY)
+        if (!out || out.length < 32) throw new Error('encode-error')
+        resolve(out)
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error('resize-error'))
+      } finally {
+        URL.revokeObjectURL(url)
+      }
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('image-error'))
+    }
+    img.src = url
+  })
+}
+
+function ImageField({
+  field,
+  value,
+  onCommit,
+}: {
+  field: Extract<FieldDefinition, { type: 'image' }>
+  value: unknown
+  onCommit: (patch: Record<string, unknown>) => void
+}) {
+  const [processing, setProcessing] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const dataUrl = typeof value === 'string' && value.startsWith('data:image/') ? value : ''
+
+  const handleFile = async (file: File) => {
+    if (file.size > IMAGE_MAX_BYTES) {
+      toast.error(t.builder.imageFieldTooLarge)
+      return
+    }
+    setProcessing(true)
+    try {
+      const out = await processImageFile(file)
+      const patch: Record<string, unknown> = { [field.key]: out }
+      if (field.key === 'bgImage') patch.bgImageName = file.name
+      onCommit(patch)
+      toast.success(t.builder.imageFieldUploaded)
+    } catch {
+      toast.error(t.builder.imageFieldInvalid)
+    } finally {
+      setProcessing(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  const removeImage = () => {
+    const patch: Record<string, unknown> = { [field.key]: undefined }
+    if (field.key === 'bgImage') patch.bgImageName = undefined
+    onCommit(patch)
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs">{field.label}</Label>
+      <input
+        ref={fileRef}
+        type="file"
+        accept={field.accept ?? 'image/png,image/jpeg,image/webp'}
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) void handleFile(file)
+          e.target.value = ''
+        }}
+      />
+
+      {dataUrl ? (
+        <div className="space-y-2">
+          <div
+            role="img"
+            aria-label={field.label}
+            className="h-28 w-full rounded-lg border bg-muted/40 bg-cover bg-center"
+            style={{ backgroundImage: `url("${dataUrl}")` }}
+          />
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 flex-1 gap-1.5 text-xs"
+              onClick={() => fileRef.current?.click()}
+              disabled={processing}
+            >
+              {processing ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+              {t.builder.imageFieldReplace}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-9 gap-1.5 text-xs text-destructive hover:text-destructive"
+              onClick={removeImage}
+              disabled={processing}
+            >
+              <Trash2 className="size-4" />
+              {t.builder.imageFieldRemove}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 w-full gap-2"
+          onClick={() => fileRef.current?.click()}
+          disabled={processing}
+        >
+          {processing ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+          {t.builder.imageFieldUpload}
+        </Button>
+      )}
+      <p className="text-xs leading-relaxed text-muted-foreground">{t.builder.imageFieldHint}</p>
     </div>
   )
 }

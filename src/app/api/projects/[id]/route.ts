@@ -11,6 +11,7 @@ import {
   projectToDTO,
   projectToSummaryDTO,
 } from '@/lib/server/session'
+import { stripTransientImages } from '@/lib/project/tools'
 import type { ProjectSchema, ProjectStatus } from '@/lib/types'
 
 const MAX_SCHEMA_BYTES = 2 * 1024 * 1024 // 2MB
@@ -81,12 +82,12 @@ export async function PATCH(request: Request, { params }: RouteContext): Promise
 
     const updated = await db.project.update({ where: { id: project.id }, data })
 
-    // ---------- إصدار جديد ----------
+    // ---------- إصدار جديد (بلا صور مؤقتة — لا تبقى في قاعدة البيانات) ----------
     const versionLabel =
       typeof body.versionLabel === 'string' && body.versionLabel.trim()
         ? body.versionLabel.trim().slice(0, 80)
         : 'تحديث المشروع'
-    await createProjectVersion(project.id, versionLabel, schemaJson)
+    await createProjectVersion(project.id, versionLabel, JSON.stringify(stripTransientImages(schema as ProjectSchema)))
 
     const versionCount = await db.projectVersion.count({ where: { projectId: project.id } })
     return NextResponse.json({ project: projectToSummaryDTO(updated, versionCount) })

@@ -162,6 +162,9 @@ const AGENT_SYSTEM_PROMPT = [
   '',
   'أدوات إضافية عند إنشاء صفحات الهبوط:',
   '- في create_page من نوع landing يمكنك إضافة "landingVariant":"معرف النمط" من قائمة الأنماط أعلاه لبنائها بنمط محدد.',
+  '- مكوّن البطل (hero) يدعم: background من (default|muted|gradient-soft|mesh|dark|gradient) وخصائص eyebrow (شارة فوق العنوان) و visual من (dashboard|phone|video|form|none) و bgOverlay عند رفع المستخدم صورة خلفية (dark|medium|light|none) — لا تضع bgImage بنفسك أبداً (الصور يرفعها المستخدم فقط).',
+  '- مكوّنات لوحة التحكم الغنية: activity-feed (سجل نشاطات: items[user,action,target,time]) و tasks-list (مهام بمربعات اختيار: items[label,done,meta]) و quick-actions (إجراءات سريعة تنقل لصفحات: actions[icon,label,pageId]) — استعملها لإثراء اللوحات.',
+  '- كل الأزرار في النموذج تعمل تلقائياً: أزرار البطل/التسعير/دعوة الإجراء تنقل إلى أفضل صفحة متاحة، وأزرار ترويسة اللوحة تنقل إلى صفحة النموذج/الجدول، وزر الدخول وإنشاء الحساب ينقلان إلى لوحة التحكم.',
   '',
   'قواعد صارمة:',
   '- غيّر أقل قدر ممكن — طلب صغير = تغيير صغير.',
@@ -626,6 +629,27 @@ function heuristicRun(schema: ProjectSchema, message: string): AgentRunResult {
             args: { pageId: target.id, blockType: 'chart', props: { title: 'الإيرادات الشهرية', chartType: 'bar', dataKey: 'revenueMonthly' } },
           },
         ],
+        fallback: true,
+      }
+    }
+    if (target && /نشاطات|النشاطات|سجل|سجل النشاط/.test(text)) {
+      return {
+        explanation: `أضفت مكوّن «سجل النشاطات» إلى صفحة «${target.name}» بأحداث تجريبية جزائرية.`,
+        actions: [{ tool: 'add_block', args: { pageId: target.id, blockType: 'activity-feed' } }],
+        fallback: true,
+      }
+    }
+    if (target && /مهام|المهام|قائمة مهام|checklist/.test(text)) {
+      return {
+        explanation: `أضفت مكوّن «المهام» إلى صفحة «${target.name}» مع شريط تقدّم تفاعلي.`,
+        actions: [{ tool: 'add_block', args: { pageId: target.id, blockType: 'tasks-list' } }],
+        fallback: true,
+      }
+    }
+    if (target && /إجراءات سريعة|إجراء سريع|اختصارات/.test(text)) {
+      return {
+        explanation: `أضفت مكوّن «إجراءات سريعة» إلى صفحة «${target.name}» — يمكن ربط كل إجراء بصفحة من لوحة الخصائص.`,
+        actions: [{ tool: 'add_block', args: { pageId: target.id, blockType: 'quick-actions' } }],
         fallback: true,
       }
     }

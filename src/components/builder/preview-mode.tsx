@@ -1,6 +1,7 @@
 'use client'
 
 // وضع المعاينة: المشروع كما سيراه الزائر — بدون أدوات تحرير
+// Task 8-a — زر رجوع بمكدس تاريخ داخلي + مزامنة الصفحات
 import { useState } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { t } from '@/lib/i18n'
@@ -8,7 +9,7 @@ import { cn } from '@/lib/utils'
 import type { DeviceMode } from '@/lib/types'
 import { PrototypeRenderer } from '@/components/prototype/prototype-renderer'
 import { Button } from '@/components/ui/button'
-import { Monitor, Smartphone, Tablet, X } from 'lucide-react'
+import { ArrowRight, Monitor, Smartphone, Tablet, X } from 'lucide-react'
 
 const DEVICE_WIDTHS: Record<DeviceMode, string> = {
   desktop: 'w-full max-w-[1180px]',
@@ -26,11 +27,35 @@ export function PreviewMode() {
   const setDevice = useAppStore((s) => s.setDevice)
 
   const [pageId, setPageId] = useState<string | null>(null)
+  // مكدس تاريخ التنقل داخل المعاينة (لزر الرجوع)
+  const [history, setHistory] = useState<string[]>([])
 
   if (!previewOpen || !schema) return null
 
   const activePageId = pageId ?? selectedPageId ?? schema.pages[0]?.id
   const page = schema.pages.find((p) => p.id === activePageId) ?? schema.pages[0]
+
+  /** تنقل داخل المعاينة مع تسجيل السابق في المكدس */
+  const navigate = (targetPageId: string) => {
+    if (!schema.pages.some((p) => p.id === targetPageId)) return
+    setHistory((h) => [...h.slice(-24), activePageId])
+    setPageId(targetPageId)
+    // مزامنة اختيار الصفحة عند العودة للمحرر
+    selectPage(targetPageId)
+  }
+
+  /** رجوع خطوة في تاريخ المعاينة */
+  const goBack = () => {
+    setHistory((h) => {
+      const prev = h[h.length - 1]
+      if (prev && schema.pages.some((p) => p.id === prev)) {
+        setPageId(prev)
+        selectPage(prev)
+        return h.slice(0, -1)
+      }
+      return h
+    })
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
@@ -40,6 +65,20 @@ export function PreviewMode() {
           <X className="size-4" />
           <span className="hidden sm:inline">{t.builder.exitPreview}</span>
         </Button>
+
+        {/* زر الرجوع — يعمل داخل تاريخ المعاينة */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 gap-1.5"
+          onClick={goBack}
+          disabled={history.length === 0}
+          aria-label={t.builder.backBtn}
+        >
+          <ArrowRight className="size-4" />
+          <span className="hidden sm:inline">{t.builder.backBtn}</span>
+        </Button>
+
         <span className="hidden truncate text-sm font-semibold sm:block">{schema.metadata.name}</span>
 
         <div className="flex-1" />
@@ -50,7 +89,7 @@ export function PreviewMode() {
             <button
               key={p.id}
               type="button"
-              onClick={() => setPageId(p.id)}
+              onClick={() => navigate(p.id)}
               className={cn(
                 'shrink-0 rounded-md px-2.5 py-1 text-xs transition-colors',
                 p.id === page?.id ? 'bg-background font-medium text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
@@ -97,11 +136,7 @@ export function PreviewMode() {
               schema={schema}
               pageId={page?.id ?? ''}
               interactive
-              onNavigate={(targetPageId) => {
-                setPageId(targetPageId)
-                // مزامنة اختيار الصفحة عند العودة للمحرر
-                if (schema.pages.some((p) => p.id === targetPageId)) selectPage(targetPageId)
-              }}
+              onNavigate={navigate}
             />
           </div>
         </div>

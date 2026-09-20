@@ -6,11 +6,12 @@ import type { ReactElement } from 'react'
 // ============================================================
 import type { Block } from '@/lib/types'
 import { PButton } from '../ui/p-button'
-import { S } from './shared'
+import { ctaButtonTarget } from '@/lib/project/nav-targets'
+import { S, type BlockCtx } from './shared'
 
 type CtaStyle = 'default' | 'gradient' | 'dark'
 
-export function CtaBlock({ block }: { block: Block }): ReactElement {
+export function CtaBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): ReactElement {
   const p = block.props
   const title = S(p, 'title')
   const subtitle = S(p, 'subtitle')
@@ -22,11 +23,16 @@ export function CtaBlock({ block }: { block: Block }): ReactElement {
   const isDark = style === 'dark'
   const isGradient = style === 'gradient'
 
+  const buttonTarget = ctaButtonTarget(ctx.schema)
+  const ctaGo = () => {
+    if (ctx.onNavigate && buttonTarget) ctx.onNavigate(buttonTarget)
+  }
+
   return (
     <section className="px-4 py-14 md:px-8 md:py-20">
       <div className="mx-auto w-full max-w-6xl">
         <div
-          className="rounded-[calc(var(--pt-radius)+6px)] px-6 py-12 text-center md:px-12 md:py-16"
+          className="relative overflow-hidden rounded-[calc(var(--pt-radius)+6px)] px-6 py-12 text-center md:px-12 md:py-16"
           style={{
             background: isGradient
               ? 'linear-gradient(135deg, var(--pt-primary), var(--pt-accent))'
@@ -37,6 +43,13 @@ export function CtaBlock({ block }: { block: Block }): ReactElement {
             boxShadow: 'var(--pt-shadow)',
           }}
         >
+          {/* توهج داخلي علوي (Task 8 — جمالية) */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-40"
+            style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,.18), transparent 70%)' }}
+          />
+          <div className="relative">
           {title ? (
             <h2 className="text-2xl font-bold leading-tight md:text-4xl">
               <span className={isDark || isGradient ? 'text-white' : 'text-[var(--pt-text)]'}>{title}</span>
@@ -52,10 +65,12 @@ export function CtaBlock({ block }: { block: Block }): ReactElement {
               size="lg"
               variant={isDark || isGradient ? 'secondary' : 'primary'}
               className={`mt-7 ${isDark || isGradient ? 'border-white/25 bg-white text-[#16121f] hover:bg-white/90' : ''}`}
+              onClick={ctaGo}
             >
               {buttonText}
             </PButton>
           ) : null}
+          </div>
         </div>
       </div>
     </section>

@@ -16,6 +16,8 @@ export interface BlockCtx {
   mini?: boolean
   /** تنقّل بين صفحات النموذج */
   onNavigate?: (pageId: string) => void
+  /** بحث التروستة العلوية للوحة — يفلتر جداول الصفحة (Task 8) */
+  tableSearch?: string
 }
 
 // ---------- قُرّاء الخصائص (آمنة ضد أي مدخلات) ----------
@@ -61,6 +63,13 @@ export function iB(item: Record<string, unknown>, key: string, fallback = false)
 /** هل قيمة التغيّر سلبية؟ (تبدأ بـ -) */
 export function isNegativeChange(change: string): boolean {
   return change.trim().startsWith('-')
+}
+
+/** تمرير سلس إلى مرساة قسم داخل الصفحة (وضع المعاينة التفاعلي) */
+export function scrollToAnchor(anchor: string): void {
+  if (typeof document === 'undefined') return
+  const el = document.getElementById(anchor)
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 // ---------- عناصر تخطيط مشتركة ----------

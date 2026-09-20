@@ -29,7 +29,8 @@ export function AuthCardBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): 
 
   const submit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (ctx.interactive && ctx.onNavigate && variant === 'login') {
+    // Task 8 — الدخول وإنشاء الحساب كلاهما ينقل إلى لوحة التحكم (وضع تجريبي)
+    if (ctx.interactive && ctx.onNavigate && (variant === 'login' || variant === 'signup')) {
       const dash = ctx.schema.pages.find((pg) => pg.type === 'dashboard')
       if (dash) {
         ctx.onNavigate(dash.id)

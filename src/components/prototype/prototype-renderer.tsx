@@ -2,13 +2,14 @@
 
 // ============================================================
 // نموذج — PrototypeRenderer: محرّك عرض النموذج الأولي
-// Task 2-a-cont — قشرة الصفحة حسب نوعها + عرض المكوّنات +
-// وضع التحرير (outline) عبر onBlockSelect + وضع المعاينة interactive
+// Task 8-a — زر عودة عائم في كل صفحة غير الرئيسية +
+// تروستة لوحة تحكم حقيقية (بحث + إشعارات + قائمة مستخدم) +
+// بحث مدمج يفلتر جداول الصفحة + رابط العودة في الشريط الجانبي.
 // ============================================================
 import { type ReactElement, useState } from 'react'
 import type { Block, ProjectPage, ProjectSchema } from '@/lib/types'
 import { BLOCK_REGISTRY } from '@/lib/registry/blocks'
-import { Menu, X } from 'lucide-react'
+import { ArrowRight, Bell, Globe, LogOut, Menu, Search, Settings, User, X } from 'lucide-react'
 import { ProtoIcon } from './icon-map'
 import { PrototypeThemeScope } from './theme-provider'
 import { PAvatar } from './ui/p-avatar'
@@ -16,6 +17,7 @@ import { PBadge } from './ui/p-badge'
 import { PButton } from './ui/p-button'
 
 // ---- المكوّنات ----
+import { ActivityFeedBlock } from './blocks/activity-feed-block'
 import { AuthCardBlock } from './blocks/auth-card-block'
 import { BannerBlock } from './blocks/banner-block'
 import { CalendarBlock } from './blocks/calendar-block'
@@ -34,10 +36,12 @@ import { HeroBlock } from './blocks/hero-block'
 import { ListBlock } from './blocks/list-block'
 import { PricingBlock } from './blocks/pricing-block'
 import { ProfileCardBlock } from './blocks/profile-card-block'
+import { QuickActionsBlock } from './blocks/quick-actions-block'
 import { SettingsFormBlock } from './blocks/settings-form-block'
 import { StatsBlock } from './blocks/stats-block'
 import { StatsRowBlock } from './blocks/stats-row-block'
 import { StepsBlock } from './blocks/steps-block'
+import { TasksListBlock } from './blocks/tasks-list-block'
 import { TeamBlock } from './blocks/team-block'
 import { TestimonialsBlock } from './blocks/testimonials-block'
 import type { BlockCtx } from './blocks/shared'
@@ -56,13 +60,13 @@ function renderBlock(block: Block, ctx: BlockCtx): ReactElement {
     case 'steps':
       return <StepsBlock block={block} />
     case 'pricing':
-      return <PricingBlock block={block} />
+      return <PricingBlock block={block} ctx={ctx} />
     case 'testimonials':
       return <TestimonialsBlock block={block} />
     case 'faq':
       return <FaqBlock block={block} />
     case 'cta':
-      return <CtaBlock block={block} />
+      return <CtaBlock block={block} ctx={ctx} />
     case 'custom-html':
       return <CustomHtmlBlock key={block.id} block={block} ctx={ctx} />
     case 'contact-form':
@@ -70,7 +74,7 @@ function renderBlock(block: Block, ctx: BlockCtx): ReactElement {
     case 'gallery':
       return <GalleryBlock block={block} />
     case 'banner':
-      return <BannerBlock block={block} />
+      return <BannerBlock block={block} ctx={ctx} />
     case 'list':
       return <ListBlock block={block} />
     case 'team':
@@ -78,7 +82,7 @@ function renderBlock(block: Block, ctx: BlockCtx): ReactElement {
     case 'auth-card':
       return <AuthCardBlock block={block} ctx={ctx} />
     case 'dashboard-header':
-      return <DashboardHeaderBlock block={block} />
+      return <DashboardHeaderBlock block={block} ctx={ctx} />
     case 'stats-row':
       return <StatsRowBlock block={block} />
     case 'chart':
@@ -92,13 +96,19 @@ function renderBlock(block: Block, ctx: BlockCtx): ReactElement {
     case 'profile-card':
       return <ProfileCardBlock block={block} />
     case 'empty-state':
-      return <EmptyStateBlock block={block} />
+      return <EmptyStateBlock block={block} ctx={ctx} />
     case 'loading-state':
       return <LoadingStateBlock block={block} />
     case 'error-state':
-      return <ErrorStateBlock block={block} />
+      return <ErrorStateBlock block={block} ctx={ctx} />
     case 'calendar':
       return <CalendarBlock block={block} />
+    case 'activity-feed':
+      return <ActivityFeedBlock block={block} ctx={ctx} />
+    case 'tasks-list':
+      return <TasksListBlock block={block} ctx={ctx} />
+    case 'quick-actions':
+      return <QuickActionsBlock block={block} ctx={ctx} />
     default:
       return <></>
   }
@@ -183,6 +193,25 @@ function BlockList({
 }
 
 // ============================================================
+// زر العودة العائم (كل صفحة غير الرئيسية — Task 8)
+// ============================================================
+function FloatingBackButton({ label, onBack }: { label: string; onBack: () => void }): ReactElement {
+  return (
+    <button
+      type="button"
+      onClick={onBack}
+      aria-label={label}
+      className="group fixed bottom-5 start-5 z-40 flex h-11 cursor-pointer items-center gap-2 rounded-full border border-[var(--pt-border)] bg-[var(--pt-surface)] px-3.5 text-sm font-bold text-[var(--pt-text)] shadow-[0_6px_20px_rgba(0,0,0,.16)] transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pt-primary)]"
+    >
+      <ArrowRight aria-hidden className="size-4.5 shrink-0" style={{ color: 'var(--pt-primary)' }} />
+      <span className="max-w-0 overflow-hidden whitespace-nowrap text-xs transition-all duration-200 group-hover:max-w-24 group-focus-visible:max-w-24">
+        {label}
+      </span>
+    </button>
+  )
+}
+
+// ============================================================
 // قشرة الموقع العام (landing / pricing / faq / custom)
 // ============================================================
 function SiteShell({
@@ -205,6 +234,7 @@ function SiteShell({
   const go = (pageId: string) => {
     if (ctx.onNavigate) ctx.onNavigate(pageId)
   }
+  const isHome = page.type === 'landing' || page.id === homeId
 
   const navLinks = (extraClass: string) => (
     <>
@@ -357,6 +387,11 @@ function SiteShell({
           ) : null}
         </div>
       </footer>
+
+      {/* زر العودة للخلف — كل صفحة غير الرئيسية */}
+      {!isHome && ctx.interactive && ctx.onNavigate && homeId ? (
+        <FloatingBackButton label="عودة" onBack={() => go(homeId)} />
+      ) : null}
     </div>
   )
 }
@@ -378,20 +413,255 @@ function AuthShell({
   onBlockSelect?: (blockId: string | null) => void
 }): ReactElement {
   const homeId = schema.pages.find((pg) => pg.type === 'landing')?.id ?? schema.pages[0]?.id
+  const goHome = () => {
+    if (homeId && ctx.onNavigate) ctx.onNavigate(homeId)
+  }
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center bg-[var(--pt-bg)] px-4 py-10 text-[var(--pt-text)]">
+    <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-[var(--pt-bg)] px-4 py-10 text-[var(--pt-text)]">
+      {/* توهجات خلفية ناعمة (Task 8 — جمالية) */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -top-24 -start-24 size-96 rounded-full opacity-[.14] blur-3xl"
+        style={{ background: 'var(--pt-primary)' }}
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -bottom-32 -end-24 size-96 rounded-full opacity-[.10] blur-3xl"
+        style={{ background: 'var(--pt-accent)' }}
+      />
+
       <button
         type="button"
-        onClick={() => homeId && ctx.onNavigate?.(homeId)}
+        onClick={goHome}
         aria-label={`الذهاب إلى ${schema.navigation.brand}`}
-        className="mb-6 flex cursor-pointer items-center gap-2.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--pt-primary)]"
+        className="relative mb-6 flex cursor-pointer items-center gap-2.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--pt-primary)]"
       >
-        <span className="size-10 rounded-[calc(var(--pt-radius)-2px)]" style={{ background: 'var(--pt-primary)' }} />
-        <span className="text-lg font-extrabold">{schema.navigation.brand}</span>
+        {ctx.schema.branding?.logo ? (
+          <img
+            src={ctx.schema.branding.logo}
+            alt={schema.navigation.brand}
+            loading="lazy"
+            decoding="async"
+            className="h-10 w-auto max-w-[140px] object-contain"
+          />
+        ) : (
+          <>
+            <span className="size-10 rounded-[calc(var(--pt-radius)-2px)]" style={{ background: 'var(--pt-primary)' }} />
+            <span className="text-lg font-extrabold">{schema.navigation.brand}</span>
+          </>
+        )}
       </button>
-      <main className="w-full">
+      <main className="relative w-full">
         <BlockList page={page} ctx={ctx} selectedBlockId={selectedBlockId} onBlockSelect={onBlockSelect} />
       </main>
+
+      {/* رابط عودة صريح أسفل البطاقة */}
+      <button
+        type="button"
+        onClick={goHome}
+        className="relative mt-6 inline-flex min-h-10 cursor-pointer items-center gap-1.5 text-sm font-semibold text-[var(--pt-muted)] transition-colors duration-150 hover:text-[var(--pt-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pt-primary)]"
+      >
+        <ArrowRight aria-hidden className="size-4" />
+        العودة إلى الرئيسية
+      </button>
+    </div>
+  )
+}
+
+// ============================================================
+// تروستة لوحة التحكم: بحث + إشعارات + قائمة المستخدم (Task 8)
+// ============================================================
+const NOTIFICATIONS = [
+  { title: 'طلب جديد من وهران', detail: 'قيمة 12,500 دج — بانتظار التأكيد', time: 'قبل 4 دقائق' },
+  { title: 'تم تحديث تقرير الأسبوع', detail: 'نمو 8.2% عن الأسبوع الماضي', time: 'قبل ساعة' },
+  { title: 'رسالة من سارة بوزيد', detail: '«متى يجهز طلبي؟» — تحتاج رداً', time: 'قبل 3 ساعات' },
+]
+
+function DashboardTopbar({
+  schema,
+  ctx,
+  tableSearch,
+  onTableSearch,
+  go,
+}: {
+  schema: ProjectSchema
+  ctx: BlockCtx
+  tableSearch: string
+  onTableSearch: (q: string) => void
+  go: (pageId: string) => void
+}): ReactElement {
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [userOpen, setUserOpen] = useState(false)
+  const [unread, setUnread] = useState(true)
+
+  const profilePage = schema.pages.find((pg) => pg.type === 'profile')
+  const settingsPage = schema.pages.find((pg) => pg.type === 'settings')
+  const loginPage = schema.pages.find((pg) => pg.type === 'auth' && (pg.authVariant ?? 'login') === 'login')
+
+  const closeMenus = () => {
+    setNotifOpen(false)
+    setUserOpen(false)
+  }
+
+  return (
+    <div className="sticky top-0 z-30 border-b border-[var(--pt-border)] bg-[var(--pt-surface)]/95 backdrop-blur-sm">
+      <div className="flex items-center gap-2 px-4 py-2.5 md:gap-3 md:px-6">
+        {/* بحث الصفحة — يفلتر جداول data-table */}
+        <div className="relative min-w-0 flex-1 md:max-w-sm">
+          <Search
+            aria-hidden
+            className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-[var(--pt-muted)]"
+          />
+          <input
+            type="search"
+            value={tableSearch}
+            onChange={(e) => onTableSearch(e.target.value)}
+            placeholder="ابحث في الصفحة..."
+            aria-label="ابحث في جداول الصفحة"
+            className="w-full min-h-9 rounded-[calc(var(--pt-radius)-2px)] border border-[var(--pt-border)] bg-[var(--pt-bg)] py-1.5 pe-3 ps-9 text-sm text-[var(--pt-text)] placeholder:text-[var(--pt-muted)] transition-colors duration-150 focus:border-[var(--pt-primary)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--pt-primary)]"
+          />
+        </div>
+
+        <div className="flex-1 md:hidden" />
+
+        {/* الإشعارات */}
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setUserOpen(false)
+              setNotifOpen((v) => !v)
+            }}
+            aria-label="الإشعارات"
+            aria-expanded={notifOpen}
+            className="relative flex size-9 cursor-pointer items-center justify-center rounded-[calc(var(--pt-radius)-2px)] border border-[var(--pt-border)] text-[var(--pt-text)] transition-colors duration-150 hover:bg-[var(--pt-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pt-primary)]"
+          >
+            <Bell className="size-4.5" />
+            {unread ? (
+              <span
+                aria-hidden
+                className="absolute -top-0.5 -end-0.5 size-2.5 rounded-full border-2"
+                style={{ background: '#dc2626', borderColor: 'var(--pt-surface)' }}
+              />
+            ) : null}
+          </button>
+          {notifOpen ? (
+            <div
+              className="absolute end-0 top-11 z-40 w-72 overflow-hidden rounded-[var(--pt-radius)] border border-[var(--pt-border)] bg-[var(--pt-surface)]"
+              style={{ boxShadow: 'var(--pt-shadow)' }}
+              role="menu"
+              aria-label="الإشعارات"
+            >
+              <div className="flex items-center justify-between border-b border-[var(--pt-border)] px-3.5 py-2.5">
+                <p className="text-sm font-bold">الإشعارات</p>
+                <button
+                  type="button"
+                  onClick={() => setUnread(false)}
+                  className="min-h-8 cursor-pointer rounded px-2 py-1 text-[11px] font-semibold text-[var(--pt-primary)] transition-colors duration-150 hover:bg-[var(--pt-secondary)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--pt-primary)]"
+                >
+                  تحديد الكل كمقروء
+                </button>
+              </div>
+              <ul className="max-h-64 divide-y divide-[var(--pt-border)] overflow-y-auto">
+                {NOTIFICATIONS.map((n, i) => (
+                  <li key={i} className="flex gap-2.5 px-3.5 py-3">
+                    <span
+                      aria-hidden
+                      className="mt-1.5 size-2 shrink-0 rounded-full"
+                      style={{ background: 'var(--pt-primary)' }}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-bold text-[var(--pt-text)]">{n.title}</p>
+                      <p className="mt-0.5 truncate text-xs text-[var(--pt-muted)]">{n.detail}</p>
+                      <p className="mt-1 text-[10px] font-medium text-[var(--pt-muted)] opacity-80">{n.time}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+
+        {/* قائمة المستخدم */}
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setNotifOpen(false)
+              setUserOpen((v) => !v)
+            }}
+            aria-label="قائمة الحساب"
+            aria-expanded={userOpen}
+            className="flex min-h-9 cursor-pointer items-center gap-2 rounded-full border border-[var(--pt-border)] py-1 pe-2.5 ps-1 transition-colors duration-150 hover:bg-[var(--pt-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pt-primary)]"
+          >
+            <PAvatar name="م" size={28} />
+            <span className="hidden text-[13px] font-bold text-[var(--pt-text)] md:inline">مستخدم تجريبي</span>
+          </button>
+          {userOpen ? (
+            <div
+              className="absolute end-0 top-11 z-40 w-52 overflow-hidden rounded-[var(--pt-radius)] border border-[var(--pt-border)] bg-[var(--pt-surface)]"
+              style={{ boxShadow: 'var(--pt-shadow)' }}
+              role="menu"
+              aria-label="قائمة الحساب"
+            >
+              <div className="border-b border-[var(--pt-border)] px-3.5 py-2.5">
+                <p className="text-sm font-bold">مستخدم تجريبي</p>
+                <p className="truncate text-[11px] text-[var(--pt-muted)]" dir="ltr">
+                  demo@namudhaj.dz
+                </p>
+              </div>
+              <div className="p-1.5">
+                {profilePage ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      closeMenus()
+                      go(profilePage.id)
+                    }}
+                    className="flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-[calc(var(--pt-radius)-4px)] px-2.5 text-[13px] font-medium text-[var(--pt-text)] transition-colors duration-150 hover:bg-[var(--pt-secondary)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--pt-primary)]"
+                  >
+                    <User aria-hidden className="size-4" />
+                    الملف الشخصي
+                  </button>
+                ) : null}
+                {settingsPage ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      closeMenus()
+                      go(settingsPage.id)
+                    }}
+                    className="flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-[calc(var(--pt-radius)-4px)] px-2.5 text-[13px] font-medium text-[var(--pt-text)] transition-colors duration-150 hover:bg-[var(--pt-secondary)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--pt-primary)]"
+                  >
+                    <Settings aria-hidden className="size-4" />
+                    الإعدادات
+                  </button>
+                ) : null}
+                {loginPage ? (
+                  <>
+                    <div className="my-1 h-px bg-[var(--pt-border)]" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        closeMenus()
+                        go(loginPage.id)
+                      }}
+                      className="flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-[calc(var(--pt-radius)-4px)] px-2.5 text-[13px] font-semibold transition-colors duration-150 hover:bg-[var(--pt-secondary)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--pt-primary)]"
+                      style={{ color: '#dc2626' }}
+                    >
+                      <LogOut aria-hidden className="size-4" />
+                      تسجيل الخروج
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
     </div>
   )
 }
@@ -414,9 +684,14 @@ function DashboardShell({
 }): ReactElement {
   const items = schema.dashboardNav.items
   const logo = ctx.schema.branding?.logo
+  const homeId = schema.pages.find((pg) => pg.type === 'landing')?.id ?? schema.pages[0]?.id
   const go = (pageId: string) => {
     if (ctx.onNavigate) ctx.onNavigate(pageId)
   }
+
+  // بحث التروستة — يُمرَّر للكتل عبر ctx
+  const [tableSearch, setTableSearch] = useState('')
+  const ctxWithSearch: BlockCtx = { ...ctx, tableSearch }
 
   const navItem = (item: { label: string; pageId: string; icon: string }, pill: boolean) => {
     const active = item.pageId === page.id
@@ -466,8 +741,18 @@ function DashboardShell({
           {items.map((item) => navItem(item, false))}
         </nav>
 
-        {/* بطاقة المستخدم التجريبي */}
-        <div className="border-t border-[var(--pt-border)] p-3">
+        {/* العودة إلى الموقع + بطاقة المستخدم التجريبي */}
+        <div className="space-y-1 border-t border-[var(--pt-border)] p-3">
+          {homeId ? (
+            <button
+              type="button"
+              onClick={() => go(homeId)}
+              className="flex min-h-10 w-full cursor-pointer items-center gap-2.5 rounded-[calc(var(--pt-radius)-2px)] px-3 py-2 text-[13px] font-semibold text-[var(--pt-muted)] transition-colors duration-150 hover:bg-[var(--pt-secondary)] hover:text-[var(--pt-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pt-primary)]"
+            >
+              <Globe aria-hidden className="size-4" />
+              العودة إلى الموقع
+            </button>
+          ) : null}
           <div className="flex items-center gap-2.5 rounded-[calc(var(--pt-radius)-2px)] p-2">
             <PAvatar name="م" size={34} />
             <div className="min-w-0 flex-1">
@@ -480,7 +765,7 @@ function DashboardShell({
 
       {/* العمود الرئيسي */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* صف التنقل الأفقي — الهاتف/اللوحي */}
+        {/* رأس الجوال */}
         <div className="sticky top-0 z-30 border-b border-[var(--pt-border)] bg-[var(--pt-surface)] lg:hidden">
           <div className="flex items-center gap-2.5 border-b border-[var(--pt-border)] px-4 py-3">
             {logo ? (
@@ -497,9 +782,16 @@ function DashboardShell({
                 <span className="truncate text-sm font-extrabold">{schema.navigation.brand}</span>
               </>
             )}
-            <span className="ms-auto">
-              <PAvatar name="م" size={30} />
-            </span>
+            {homeId ? (
+              <button
+                type="button"
+                onClick={() => go(homeId)}
+                aria-label="العودة إلى الموقع"
+                className="ms-auto flex size-9 cursor-pointer items-center justify-center rounded-[calc(var(--pt-radius)-2px)] border border-[var(--pt-border)] text-[var(--pt-muted)] transition-colors duration-150 hover:bg-[var(--pt-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pt-primary)]"
+              >
+                <Globe aria-hidden className="size-4" />
+              </button>
+            ) : null}
           </div>
           <nav
             aria-label="تنقل لوحة التحكم"
@@ -510,13 +802,28 @@ function DashboardShell({
           </nav>
         </div>
 
+        {/* تروستة لوحة التحكم (بحث + إشعارات + مستخدم) */}
+        {!ctx.mini ? (
+          <DashboardTopbar schema={schema} ctx={ctx} tableSearch={tableSearch} onTableSearch={setTableSearch} go={go} />
+        ) : null}
+
         {/* محتوى الصفحة */}
         <main className="flex-1 px-4 py-5 md:px-6 md:py-6 lg:px-8">
           <div className="mx-auto w-full max-w-5xl space-y-5">
-            <BlockList page={page} ctx={ctx} selectedBlockId={selectedBlockId} onBlockSelect={onBlockSelect} />
+            <BlockList
+              page={page}
+              ctx={ctxWithSearch}
+              selectedBlockId={selectedBlockId}
+              onBlockSelect={onBlockSelect}
+            />
           </div>
         </main>
       </div>
+
+      {/* زر العودة للخلف — يظهر في المعاينة التفاعلية */}
+      {ctx.interactive && ctx.onNavigate && homeId ? (
+        <FloatingBackButton label="عودة" onBack={() => go(homeId)} />
+      ) : null}
     </div>
   )
 }

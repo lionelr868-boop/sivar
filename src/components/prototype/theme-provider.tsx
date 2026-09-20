@@ -96,10 +96,11 @@ export function ptVars(theme: ProjectTheme): CSSProperties {
 
 // ---------- PrototypeThemeScope ----------
 
-// حركة دخول خفيفة للكتل في وضع المعاينة فقط (Task 7-b)
+// حركة دخول خفيفة للكتل في وضع المعاينة فقط (Task 7-b) + موجة صوت الفيديو (Task 8)
 const PT_RISE_CSS =
   '@keyframes pt-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}' +
-  '.pt-rise{animation:pt-rise .5s cubic-bezier(.22,.61,.36,1) both}'
+  '.pt-rise{animation:pt-rise .5s cubic-bezier(.22,.61,.36,1) both}' +
+  '@keyframes pt-wave{from{transform:scaleY(.45)}to{transform:scaleY(1)}}'
 
 export function PrototypeThemeScope({
   theme,

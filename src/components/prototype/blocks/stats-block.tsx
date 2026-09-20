@@ -27,7 +27,17 @@ export function StatsBlock({ block }: { block: Block }): ReactElement {
                 className="rounded-[var(--pt-radius)] border border-[var(--pt-border)] bg-[var(--pt-surface)] p-5 text-center transition-all duration-200 hover:-translate-y-0.5"
                 style={{ boxShadow: 'var(--pt-shadow)' }}
               >
-                <p className="text-2xl font-extrabold text-[var(--pt-text)] md:text-3xl">{iS(item, 'value')}</p>
+                <p
+                  className="text-2xl font-extrabold md:text-3xl"
+                  style={{
+                    backgroundImage: 'linear-gradient(135deg, var(--pt-primary), var(--pt-accent))',
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    color: 'transparent',
+                  }}
+                >
+                  {iS(item, 'value')}
+                </p>
                 <p className="mt-1.5 text-xs font-medium text-[var(--pt-muted)] md:text-sm">{iS(item, 'label')}</p>
                 {change ? (
                   <p

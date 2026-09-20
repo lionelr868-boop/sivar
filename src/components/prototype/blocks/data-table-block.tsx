@@ -107,12 +107,15 @@ export function DataTableBlock({ block, ctx }: { block: Block; ctx: BlockCtx }):
   const rows = entity?.rows ?? []
 
   const filtered = useMemo(() => {
-    const q = query.trim()
-    if (!q) return rows
-    return rows.filter((row) =>
-      columns.some((col) => String(row[col.key] ?? '').toLowerCase().includes(q.toLowerCase())),
+    const own = query.trim().toLowerCase()
+    const topbar = (ctx.tableSearch ?? '').trim().toLowerCase()
+    if (!own && !topbar) return rows
+    return rows.filter(
+      (row) =>
+        (!own || columns.some((col) => String(row[col.key] ?? '').toLowerCase().includes(own))) &&
+        (!topbar || columns.some((col) => String(row[col.key] ?? '').toLowerCase().includes(topbar))),
     )
-  }, [rows, columns, query])
+  }, [rows, columns, query, ctx.tableSearch])
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safePage = Math.min(page, pageCount)
@@ -153,7 +156,7 @@ export function DataTableBlock({ block, ctx }: { block: Block; ctx: BlockCtx }):
       {!entity || rows.length === 0 ? (
         <PEmptyState title="لا توجد بيانات" subtitle="ستظهر العناصر هنا بعد إضافتها أو توليدها." />
       ) : filtered.length === 0 ? (
-        <PEmptyState title="لا نتائج مطابقة" subtitle={`لم نجد أي صف يطابق «${query}». جرّب كلمة أخرى.`} />
+        <PEmptyState title="لا نتائج مطابقة" subtitle={`لم نجد أي صف يطابق «${query || ctx.tableSearch}». جرّب كلمة أخرى.`} />
       ) : (
         <>
           <div className="overflow-x-auto">
