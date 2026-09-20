@@ -1,0 +1,2002 @@
+     1→// ============================================================
+     2→// نموذج — Project Templates (14 قالباً كاملاً)
+     3→// Task 2-a — كل قالب يُنتج ProjectSchema كاملاً بمحتوى عربي
+     4→// خاص بالقطاع، هوية لونية مميزة، وصفحات جاهزة للمعاينة.
+     5→// العقد المثبّت: TEMPLATES / getTemplateMeta / buildTemplateSchema
+     6→// ============================================================
+     7→import {
+     8→  buildMockData,
+     9→  CHART_LABELS,
+    10→  ENTITY_LABELS,
+    11→} from '@/lib/content/mock-data'
+    12→import type {
+    13→  AuthVariant,
+    14→  Block,
+    15→  BlockType,
+    16→  PageType,
+    17→  ProjectPage,
+    18→  ProjectSchema,
+    19→  ProjectTheme,
+    20→  ProjectType,
+    21→  ProjectStyle,
+    22→} from '@/lib/types'
+    23→
+    24→// ---------- pinned contract ----------
+    25→export interface TemplateMeta {
+    26→  id: string
+    27→  category: ProjectType
+    28→  name: string
+    29→  tagline: string
+    30→  description: string
+    31→  icon: string
+    32→  pageCount: number
+    33→}
+    34→
+    35→// ---------- internal spec types ----------
+    36→interface HeroSpec {
+    37→  title: string
+    38→  subtitle: string
+    39→  primaryButton: string
+    40→  secondaryButton: string
+    41→  layout: 'split' | 'centered'
+    42→  background: 'default' | 'muted' | 'dark' | 'gradient'
+    43→  align: 'start' | 'center'
+    44→}
+    45→interface BannerSpec {
+    46→  title: string
+    47→  subtitle: string
+    48→  buttonText: string
+    49→  style: 'gradient' | 'dark'
+    50→}
+    51→interface FeaturesSpec {
+    52→  title: string
+    53→  subtitle: string
+    54→  columns: number
+    55→  items: { icon: string; title: string; description: string }[]
+    56→}
+    57→interface StatsSpec {
+    58→  title: string
+    59→  items: { label: string; value: string; change?: string }[]
+    60→}
+    61→interface StepsSpec {
+    62→  title: string
+    63→  subtitle: string
+    64→  steps: { title: string; description: string }[]
+    65→}
+    66→interface GallerySpec {
+    67→  title: string
+    68→  subtitle: string
+    69→  variant: 'products' | 'services' | 'properties' | 'menu' | 'courses'
+    70→  items: { title: string; description: string; price: number; badge: string }[]
+    71→}
+    72→interface TestimonialsSpec {
+    73→  title: string
+    74→  items: { name: string; role: string; text: string; rating: number }[]
+    75→}
+    76→interface FaqSpec {
+    77→  title: string
+    78→  subtitle: string
+    79→  items: { q: string; a: string }[]
+    80→}
+    81→interface CtaSpec {
+    82→  title: string
+    83→  subtitle: string
+    84→  buttonText: string
+    85→  style: 'default' | 'gradient' | 'dark'
+    86→}
+    87→interface PricingSpec {
+    88→  title: string
+    89→  subtitle: string
+    90→  plans: {
+    91→    name: string
+    92→    price: number
+    93→    period: string
+    94→    features: string
+    95→    highlighted: boolean
+    96→    buttonText: string
+    97→  }[]
+    98→}
+    99→interface ProfileSpec {
+   100→  name: string
+   101→  role: string
+   102→  email: string
+   103→  phone: string
+   104→  bio: string
+   105→}
+   106→interface PageSpec {
+   107→  key: string
+   108→  name: string
+   109→  type: PageType
+   110→  entity?: string
+   111→  authVariant?: AuthVariant
+   112→}
+   113→
+   114→interface TemplatePack {
+   115→  id: string
+   116→  category: ProjectType
+   117→  style: ProjectStyle
+   118→  icon: string
+   119→  name: string
+   120→  tagline: string
+   121→  description: string
+   122→  audience: string
+   123→  theme: ProjectTheme
+   124→  hero: HeroSpec
+   125→  banner: BannerSpec | null
+   126→  features: FeaturesSpec
+   127→  stats: StatsSpec
+   128→  steps: StepsSpec
+   129→  gallery: GallerySpec | null
+   130→  testimonials: TestimonialsSpec
+   131→  faq: FaqSpec
+   132→  cta: CtaSpec
+   133→  pricing: PricingSpec | null
+   134→  dashboard: { title: string; subtitle: string; statsPreset: string; entity: string }
+   135→  profile: ProfileSpec
+   136→  activity: { title: string; subtitle: string; meta: string }[]
+   137→  nav: {
+   138→    items: { label: string; key: string }[]
+   139→    cta: { label: string; key: string } | null
+   140→  }
+   141→  footerNote: string
+   142→  pages: PageSpec[]
+   143→}
+   144→
+   145→// ---------- theme helper ----------
+   146→interface PaletteInput {
+   147→  primary: string
+   148→  secondary: string
+   149→  accent: string
+   150→  bg: string
+   151→  surface: string
+   152→  text: string
+   153→  muted: string
+   154→  border: string
+   155→  radius: number
+   156→  shadow: ProjectTheme['shadow']
+   157→  font: ProjectTheme['fontFamily']
+   158→  primaryForeground?: string
+   159→}
+   160→
+   161→function lightTheme(p: PaletteInput): ProjectTheme {
+   162→  return {
+   163→    primary: p.primary,
+   164→    primaryForeground: p.primaryForeground ?? '#ffffff',
+   165→    secondary: p.secondary,
+   166→    accent: p.accent,
+   167→    background: p.bg,
+   168→    surface: p.surface,
+   169→    text: p.text,
+   170→    mutedText: p.muted,
+   171→    border: p.border,
+   172→    radius: p.radius,
+   173→    shadow: p.shadow,
+   174→    fontFamily: p.font,
+   175→    mode: 'light',
+   176→  }
+   177→}
+   178→
+   179→const IBM = 'IBM Plex Sans Arabic' as const
+   180→const TAJAWAL = 'Tajawal' as const
+   181→const CAIRO = 'Cairo' as const
+   182→
+   183→// تاريخ إنشاء ثابت (يحفظ تطابق SSR/CSR للمعاينات المصغّرة)
+   184→const TEMPLATE_CREATED_AT = '2024-01-15T09:00:00.000Z'
+   185→
+   186→// أيقونات صفحات الجداول في قائمة لوحة التحكم
+   187→const ENTITY_PAGE_ICON: Record<string, string> = {
+   188→  customers: 'users',
+   189→  orders: 'shopping-cart',
+   190→  products: 'package',
+   191→  bookings: 'calendar',
+   192→  invoices: 'file-text',
+   193→  services: 'briefcase',
+   194→  users: 'users',
+   195→  clients: 'users',
+   196→  tasks: 'clipboard-list',
+   197→  teamMembers: 'users',
+   198→  courses: 'graduation-cap',
+   199→  students: 'graduation-cap',
+   200→  properties: 'building',
+   201→  appointments: 'calendar-days',
+   202→  menuItems: 'utensils',
+   203→  transactions: 'credit-card',
+   204→  subscriptions: 'wallet',
+   205→}
+   206→
+   207→// ============================================================
+   208→// الـ 14 قالباً
+   209→// ============================================================
+   210→const PACKS: TemplatePack[] = [
+   211→  // ---------------- 1. saas-suite — تشغِيل ----------------
+   212→  {
+   213→    id: 'saas-suite',
+   214→    category: 'saas',
+   215→    style: 'modern',
+   216→    icon: 'layers',
+   217→    name: 'تشغِيل',
+   218→    tagline: 'منصة SaaS لإدارة الاشتراكات والفواتير',
+   219→    description:
+   220→      'تشغِيل منصة جزائرية تساعد الشركات الناشئة على إدارة اشتراكات عملائها، تحصيل المدفوعات تلقائياً، ومتابعة نمو إيراداتها الشهرية.',
+   221→    audience: 'المؤسسات الناشئة والشركات الصغيرة في الجزائر',
+   222→    theme: lightTheme({
+   223→      primary: '#7c3aed',
+   224→      secondary: '#f2eefd',
+   225→      accent: '#a78bfa',
+   226→      bg: '#faf9fc',
+   227→      surface: '#ffffff',
+   228→      text: '#201a2e',
+   229→      muted: '#6f687f',
+   230→      border: '#e9e5f2',
+   231→      radius: 12,
+   232→      shadow: 'md',
+   233→      font: IBM,
+   234→    }),
+   235→    hero: {
+   236→      title: 'أدر اشتراكاتك وفواتيرك في مكان واحد',
+   237→      subtitle:
+   238→        'تشغِيل يجمع الاشتراكات والمدفوعات والتحليلات في لوحة واحدة — وداعاً لجداول Excel المرهقة وعمليات التحصيل اليدوية.',
+   239→      primaryButton: 'ابدأ تجربة مجانية',
+   240→      secondaryButton: 'شاهد لوحة التحكم',
+   241→      layout: 'split',
+   242→      background: 'default',
+   243→      align: 'start',
+   244→    },
+   245→    banner: null,
+   246→    features: {
+   247→      title: 'كل ما تحتاجه لإدارة إيراداتك',
+   248→      subtitle: 'أدوات مصممة خصيصاً للسوق الجزائري',
+   249→      columns: 3,
+   250→      items: [
+   251→        { icon: 'wallet', title: 'إدارة الاشتراكات', description: 'خطط، تجديدات، وترقيات — كل شيء مؤتمت وواضح.' },
+   252→        { icon: 'file-text', title: 'فوترة تلقائية', description: 'فواتير تُنشأ وتُرسل بمفردها في موعدها.' },
+   253→        { icon: 'chart', title: 'تحليلات فورية', description: 'تابع MRR والتسرب والنمو لحظة بلحظة.' },
+   254→        { icon: 'credit-card', title: 'بوابات دفع محلية', description: 'الذهبية وCIB والدفع عند الاستلام.' },
+   255→        { icon: 'bell', title: 'تنبيهات ذكية', description: 'إشعار قبل انتهاء كل اشتراك أو فشل كل دفع.' },
+   256→        { icon: 'shield', title: 'أمان البيانات', description: 'تشفير كامل ونسخ احتياطي يومي لبياناتك.' },
+   257→      ],
+   258→    },
+   259→    stats: {
+   260→      title: '',
+   261→      items: [
+   262→        { label: 'شركة تستخدم تشغِيل', value: '500+', change: '+18%' },
+   263→        { label: 'فاتورة شهرياً', value: '24,580', change: '+11%' },
+   264→        { label: 'معدل رضا العملاء', value: '98%', change: '+2%' },
+   265→        { label: 'الدعم الفني', value: '24/7', change: '' },
+   266→      ],
+   267→    },
+   268→    steps: {
+   269→      title: 'كيف تبدأ؟',
+   270→      subtitle: 'ثلاث خطوات تفصلك عن إدارة أذكى لإيراداتك',
+   271→      steps: [
+   272→        { title: 'أنشئ حسابك المجاني', description: 'سجّل خلال دقيقة ببريدك الإلكتروني فقط، بدون بطاقة بنكية.' },
+   273→        { title: 'أضف عملاءك وخططك', description: 'استورد عملاءك من CSV وحدّد خططك وأسعارك.' },
+   274→        { title: 'فعّل الفوترة التلقائية', description: 'ارتَح ودع تشغِيل تتولى التحصيل والتذكير.' },
+   275→      ],
+   276→    },
+   277→    gallery: null,
+   278→    testimonials: {
+   279→      title: 'ماذا يقول عملاؤنا؟',
+   280→      items: [
+   281→        { name: 'أحمد بن علي', role: 'مدير تقنية — شركة ناشئة', text: 'قلّصنا وقت إعداد الفواتير من 3 أيام إلى ساعتين فقط. التكامل مع بطاقات الذهبية كان نقطة التحول.', rating: 5 },
+   282→        { name: 'سارة بوزيد', role: 'مؤسِّسة منصة تعليمية', text: 'أول مرة أرى إيراداتي الشهرية واضحة أمامي بهذا الشكل. التقارير الجاهزة تغني عن المحاسب في البدايات.', rating: 5 },
+   283→        { name: 'كريم بلقاسم', role: 'مدير مالي — شركة توزيع', text: 'معدل التسرب انخفض للنصف بعد تفعيل التنبيهات التلقائية. اجتماعاتنا الشهرية صارت أقصر وأوضح.', rating: 4 },
+   284→      ],
+   285→    },
+   286→    faq: {
+   287→      title: 'الأسئلة الشائعة',
+   288→      subtitle: 'كل ما تحتاج معرفته قبل البدء',
+   289→      items: [
+   290→        { q: 'هل أحتاج بطاقة بنكية للتجربة؟', a: 'لا، التجربة مجانية لمدة 14 يوماً بدون أي بطاقة بنكية.' },
+   291→        { q: 'هل يدعم تشغِيل الدفع الجزائري؟', a: 'نعم: بطاقة الذهبية، بطاقات CIB، بالإضافة إلى الدفع عند الاستلام لبعض الخطط.' },
+   292→        { q: 'هل يمكنني ترحيل بياناتي الحالية؟', a: 'استورد عملاءك واشتراكاتك من ملف CSV بنقرة واحدة، وفريقنا يساعدك مجاناً.' },
+   293→        { q: 'ماذا يحدث بعد انتهاء التجربة؟', a: 'تبقى بياناتك محفوظة بالكامل ويمكنك الترقية متى شئت أو تصدير كل شيء.' },
+   294→      ],
+   295→    },
+   296→    cta: {
+   297→      title: 'جاهز لتبسيط إدارة اشتراكاتك؟',
+   298→      subtitle: 'انضم إلى أكثر من 500 شركة جزائرية تستخدم تشغِيل يومياً.',
+   299→      buttonText: 'ابدأ مجاناً الآن',
+   300→      style: 'gradient',
+   301→    },
+   302→    pricing: {
+   303→      title: 'خطط تناسب كل مرحلة',
+   304→      subtitle: 'ابدأ مجاناً وارتقِ مع نمو مشروعك',
+   305→      plans: [
+   306→        { name: 'المجانية', price: 0, period: 'شهرياً', features: 'مشروع واحد\n50 اشتراكاً\nفواتير يدوية\nدعم عبر البريد', highlighted: false, buttonText: 'ابدأ مجاناً' },
+   307→        { name: 'الأساسية', price: 2900, period: 'شهرياً', features: '3 مشاريع\nاشتراكات غير محدودة\nفوترة تلقائية\nتنبيهات البريد', highlighted: false, buttonText: 'اشترك الآن' },
+   308→        { name: 'الاحترافية', price: 4900, period: 'شهرياً', features: 'كل مميزات الأساسية\nبوابات دفع محلية\nتقارير متقدمة\nدعم 24/7', highlighted: true, buttonText: 'اشترك الآن' },
+   309→        { name: 'المؤسسات', price: 12900, period: 'شهرياً', features: 'مدير حساب مخصص\nاتفاقية مستوى خدمة\nتكامل API\nتدريب الفريق', highlighted: false, buttonText: 'تواصل معنا' },
+   310→      ],
+   311→    },
+   312→    dashboard: { title: 'لوحة التحكم', subtitle: 'نظرة شاملة على أداء اشتراكاتك', statsPreset: 'saas', entity: 'subscriptions' },
+   313→    profile: {
+   314→      name: 'أمينة حساني',
+   315→      role: 'مديرة الحساب',
+   316→      email: 'amina.hassani@gmail.com',
+   317→      phone: '+213 555 12 34 56',
+   318→      bio: 'أتابع نجاح عملاء المنصة وأساعد الشركات الجزائرية على النمو باشتراكات منظمة.',
+   319→    },
+   320→    activity: [
+   321→      { title: 'تم تجديد اشتراك الخطة الاحترافية', subtitle: 'شركة الأمل للتجهيزات — الجزائر', meta: 'هذا الأسبوع' },
+   322→      { title: 'فاتورة INV-2024-002 تم دفعها', subtitle: 'قيمة 96,400 دج عبر الذهبية', meta: 'أمس' },
+   323→      { title: 'عميل جديد انضم للخطة الأساسية', subtitle: 'وكالة صوت الشباب — قسنطينة', meta: 'قبل يومين' },
+   324→      { title: 'تقرير الإيرادات الشهري جاهز', subtitle: 'نمو 12.5% عن الشهر الفائت', meta: 'هذا الشهر' },
+   325→    ],
+   326→    nav: {
+   327→      items: [
+   328→        { label: 'الرئيسية', key: 'home' },
+   329→        { label: 'الأسعار', key: 'pricing' },
+   330→        { label: 'لوحة التحكم', key: 'dashboard' },
+   331→        { label: 'تسجيل الدخول', key: 'login' },
+   332→      ],
+   333→      cta: { label: 'ابدأ مجاناً', key: 'signup' },
+   334→    },
+   335→    footerNote: 'تشغِيل — منصة جزائرية لإدارة الاشتراكات والفواتير.',
+   336→    pages: [
+   337→      { key: 'home', name: 'الرئيسية', type: 'landing' },
+   338→      { key: 'login', name: 'تسجيل الدخول', type: 'auth', authVariant: 'login' },
+   339→      { key: 'signup', name: 'إنشاء حساب', type: 'auth', authVariant: 'signup' },
+   340→      { key: 'dashboard', name: 'لوحة التحكم', type: 'dashboard' },
+   341→      { key: 'customers', name: 'العملاء', type: 'table', entity: 'customers' },
+   342→      { key: 'subscriptions', name: 'الاشتراكات', type: 'table', entity: 'subscriptions' },
+   343→      { key: 'invoices', name: 'الفواتير', type: 'table', entity: 'invoices' },
+   344→      { key: 'pricing', name: 'الأسعار', type: 'pricing' },
+   345→      { key: 'settings', name: 'الإعدادات', type: 'settings' },
+   346→      { key: 'profile', name: 'الملف الشخصي', type: 'profile' },
+   347→    ],
+   348→  },
+   349→
+   350→  // ---------------- 2. ai-studio — وحي ----------------
+   351→  {
+   352→    id: 'ai-studio',
+   353→    category: 'ai',
+   354→    style: 'tech',
+   355→    icon: 'sparkles',
+   356→    name: 'وحي',
+   357→    tagline: 'استوديو ذكاء اصطناعي لتوليد المحتوى والصور',
+   358→    description:
+   359→      'وحي استوديو جزائري للذكاء الاصطناعي يولّد النصوص والصور والأفكار الإبداعية بالعربية والفرنسية، مع محرر ذكي وقوالب جاهزة للحملات التسويقية.',
+   360→    audience: 'المسوّقون وصنّاع المحتوى والوكالات في الجزائر',
+   361→    theme: lightTheme({
+   362→      primary: '#a21caf',
+   363→      secondary: '#faf0fb',
+   364→      accent: '#d946ef',
+   365→      bg: '#fcf9fc',
+   366→      surface: '#ffffff',
+   367→      text: '#241a24',
+   368→      muted: '#736373',
+   369→      border: '#efe2ef',
+   370→      radius: 16,
+   371→      shadow: 'lg',
+   372→      font: TAJAWAL,
+   373→    }),
+   374→    hero: {
+   375→      title: 'أنشئ محتوى إبداعياً في دقائق، لا أيام',
+   376→      subtitle:
+   377→        'وحي يولّد النصوص والصور والأفكار بالذكاء الاصطناعي — بالعربية والفرنسية — مع محرر ذكي يتعلم أسلوب علامتك ويتقنه.',
+   378→      primaryButton: 'جرّب وحي مجاناً',
+   379→      secondaryButton: 'استعرض الأمثلة',
+   380→      layout: 'split',
+   381→      background: 'gradient',
+   382→      align: 'start',
+   383→    },
+   384→    banner: null,
+   385→    features: {
+   386→      title: 'طاقة إبداعية بلا حدود',
+   387→      subtitle: 'أدوات ذكاء اصطناعي تفهم السوق الجزائري',
+   388→      columns: 3,
+   389→      items: [
+   390→        { icon: 'sparkles', title: 'توليد نصوص عربية', description: 'منشورات وإعلانات ورسائل تُكتب بأسلوبك تماماً.' },
+   391→        { icon: 'image', title: 'صور احترافية', description: 'صور إبداعية بجودة عالية لأي منتج أو حملة.' },
+   392→        { icon: 'zap', title: 'تحرير بالذكاء', description: 'أعد صياغة واختصر وحسّن أي نص بضغطة واحدة.' },
+   393→        { icon: 'layers', title: 'قوالب جاهزة', description: 'قوالب حملات صممها خبراء تسويق جزائريون.' },
+   394→        { icon: 'globe', title: 'عربي وفرنسي', description: 'محتوى أصلي باللغتين دون ترجمة حرفية.' },
+   395→        { icon: 'server', title: 'واجهة API للمطورين', description: 'ادمج وحي في منتجاتك بواجهة بسيطة.' },
+   396→      ],
+   397→    },
+   398→    stats: {
+   399→      title: '',
+   400→      items: [
+   401→        { label: 'صورة ونص مولّد', value: '1,200,000+', change: '+32%' },
+   402→        { label: 'مستخدم مبدع', value: '8,600', change: '+19%' },
+   403→        { label: 'متوسط زمن التوليد', value: '8 ثوانٍ', change: '-40%' },
+   404→        { label: 'رضا المستخدمين', value: '96%', change: '+3%' },
+   405→      ],
+   406→    },
+   407→    steps: {
+   408→      title: 'من الفكرة إلى الإبداع',
+   409→      subtitle: 'ثلاث خطوات فقط',
+   410→      steps: [
+   411→        { title: 'اكتب وصف فكرتك', description: 'جملة واحدة تكفي — وحي يفهم الباقي.' },
+   412→        { title: 'اختر النمط المناسب', description: 'رسمياً، شبابياً، فاخراً... أنت تقرر.' },
+   413→        { title: 'حمّل نتيجتك وشاركها', description: 'بجودة عالية وبأبعاد كل المنصات.' },
+   414→      ],
+   415→    },
+   416→    gallery: null,
+   417→    testimonials: {
+   418→      title: 'مبدعون يثقون بوحي',
+   419→      items: [
+   420→        { name: 'ليلى مزيان', role: 'صانعة محتوى — وهران', text: 'الصور العربية المولّدة كانت نقطة قوة حقيقية — لم أحتج مصمماً لكل منشور بعد اليوم.', rating: 5 },
+   421→        { name: 'رشيد بوعلام', role: 'مدير وكالة إعلانات', text: 'قلّصنا تكاليف الإنتاج بنسبة 60% في أول شهر من اعتماد وحي.', rating: 5 },
+   422→        { name: 'نورة سعدي', role: 'مسؤولة تسويق — سطيف', text: 'القوالب الجاهزة توفر عليّ ساعتين يومياً على الأقل.', rating: 4 },
+   423→      ],
+   424→    },
+   425→    faq: {
+   426→      title: 'الأسئلة الشائعة',
+   427→      subtitle: 'كل ما يهمك عن التوليد الإبداعي',
+   428→      items: [
+   429→        { q: 'هل المحتوى المولّد ملكي؟', a: 'نعم، كل ما تولّده عبر حسابك ملكك كاملاً وتستعمله تجارياً بحرية.' },
+   430→        { q: 'كم نقطة أحتاج شهرياً؟', a: 'المستخدم المتوسط يستهلك 1,200 نقطة شهرياً — راقب نقاطك من لوحة التحكم.' },
+   431→        { q: 'هل يفهم الدارجة الجزائرية؟', a: 'نماذجنا مدرّبة على العربية الفصحى والدارجة المغاربية معاً.' },
+   432→        { q: 'هل يمكن إلغاء الاشتراك؟', a: 'في أي وقت ومن صفحة الإعدادات مباشرة، دون رسوم إضافية.' },
+   433→      ],
+   434→    },
+   435→    cta: {
+   436→      title: 'أطلق إبداعك اليوم',
+   437→      subtitle: 'انضم لآلاف المبدعين الجزائريين الذين ينتجون أسرع مع وحي.',
+   438→      buttonText: 'ابدأ بـ 500 نقطة مجاناً',
+   439→      style: 'gradient',
+   440→    },
+   441→    pricing: {
+   442→      title: 'خطط بقياس طموحك',
+   443→      subtitle: 'النقاط تُستعمل في توليد النصوص والصور معاً',
+   444→      plans: [
+   445→        { name: 'تجريبية', price: 0, period: 'مرة واحدة', features: '500 نقطة ترحيبية\nتوليد أساسي\nشعار وحي على المخرجات', highlighted: false, buttonText: 'ابدأ مجاناً' },
+   446→        { name: 'إبداعية', price: 3900, period: 'شهرياً', features: '5,000 نقطة شهرياً\nصور عالية الدقة\nبدون شعار\nدعم بالبريد', highlighted: false, buttonText: 'اشترك الآن' },
+   447→        { name: 'استوديو', price: 7900, period: 'شهرياً', features: '15,000 نقطة شهرياً\nتوليد دفعة واحدة\nمحرر متقدم\nدعم بأولوية', highlighted: true, buttonText: 'اشترك الآن' },
+   448→        { name: 'أعمال', price: 19900, period: 'شهرياً', features: 'نقاط غير محدودة\nواجهة API\nمدير حساب\nتدريب الفريق', highlighted: false, buttonText: 'تواصل معنا' },
+   449→      ],
+   450→    },
+   451→    dashboard: { title: 'مساحة العمل', subtitle: 'تابع نقاطك ومشاريعك المولّدة', statsPreset: 'saas', entity: 'clients' },
+   452→    profile: {
+   453→      name: 'ياسين مراد',
+   454→      role: 'مدير إبداعي',
+   455→      email: 'yacine.mourad@gmail.com',
+   456→      phone: '+213 661 45 78 90',
+   457→      bio: 'أقود فريقاً إبداعياً صغيراً وننتج مع وحي محتوى لعشرات العلامات الجزائرية شهرياً.',
+   458→    },
+   459→    activity: [
+   460→      { title: 'توليد 12 صورة لحملة رمضان', subtitle: 'بأسلوب فاخر — 480 نقطة', meta: 'اليوم' },
+   461→      { title: 'إعادة صياغة 30 إعلاناً قصيراً', subtitle: 'بالدارجة الجزائرية — 210 نقاط', meta: 'أمس' },
+   462→      { title: 'إنشاء مشروع "هوية مقهى"', subtitle: 'يشمل نصوص وصور القائمة', meta: 'هذا الأسبوع' },
+   463→      { title: 'تجديد نقاط الخطة', subtitle: 'تمت إضافة 15,000 نقطة', meta: 'هذا الشهر' },
+   464→    ],
+   465→    nav: {
+   466→      items: [
+   467→        { label: 'الرئيسية', key: 'home' },
+   468→        { label: 'الأسعار', key: 'pricing' },
+   469→        { label: 'لوحة التحكم', key: 'dashboard' },
+   470→        { label: 'تسجيل الدخول', key: 'login' },
+   471→      ],
+   472→      cta: { label: 'جرّب مجاناً', key: 'signup' },
+   473→    },
+   474→    footerNote: 'وحي — استوديو الإبداع بالذكاء الاصطناعي.',
+   475→    pages: [
+   476→      { key: 'home', name: 'الرئيسية', type: 'landing' },
+   477→      { key: 'login', name: 'تسجيل الدخول', type: 'auth', authVariant: 'login' },
+   478→      { key: 'signup', name: 'إنشاء حساب', type: 'auth', authVariant: 'signup' },
+   479→      { key: 'forgot', name: 'نسيت كلمة المرور', type: 'auth', authVariant: 'forgot' },
+   480→      { key: 'dashboard', name: 'مساحة العمل', type: 'dashboard' },
+   481→      { key: 'clients', name: 'الزبناء', type: 'table', entity: 'clients' },
+   482→      { key: 'tasks', name: 'المهام', type: 'table', entity: 'tasks' },
+   483→      { key: 'pricing', name: 'الأسعار', type: 'pricing' },
+   484→      { key: 'settings', name: 'الإعدادات', type: 'settings' },
+   485→      { key: 'profile', name: 'الملف الشخصي', type: 'profile' },
+   486→    ],
+   487→  },
+   488→
+   489→  // ---------------- 3. ecommerce-store — لِمّة ----------------
+   490→  {
+   491→    id: 'ecommerce-store',
+   492→    category: 'ecommerce',
+   493→    style: 'modern',
+   494→    icon: 'shopping-cart',
+   495→    name: 'لِمّة',
+   496→    tagline: 'متجر إلكتروني جزائري للمنتجات المنتقاة',
+   497→    description:
+   498→      'لِمّة متجر إلكتروني يجمع منتجات مختارة بعناية من تجار جزائريين، مع توصيل سريع لكل الولايات ودفع عند الاستلام.',
+   499→    audience: 'المتسوقون الجزائريون وعشاق المنتجات المحلية',
+   500→    theme: lightTheme({
+   501→      primary: '#e11d48',
+   502→      secondary: '#fff1f4',
+   503→      accent: '#fb7185',
+   504→      bg: '#fdfbfc',
+   505→      surface: '#ffffff',
+   506→      text: '#2b1620',
+   507→      muted: '#7c6370',
+   508→      border: '#f3e3e8',
+   509→      radius: 10,
+   510→      shadow: 'sm',
+   511→      font: CAIRO,
+   512→    }),
+   513→    hero: {
+   514→      title: 'منتجات جزائرية منتقاة، حتى باب دارك',
+   515→      subtitle:
+   516→        'من الحرف اليدوية إلى أحدث الإلكترونيات — توصيل لكل ولايات الوطن خلال 48 ساعة مع إمكانية الدفع عند الاستلام.',
+   517→      primaryButton: 'تسوّق الآن',
+   518→      secondaryButton: 'تعرّف على المتجر',
+   519→      layout: 'split',
+   520→      background: 'default',
+   521→      align: 'start',
+   522→    },
+   523→    banner: {
+   524→      title: 'توصيل مجاني لكل الولايات',
+   525→      subtitle: 'لكل الطلبات فوق 5,000 دج — لفترة محدودة',
+   526→      buttonText: 'تسوّق الآن',
+   527→      style: 'gradient',
+   528→    },
+   529→    features: {
+   530→      title: 'لماذا يتسوق الجزائريون من لِمّة؟',
+   531→      subtitle: 'خدمة تليق بثقتك',
+   532→      columns: 3,
+   533→      items: [
+   534→        { icon: 'truck', title: 'توصيل خلال 48 ساعة', description: 'شبكة توصيل تغطي 58 ولاية.' },
+   535→        { icon: 'credit-card', title: 'الدفع عند الاستلام', description: 'افحص طلبك قبل أن تدفع.' },
+   536→        { icon: 'shield', title: 'منتجات أصلية', description: 'نتعامل مع موزعين معتمدين فقط.' },
+   537→        { icon: 'star', title: 'جودة مضمونة', description: 'تقييمات حقيقية من مشترين حقيقيين.' },
+   538→        { icon: 'package', title: 'إرجاع سهل', description: 'خلال 7 أيام بحالته الأصلية.' },
+   539→        { icon: 'phone', title: 'دعم محلي', description: 'فريق يجيبك بالعربية من 8ص إلى 8م.' },
+   540→      ],
+   541→    },
+   542→    stats: {
+   543→      title: '',
+   544→      items: [
+   545→        { label: 'منتج متوفر', value: '2,400+', change: '+8%' },
+   546→        { label: 'طلب تم تسليمه', value: '18,500', change: '+15%' },
+   547→        { label: 'تقييم المتجر', value: '4.9 / 5', change: '+0.1' },
+   548→        { label: 'ولاية نصل إليها', value: '58', change: '' },
+   549→      ],
+   550→    },
+   551→    steps: {
+   552→      title: 'اطلب في 3 خطوات',
+   553→      subtitle: 'تجربة تسوق بسيطة ومريحة',
+   554→      steps: [
+   555→        { title: 'اختر منتجاتك', description: 'تصفح الأقسام وأضف ما يعجبك للسلة.' },
+   556→        { title: 'أكّد الطلب', description: 'ادفع عند الاستلام أو بالبطاقة الذهبية.' },
+   557→        { title: 'استلم عند باب دارك', description: 'خلال 48 ساعة كحد أقصى.' },
+   558→      ],
+   559→    },
+   560→    gallery: {
+   561→      title: 'منتجات مختارة لك',
+   562→      subtitle: 'الأكثر طلباً هذا الأسبوع',
+   563→      variant: 'products',
+   564→      items: [
+   565→        { title: 'سماعة بلوتوث JBL', description: 'صوت نقي وبطارية تدوم 20 ساعة', price: 8900, badge: 'الأكثر مبيعاً' },
+   566→        { title: 'ساعة ذكية Amazfit', description: 'تتبع صحي كامل ومقاومة للماء', price: 24800, badge: 'جديد' },
+   567→        { title: 'حقيبة ظهر جلدية', description: 'جلد طبيعي بخياطة جزائرية', price: 6200, badge: '' },
+   568→        { title: 'مكينة قهوة Delonghi', description: 'إسبريسو منزلي بطعم المقاهي', price: 32500, badge: 'تخفيض' },
+   569→        { title: 'عطر رجالي Dior', description: 'عبوة 100 مل تدوم طويلاً', price: 15000, badge: '' },
+   570→        { title: 'لوحة مفاتيح ميكانيكية', description: 'أزرار هادئة للكتابة الطويلة', price: 11300, badge: '' },
+   571→      ],
+   572→    },
+   573→    testimonials: {
+   574→      title: 'ماذا يقول متسوقونا؟',
+   575→      items: [
+   576→        { name: 'نورة سعدي', role: 'زبونة — الجزائر', text: 'طلبت هدية ووصلت في اليوم التالي — تغليف أنيق جداً وكأنها من متجر عالمي.', rating: 5 },
+   577→        { name: 'عمر تواتي', role: 'زبون — وهران', text: 'الدفع عند الاستلام أراحني كثيراً. جودة المنتج فاقت توقعاتي بصراحة.', rating: 5 },
+   578→        { name: 'أمينة حساني', role: 'زبونة — سطيف', text: 'خدمة العملاء ردّت عليّ في دقائق وأبدلوا لي المقاس بدون أي مشاكل.', rating: 4 },
+   579→      ],
+   580→    },
+   581→    faq: {
+   582→      title: 'الأسئلة الشائعة',
+   583→      subtitle: 'قبل إتمام طلبك',
+   584→      items: [
+   585→        { q: 'كم تستغرق مدة التوصيل؟', a: '48 ساعة للولايات الشمالية و72 ساعة للجنوب الكبير.' },
+   586→        { q: 'هل الدفع عند الاستلام متاح؟', a: 'نعم، في كل الولايات بدون أي رسوم إضافية.' },
+   587→        { q: 'هل يمكنني إرجاع المنتج؟', a: 'خلال 7 أيام من الاستلام بحالته الأصلية ومع تغليفه.' },
+   588→        { q: 'هل المنتجات أصلية؟', a: 'نتعامل مع موزعين معتمدين فقط ونرفض أي منتج مشكوك فيه.' },
+   589→      ],
+   590→    },
+   591→    cta: {
+   592→      title: 'اكتشف عالم لِمّة',
+   593→      subtitle: 'آلاف المنتجات المنتقاة بانتظارك — توصيل سريع ودفع مريح.',
+   594→      buttonText: 'ابدأ التسوق',
+   595→      style: 'gradient',
+   596→    },
+   597→    pricing: null,
+   598→    dashboard: { title: 'لوحة التاجر', subtitle: 'تابع مبيعاتك وطلباتك ومخزونك', statsPreset: 'ecommerce', entity: 'orders' },
+   599→    profile: {
+   600→      name: 'أمينة حساني',
+   601→      role: 'مديرة المتجر',
+   602→      email: 'store@limma.dz',
+   603→      phone: '+213 770 00 11 22',
+   604→      bio: 'أنتقي كل منتج يُعرض في لِمّة بنفسي — هدفنا متجر يستحق ثقة كل عائلة جزائرية.',
+   605→    },
+   606→    activity: [
+   607→      { title: 'طلب جديد ORD-2406', subtitle: 'لوحة مفاتيح ميكانيكية — 11,300 دج', meta: 'قبل قليل' },
+   608→      { title: 'نفد مخزون لوحة المفاتيح', subtitle: 'إعادة الطلب مطلوبة من المورد', meta: 'اليوم' },
+   609→      { title: 'تقييم جديد 5 نجوم', subtitle: 'من الزبونة نورة سعدي على سماعة JBL', meta: 'أمس' },
+   610→      { title: 'تقرير مبيعات الأسبوع', subtitle: 'نمو 15% عن الأسبوع الفائت', meta: 'هذا الأسبوع' },
+   611→    ],
+   612→    nav: {
+   613→      items: [
+   614→        { label: 'الرئيسية', key: 'home' },
+   615→        { label: 'المنتجات', key: 'products' },
+   616→        { label: 'لوحة التاجر', key: 'dashboard' },
+   617→        { label: 'تسجيل الدخول', key: 'login' },
+   618→      ],
+   619→      cta: { label: 'إنشاء حساب', key: 'signup' },
+   620→    },
+   621→    footerNote: 'لِمّة — تسوق جزائري بذوق عالمي.',
+   622→    pages: [
+   623→      { key: 'home', name: 'الرئيسية', type: 'landing' },
+   624→      { key: 'login', name: 'تسجيل الدخول', type: 'auth', authVariant: 'login' },
+   625→      { key: 'signup', name: 'إنشاء حساب', type: 'auth', authVariant: 'signup' },
+   626→      { key: 'forgot', name: 'نسيت كلمة المرور', type: 'auth', authVariant: 'forgot' },
+   627→      { key: 'dashboard', name: 'لوحة التاجر', type: 'dashboard' },
+   628→      { key: 'products', name: 'المنتجات', type: 'table', entity: 'products' },
+   629→      { key: 'orders', name: 'الطلبات', type: 'table', entity: 'orders' },
+   630→      { key: 'customers', name: 'العملاء', type: 'table', entity: 'customers' },
+   631→      { key: 'settings', name: 'الإعدادات', type: 'settings' },
+   632→      { key: 'profile', name: 'الملف الشخصي', type: 'profile' },
+   633→    ],
+   634→  },
+   635→
+   636→  // ---------------- 4. marketplace-hub — مِهنة ----------------
+   637→  {
+   638→    id: 'marketplace-hub',
+   639→    category: 'marketplace',
+   640→    style: 'youthful',
+   641→    icon: 'store',
+   642→    name: 'مِهنة',
+   643→    tagline: 'سوق إلكتروني يربط الحرفيين بالزبناء',
+   644→    description:
+   645→      'مِهنة منصة جزائرية تجمع الحرفيين والمهنيين الموثوقين — من السباكة إلى تصوير الأعراس — مع تقييمات حقيقية ودفع آمن.',
+   646→    audience: 'الحرفيون والمهنيون والزبناء في كل المدن الجزائرية',
+   647→    theme: lightTheme({
+   648→      primary: '#ea580c',
+   649→      secondary: '#fff3ea',
+   650→      accent: '#fb923c',
+   651→      bg: '#fdfaf7',
+   652→      surface: '#ffffff',
+   653→      text: '#2b1a10',
+   654→      muted: '#7d6a5b',
+   655→      border: '#f2e6db',
+   656→      radius: 12,
+   657→      shadow: 'md',
+   658→      font: TAJAWAL,
+   659→    }),
+   660→    hero: {
+   661→      title: 'أفضل الحرفيين قربك، بثقة كاملة',
+   662→      subtitle:
+   663→        'اعثر على سبّاك، كهربائي، مصور أو مصمم ديكور في مدينتك — مع تقييمات حقيقية من جيرانك ودفع آمن عبر المنصة.',
+   664→      primaryButton: 'ابحث عن مهني',
+   665→      secondaryButton: 'سجّل كحرفي',
+   666→      layout: 'split',
+   667→      background: 'default',
+   668→      align: 'start',
+   669→    },
+   670→    banner: {
+   671→      title: 'انضم كحرفي واحصل على أول 3 طلبات بدون عمولة',
+   672→      subtitle: 'عرض إطلاق لمدة شهرين',
+   673→      buttonText: 'سجّل الآن',
+   674→      style: 'gradient',
+   675→    },
+   676→    features: {
+   677→      title: 'ثقتك أولاً',
+   678→      subtitle: 'كل مهني يمر بعملية توثيق كاملة',
+   679→      columns: 3,
+   680→      items: [
+   681→        { icon: 'shield', title: 'حرفيون موثوقون', description: 'وثائق هوية ومقابلة قبل التسجيل.' },
+   682→        { icon: 'star', title: 'تقييمات حقيقية', description: 'من زبناء أنجزوا طلباتهم فعلاً.' },
+   683→        { icon: 'credit-card', title: 'دفع آمن', description: 'مبلغك محفوظ حتى تؤكد الإنجاز.' },
+   684→        { icon: 'map-pin', title: 'خدمات قربك', description: 'فلترة حسب الولاية والبلدية.' },
+   685→        { icon: 'clock', title: 'حجز فوري', description: 'حدّد الموعد المناسب لك في ثوانٍ.' },
+   686→        { icon: 'award', title: 'جودة مضمونة', description: 'ضمان إعادة العمل أو استرجاع المبلغ.' },
+   687→      ],
+   688→    },
+   689→    stats: {
+   690→      title: '',
+   691→      items: [
+   692→        { label: 'حرفي مسجّل', value: '3,200+', change: '+22%' },
+   693→        { label: 'خدمة منجزة', value: '26,000', change: '+18%' },
+   694→        { label: 'متوسط التقييم', value: '4.8 / 5', change: '+0.2' },
+   695→        { label: 'مدينة مغطاة', value: '48', change: '' },
+   696→      ],
+   697→    },
+   698→    steps: {
+   699→      title: 'احجز خدمتك في 3 خطوات',
+   700→      subtitle: 'بدون وسطاء ولا مكالمات متكررة',
+   701→      steps: [
+   702→        { title: 'ابحث واختر', description: 'قارن التقييمات والأسعار واختر المهني.' },
+   703→        { title: 'احجز وادفع بأمان', description: 'مبلغك محفوظ لدى المنصة حتى الإنجاز.' },
+   704→        { title: 'قيّم الخدمة', description: 'رأيك يحمي الزبون القادم.' },
+   705→      ],
+   706→    },
+   707→    gallery: {
+   708→      title: 'خدمات مطلوبة هذا الأسبوع',
+   709→      subtitle: 'من حرفيين موثوقين في مدينتك',
+   710→      variant: 'services',
+   711→      items: [
+   712→        { title: 'تصوير أعراس', description: 'تغطية كاملة مع ألبم مطبوع', price: 25000, badge: 'الأكثر طلباً' },
+   713→        { title: 'تركيب كهرباء منزلي', description: 'توصيل وتوزيع حسب المعايير', price: 4500, badge: '' },
+   714→        { title: 'إصلاح تسريب مياه', description: 'تشخيص وإصلاح في نفس اليوم', price: 3800, badge: '' },
+   715→        { title: 'تصميم ديكور داخلي', description: 'مخطط 3D مع قائمة مواد', price: 45000, badge: 'جديد' },
+   716→        { title: 'دروس خصوصية منزلية', description: 'ابتدائي ومتوسط — كل المواد', price: 1200, badge: '' },
+   717→        { title: 'صيانة مكيفات هواء', description: 'تنظيف وشحن غاز مع ضمان', price: 2800, badge: '' },
+   718→      ],
+   719→    },
+   720→    testimonials: {
+   721→      title: 'زبناء وحرفيون سعداء',
+   722→      items: [
+   723→        { name: 'محمد قادري', role: 'زبون — الجزائر', text: 'وجدت سبّاكاً موثوقاً في 10 دقائق وجاء في نفس اليوم. تقييماته كانت صادقة فعلاً.', rating: 5 },
+   724→        { name: 'رشيد بوعلام', role: 'حرفي كهرباء — وهران', text: 'الطلبات توصلني مباشرة على هاتفي — انتهى زمن الانتظار أمام محل الحرفة.', rating: 5 },
+   725→        { name: 'ليلى مزيان', role: 'زبونة — قسنطينة', text: 'المصور الذي حجزته لعرسي كان أكثر من رائع، والدفع الآمن أراح عائلتي.', rating: 5 },
+   726→      ],
+   727→    },
+   728→    faq: {
+   729→      title: 'الأسئلة الشائعة',
+   730→      subtitle: 'عن التسجيل والدفع والضمانات',
+   731→      items: [
+   732→        { q: 'كيف تتحققون من الحرفيين؟', a: 'وثائق هوية سارية، مقابلة هاتفية، ومراقبة أول 3 طلبات عن قرب.' },
+   733→        { q: 'ما نسبة العمولة؟', a: '12% فقط من الطلبات المنجزة — التسجيل والظهور مجاني تماماً.' },
+   734→        { q: 'ماذا لو لم يعجبني العمل؟', a: 'ضمان إعادة العمل أو استرجاع كامل المبلغ خلال 72 ساعة.' },
+   735→        { q: 'كيف أستلم أرباحي كحرفي؟', a: 'تحويل على حسابك البريدي أو البنكي (CCP) خلال 48 ساعة من تأكيد الإنجاز.' },
+   736→      ],
+   737→    },
+   738→    cta: {
+   739→      title: 'ابدأ رحلتك مع مِهنة',
+   740→      subtitle: 'سواء كنت زبوناً يبحث عن خدمة أو حرفياً يبحث عن عمل — مكانك معنا.',
+   741→      buttonText: 'انضم الآن مجاناً',
+   742→      style: 'gradient',
+   743→    },
+   744→    pricing: null,
+   745→    dashboard: { title: 'لوحة الزبون', subtitle: 'خدماتك وحجوزاتك في مكان واحد', statsPreset: 'ecommerce', entity: 'services' },
+   746→    profile: {
+   747→      name: 'رشيد بوعلام',
+   748→      role: 'حرفي كهرباء — وهران',
+   749→      email: 'rachid.boualem@gmail.com',
+   750→      phone: '+213 555 88 99 00',
+   751→      bio: '10 سنوات خبرة في الكهرباء المنزلية — أخدم حي الشط والأحياء المجاورة بمواعيد دقيقة.',
+   752→    },
+   753→    activity: [
+   754→      { title: 'طلب جديد: صيانة مكيف', subtitle: 'حي الشط — وهران', meta: 'قبل ساعة' },
+   755→      { title: 'تقييم جديد 5 نجوم', subtitle: 'من الزبون محمد قادري', meta: 'اليوم' },
+   756→      { title: 'أرباح الأسبوع محوّلة', subtitle: '24,800 دج إلى حسابك البريدي', meta: 'أمس' },
+   757→      { title: 'وثائقك تم توثيقها', subtitle: 'أصبحت من الحرفيين الموثوقين', meta: 'هذا الشهر' },
+   758→    ],
+   759→    nav: {
+   760→      items: [
+   761→        { label: 'الرئيسية', key: 'home' },
+   762→        { label: 'الخدمات', key: 'services' },
+   763→        { label: 'لوحة الزبون', key: 'dashboard' },
+   764→        { label: 'تسجيل الدخول', key: 'login' },
+   765→      ],
+   766→      cta: { label: 'سجّل كحرفي', key: 'signup' },
+   767→    },
+   768→    footerNote: 'مِهنة — حيث يلتقي الحرفي بالزبون.',
+   769→    pages: [
+   770→      { key: 'home', name: 'الرئيسية', type: 'landing' },
+   771→      { key: 'login', name: 'تسجيل الدخول', type: 'auth', authVariant: 'login' },
+   772→      { key: 'signup', name: 'إنشاء حساب', type: 'auth', authVariant: 'signup' },
+   773→      { key: 'forgot', name: 'نسيت كلمة المرور', type: 'auth', authVariant: 'forgot' },
+   774→      { key: 'dashboard', name: 'لوحة الزبون', type: 'dashboard' },
+   775→      { key: 'services', name: 'الخدمات', type: 'table', entity: 'services' },
+   776→      { key: 'orders', name: 'الطلبات', type: 'table', entity: 'orders' },
+   777→      { key: 'clients', name: 'الزبناء', type: 'table', entity: 'clients' },
+   778→      { key: 'settings', name: 'الإعدادات', type: 'settings' },
+   779→      { key: 'profile', name: 'الملف الشخصي', type: 'profile' },
+   780→    ],
+   781→  },
+   782→
+   783→  // ---------------- 5. edu-platform — دروب ----------------
+   784→  {
+   785→    id: 'edu-platform',
+   786→    category: 'education',
+   787→    style: 'modern',
+   788→    icon: 'graduation-cap',
+   789→    name: 'دروب',
+   790→    tagline: 'منصة تعلم إلكتروني بالعربية للمهارات العملية',
+   791→    description:
+   792→      'دروب منصة تعليمية جزائرية تقدم دورات عملية بالعربية في البرمجة والتسويق والتصميم، مع شهادات معتمدة ومدرّبين جزائريين خبراء.',
+   793→    audience: 'الطلاب والمهنيون الشباب في الجزائر والوطن العربي',
+   794→    theme: lightTheme({
+   795→      primary: '#16a34a',
+   796→      secondary: '#effaf3',
+   797→      accent: '#4ade80',
+   798→      bg: '#fafcf9',
+   799→      surface: '#ffffff',
+   800→      text: '#14251a',
+   801→      muted: '#5f7267',
+   802→      border: '#e2eee6',
+   803→      radius: 12,
+   804→      shadow: 'sm',
+   805→      font: IBM,
+   806→    }),
+   807→    hero: {
+   808→      title: 'تعلّم مهارة جديدة، غيّر مسارك',
+   809→      subtitle:
+   810→        'دورات عملية بالعربية يقدمها خبراء جزائريون — تعلّم في وقتك وعلى ذوقك، واحصل على شهادة تعزز سيرتك الذاتية.',
+   811→      primaryButton: 'ابدأ التعلم مجاناً',
+   812→      secondaryButton: 'استعرض الدورات',
+   813→      layout: 'split',
+   814→      background: 'default',
+   815→      align: 'start',
+   816→    },
+   817→    banner: null,
+   818→    features: {
+   819→      title: 'تعلّم يناسب جدولك',
+   820→      subtitle: 'محتوى عملي بلا حشو',
+   821→      columns: 3,
+   822→      items: [
+   823→        { icon: 'graduation-cap', title: 'مدرّبون خبراء', description: 'كل مدرّب يمارس ما يعلّمه يومياً.' },
+   824→        { icon: 'clock', title: 'تعلّم في وقتك', description: 'دروس قصيرة تشاهدها متى شئت.' },
+   825→        { icon: 'award', title: 'شهادات معتمدة', description: 'شهادة قابلة للتحقق برقم تسجيل.' },
+   826→        { icon: 'file-text', title: 'مشاريع عملية', description: 'تخرج بمشاريع حقيقية في ملفك.' },
+   827→        { icon: 'users', title: 'مجتمع متعلمين', description: '42 ألف متعلم يتبادلون الخبرات.' },
+   828→        { icon: 'globe', title: 'تعلم من أي مكان', description: 'من الهاتف أو الحاسوب، أونلاين.' },
+   829→      ],
+   830→    },
+   831→    stats: {
+   832→      title: '',
+   833→      items: [
+   834→        { label: 'طالب متعلم', value: '42,000+', change: '+25%' },
+   835→        { label: 'دورة متاحة', value: '180', change: '+14' },
+   836→        { label: 'دقائق مشاهدة شهرياً', value: '1.2 مليون', change: '+19%' },
+   837→        { label: 'نسبة الرضا', value: '97%', change: '+2%' },
+   838→      ],
+   839→    },
+   840→    steps: {
+   841→      title: 'مسار التعلم',
+   842→      subtitle: 'من التسجيل إلى الشهادة',
+   843→      steps: [
+   844→        { title: 'اختر دورتك', description: 'تصفح المسارات واختر ما يناسب هدفك.' },
+   845→        { title: 'تعلّم بمشاريع', description: 'كل درس ينتهي بتمرين عملي حقيقي.' },
+   846→        { title: 'احصل على شهادتك', description: 'بعد اجتياز المشروع النهائي.' },
+   847→      ],
+   848→    },
+   849→    gallery: {
+   850→      title: 'دورات رائجة هذا الشهر',
+   851→      subtitle: 'الأكثر تسجيلاً من المتعلمين',
+   852→      variant: 'courses',
+   853→      items: [
+   854→        { title: 'أساسيات تطوير الويب', description: 'HTML وCSS وJavaScript من الصفر', price: 9900, badge: 'الأكثر شعبية' },
+   855→        { title: 'التسويق الرقمي للمشاريع', description: 'من الحساب الأول إلى أول حملة ناجحة', price: 12900, badge: '' },
+   856→        { title: 'تصميم UI/UX الاحترافي', description: 'Figma من البداية إلى الاحتراف', price: 14900, badge: 'جديد' },
+   857→        { title: 'الذكاء الاصطناعي للمبتدئين', description: 'استعمل أدوات AI في عملك اليومي', price: 15900, badge: '' },
+   858→        { title: 'إدارة المشاريع الصغيرة', description: 'نظّم فريقك وميزانيتك بذكاء', price: 8900, badge: '' },
+   859→        { title: 'المحاسبة لأصحاب المشاريع', description: 'دفاتر وضرائب بدون خوف', price: 7900, badge: 'تخفيض' },
+   860→      ],
+   861→    },
+   862→    testimonials: {
+   863→      title: 'قصص نجاح متعلمينا',
+   864→      items: [
+   865→        { name: 'عمر تواتي', role: 'طالب — البليدة', text: 'انتقلت من صفر في البرمجة إلى أول عميل عمل حر خلال 6 أشهر فقط.', rating: 5 },
+   866→        { name: 'سارة بوزيد', role: 'مصممة — الجزائر', text: 'دورة UI/UX كانت عملية أكثر مما توقعت — مشروع التخرج صار أول عمل في ملفي.', rating: 5 },
+   867→        { name: 'كريم بلقاسم', role: 'موظف — قسنطينة', text: 'دورة التسويق الرقمي فتحت لي باب دخل إضافي أضاعف راتبي.', rating: 4 },
+   868→      ],
+   869→    },
+   870→    faq: {
+   871→      title: 'الأسئلة الشائعة',
+   872→      subtitle: 'عن الدورات والشهادات والدفع',
+   873→      items: [
+   874→        { q: 'هل الشهادات معتمدة؟', a: 'شهادات دروب معتمدة وقابلة للتحقق برقم تسجيل فريد يظهر في سيرتك الذاتية.' },
+   875→        { q: 'هل الدروس مباشرة أم مسجلة؟', a: 'مسجلة تشاهدها في وقتك، مع جلسات مباشرة أسبوعية للأسئلة.' },
+   876→        { q: 'هل يوجد دفع بالتقسيط؟', a: 'نعم، كل دورة فوق 10,000 دج يمكن دفعها على 3 أقساط بدون فوائد.' },
+   877→        { q: 'هل المحتوى يبقى معي؟', a: 'وصول مدى الحياة لكل دورة تشتريها، بما فيها التحديثات المستقبلية.' },
+   878→      ],
+   879→    },
+   880→    cta: {
+   881→      title: 'مستقبلك يبدأ بدورة واحدة',
+   882→      subtitle: 'انضم لأكثر من 42 ألف متعلم جزائري وعربي.',
+   883→      buttonText: 'تصفح الدورات',
+   884→      style: 'gradient',
+   885→    },
+   886→    pricing: null,
+   887→    dashboard: { title: 'مساحة الطالب', subtitle: 'تابع دوراتك وتقدمك وشهاداتك', statsPreset: 'education', entity: 'courses' },
+   888→    profile: {
+   889→      name: 'عمر تواتي',
+   890→      role: 'طالب — مسار تطوير الويب',
+   891→      email: 'omar.touati@gmail.com',
+   892→      phone: '+213 550 12 34 56',
+   893→      bio: 'أتعلم البرمجة بعد الدوام — هدفي أول مشروع عمل حر قبل نهاية السنة.',
+   894→    },
+   895→    activity: [
+   896→      { title: 'أكملت درس JavaScript رقم 12', description: 'مسار أساسيات تطوير الويب', meta: 'اليوم' },
+   897→      { title: 'اجتزت المشروع النهائي لدورة CSS', description: 'بتقييم 9.2 / 10', meta: 'هذا الأسبوع' },
+   898→      { title: 'انضممت لمجموعة دراسة', description: 'مجموعة تطوير الويب — 38 عضواً', meta: 'قبل أسبوع' },
+   899→      { title: 'شهادة HTML جديدة', description: 'أضفها إلى ملفك الشخصي', meta: 'هذا الشهر' },
+   900→    ].map((a) => ({ title: a.title, subtitle: a.description, meta: a.meta })),
+   901→    nav: {
+   902→      items: [
+   903→        { label: 'الرئيسية', key: 'home' },
+   904→        { label: 'الدورات', key: 'courses' },
+   905→        { label: 'مساحة الطالب', key: 'dashboard' },
+   906→        { label: 'تسجيل الدخول', key: 'login' },
+   907→      ],
+   908→      cta: { label: 'ابدأ مجاناً', key: 'signup' },
+   909→    },
+   910→    footerNote: 'دروب — منصة التعلم بالعربية.',
+   911→    pages: [
+   912→      { key: 'home', name: 'الرئيسية', type: 'landing' },
+   913→      { key: 'login', name: 'تسجيل الدخول', type: 'auth', authVariant: 'login' },
+   914→      { key: 'signup', name: 'إنشاء حساب', type: 'auth', authVariant: 'signup' },
+   915→      { key: 'forgot', name: 'نسيت كلمة المرور', type: 'auth', authVariant: 'forgot' },
+   916→      { key: 'dashboard', name: 'مساحة الطالب', type: 'dashboard' },
+   917→      { key: 'courses', name: 'الدورات', type: 'table', entity: 'courses' },
+   918→      { key: 'students', name: 'الطلاب', type: 'table', entity: 'students' },
+   919→      { key: 'invoices', name: 'الفواتير', type: 'table', entity: 'invoices' },
+   920→      { key: 'settings', name: 'الإعدادات', type: 'settings' },
+   921→      { key: 'profile', name: 'الملف الشخصي', type: 'profile' },
+   922→    ],
+   923→  },
+   924→
+   925→  // ---------------- 6. health-clinic — صحّتي ----------------
+   926→  {
+   927→    id: 'health-clinic',
+   928→    category: 'health',
+   929→    style: 'minimal',
+   930→    icon: 'stethoscope',
+   931→    name: 'صحّتي',
+   932→    tagline: 'عيادة متعددة الخدمات مع حجز مواعيد أونلاين',
+   933→    description:
+   934→      'صحّتي منصة عيادات طبية في الجزائر تتيح حجز المواعيد أونلاين، متابعة الملف الطبي، واستشارات عن بعد مع أطباء معتمدين.',
+   935→    audience: 'المرضى والعائلات الجزائرية الباحثة عن رعاية طبية موثوقة',
+   936→    theme: lightTheme({
+   937→      primary: '#0d9488',
+   938→      secondary: '#eefaf8',
+   939→      accent: '#2dd4bf',
+   940→      bg: '#f9fcfc',
+   941→      surface: '#ffffff',
+   942→      text: '#12262a',
+   943→      muted: '#5e7276',
+   944→      border: '#dcecec',
+   945→      radius: 14,
+   946→      shadow: 'sm',
+   947→      font: IBM,
+   948→    }),
+   949→    hero: {
+   950→      title: 'صحتك بين يدي أمينة',
+   951→      subtitle:
+   952→        'احجز موعدك مع أفضل الأطباء في الجزائر خلال دقيقة — بدون انتظار ولا طوابير، مع ملف طبي رقمي يرافقك في كل زيارة.',
+   953→      primaryButton: 'احجز موعدك الآن',
+   954→      secondaryButton: 'تعرّف على العيادة',
+   955→      layout: 'split',
+   956→      background: 'default',
+   957→      align: 'start',
+   958→    },
+   959→    banner: null,
+   960→    features: {
+   961→      title: 'رعاية شاملة لعائلتك',
+   962→      subtitle: 'من الاستشارة العامة إلى التخصصات الدقيقة',
+   963→      columns: 3,
+   964→      items: [
+   965→        { icon: 'calendar', title: 'حجز فوري', description: 'موعدك مؤكد خلال دقيقة من هاتفك.' },
+   966→        { icon: 'stethoscope', title: 'أطباء معتمدون', description: 'نخبة من أطباء الجزائر في كل التخصصات.' },
+   967→        { icon: 'file-text', title: 'ملف طبي رقمي', description: 'تاريخك الطبي كله في مكان آمن.' },
+   968→        { icon: 'bell', title: 'تذكير بالمواعيد', description: 'رسالة قبل موعدك حتى لا تنساه.' },
+   969→        { icon: 'smartphone', title: 'استشارة عن بعد', description: 'تحدث مع طبيبك من بيتك عند الحاجة.' },
+   970→        { icon: 'heart', title: 'رعاية عائلية', description: 'ملف لكل فرد من عائلتك تحت حساب واحد.' },
+   971→      ],
+   972→    },
+   973→    stats: {
+   974→      title: '',
+   975→      items: [
+   976→        { label: 'طبيب معتمد', value: '120+', change: '+12' },
+   977→        { label: 'موعد محجوز شهرياً', value: '8,400', change: '+9%' },
+   978→        { label: 'استشارة عن بعد', value: '3,200', change: '+31%' },
+   979→        { label: 'رضا المرضى', value: '4.9 / 5', change: '+0.1' },
+   980→      ],
+   981→    },
+   982→    steps: {
+   983→      title: 'احجز في 3 خطوات',
+   984→      subtitle: 'بدون مكالمات ولا انتظار',
+   985→      steps: [
+   986→        { title: 'اختر التخصص والطبيب', description: 'تصفح التخصصات ومواعيد كل طبيب.' },
+   987→        { title: 'حدّد الوقت المناسب', description: 'الأوقات المتاحة تظهر مباشرة أمامك.' },
+   988→        { title: 'استلم تذكيراً', description: 'رسالة نصية قبل موعدك بساعتين.' },
+   989→      ],
+   990→    },
+   991→    gallery: {
+   992→      title: 'خدماتنا الطبية',
+   993→      subtitle: 'أسعار واضحة بدون مفاجآت',
+   994→      variant: 'services',
+   995→      items: [
+   996→        { title: 'استشارة عامة', description: 'فحص شامل وتوجيه للحالة', price: 2500, badge: '' },
+   997→        { title: 'فحص شامل', description: 'تحاليل شاملة مع تقرير مفصل', price: 8500, badge: 'جديد' },
+   998→        { title: 'استشارة قلبية', description: 'مع تخطيط القلب عند الحاجة', price: 3500, badge: '' },
+   999→        { title: 'متابعة الحمل', description: 'برنامج متابعة كامل حتى الولادة', price: 12000, badge: 'الأكثر طلباً' },
+  1000→        { title: 'تحاليل مخبرية', description: 'نتائج في نفس اليوم لمعظم التحاليل', price: 5000, badge: '' },
+  1001→        { title: 'استشارة جلدية', description: 'تشخيص وعلاج أمراض الجلد', price: 3000, badge: '' },
+  1002→      ],
+  1003→    },
+  1004→    testimonials: {
+  1005→      title: 'مرضى يثقون بصحّتي',
+  1006→      items: [
+  1007→        { name: 'ليلى مزيان', role: 'مريضة — الجزائر', text: 'أول مرة أحجز موعداً طبياً بدون سهر في الطابور منذ الفجر.', rating: 5 },
+  1008→        { name: 'أحمد بن علي', role: 'أب لثلاثة أطفال — البليدة', text: 'الملف الرقمي يوفر عليّ تكرار التحاليل — كل نتائج أبنائي في هاتفي.', rating: 5 },
+  1009→        { name: 'نورة سعدي', role: 'مريضة — وهران', text: 'الاستشارة عن بعد أنقذت وقتي في أسبوع ضاغط، والوصفة وصلت للصيدلية مباشرة.', rating: 4 },
+  1010→      ],
+  1011→    },
+  1012→    faq: {
+  1013→      title: 'الأسئلة الشائعة',
+  1014→      subtitle: 'عن الحجز والأسعار والتأمين',
+  1015→      items: [
+  1016→        { q: 'هل الحجز مؤكد فوراً؟', a: 'نعم، يصلك تأكيد فوري برسالة نصية مع رقم الموعد.' },
+  1017→        { q: 'هل تقبلون الضمان الاجتماعي؟', a: 'نعم، البطاقة الذهبية مقبولة في معظم التخصصات — اسأل عند الحجز.' },
+  1018→        { q: 'كيف ألغي موعداً؟', a: 'من التطبيق أو الموقع حتى 4 ساعات قبل الموعد بدون أي رسوم.' },
+  1019→        { q: 'هل الاستشارة عن بعد متاحة؟', a: 'نعم لمعظم التخصصات غير الطارئة، وبنفس أسعار العيادة تقريباً.' },
+  1020→      ],
+  1021→    },
+  1022→    cta: {
+  1023→      title: 'صحتك لا تنتظر',
+  1024→      subtitle: 'احجز موعدك خلال دقيقة واحدة — من هاتفك مباشرة.',
+  1025→      buttonText: 'احجز الآن',
+  1026→      style: 'gradient',
+  1027→    },
+  1028→    pricing: null,
+  1029→    dashboard: { title: 'لوحة الطبيب', subtitle: 'مواعيدك ومرضاك في مكان واحد', statsPreset: 'booking', entity: 'appointments' },
+  1030→    profile: {
+  1031→      name: 'د. سارة بوزيد',
+  1032→      role: 'طبيبة أطفال',
+  1033→      email: 'dr.sara@sehhti.dz',
+  1034→      phone: '+213 661 23 45 67',
+  1035→      bio: 'استشارية طب الأطفال — 12 سنة خبرة في مستشفيات الجزائر العاصمة، وأخصائية في متابعة نمو الأطفال.',
+  1036→    },
+  1037→    activity: [
+  1038→      { title: 'موعد جديد APT-3303', subtitle: 'مريض جديد — استشارة عامة', meta: 'قبل قليل' },
+  1039→      { title: 'اكتمل فحص شامل', subtitle: 'تقرير النتائج جاهز للمريض', meta: 'اليوم' },
+  1040→      { title: '4 مواعيد لغد', subtitle: 'أول موعد 09:30 صباحاً', meta: 'غداً' },
+  1041→      { title: 'ملف طبي محدّث', subtitle: 'إضافة تحاليل جديدة لمريض متابع', meta: 'أمس' },
+  1042→    ],
+  1043→    nav: {
+  1044→      items: [
+  1045→        { label: 'الرئيسية', key: 'home' },
+  1046→        { label: 'المواعيد', key: 'appointments' },
+  1047→        { label: 'لوحة الطبيب', key: 'dashboard' },
+  1048→        { label: 'تسجيل الدخول', key: 'login' },
+  1049→      ],
+  1050→      cta: { label: 'احجز موعدك', key: 'signup' },
+  1051→    },
+  1052→    footerNote: 'صحّتي — عيادات الجزائر بين يديك.',
+  1053→    pages: [
+  1054→      { key: 'home', name: 'الرئيسية', type: 'landing' },
+  1055→      { key: 'login', name: 'تسجيل الدخول', type: 'auth', authVariant: 'login' },
+  1056→      { key: 'signup', name: 'إنشاء حساب', type: 'auth', authVariant: 'signup' },
+  1057→      { key: 'forgot', name: 'نسيت كلمة المرور', type: 'auth', authVariant: 'forgot' },
+  1058→      { key: 'dashboard', name: 'لوحة الطبيب', type: 'dashboard' },
+  1059→      { key: 'appointments', name: 'المواعيد', type: 'table', entity: 'appointments' },
+  1060→      { key: 'doctors', name: 'الأطباء', type: 'table', entity: 'teamMembers' },
+  1061→      { key: 'settings', name: 'الإعدادات', type: 'settings' },
+  1062→      { key: 'profile', name: 'الملف الشخصي', type: 'profile' },
+  1063→    ],
+  1064→  },
+  1065→
+  1066→  // ---------------- 7. real-estate — دارنا ----------------
+  1067→  {
+  1068→    id: 'real-estate',
+  1069→    category: 'realestate',
+  1070→    style: 'luxury',
+  1071→    icon: 'building',
+  1072→    name: 'دارنا',
+  1073→    tagline: 'منصة عقارية جزائرية لبيع وكراء العقارات',
+  1074→    description:
+  1075→      'دارنا منصة عقارية تعرض فيلات وشققا وأراضي في أرقى أحياء الجزائر، مع صور عالية الدقة وزيارات مبرمجة ووسطاء معتمدين.',
+  1076→    audience: 'العائلات والمستثمرون الباحثون عن عقارات في الجزائر',
+  1077→    theme: lightTheme({
+  1078→      primary: '#92400e',
+  1079→      secondary: '#faf3e8',
+  1080→      accent: '#d97706',
+  1081→      bg: '#fcfaf6',
+  1082→      surface: '#ffffff',
+  1083→      text: '#2a2016',
+  1084→      muted: '#776a58',
+  1085→      border: '#eee5d8',
+  1086→      radius: 8,
+  1087→      shadow: 'md',
+  1088→      font: TAJAWAL,
+  1089→    }),
+  1090→    hero: {
+  1091→      title: 'اعثر على منزل أحلامك في الجزائر',
+  1092→      subtitle:
+  1093→        'تصفح مئات العقارات المنتقاة في حيدرة، باب الزوار، حي الشط وأرقى الأحياء — مع زيارة مبرمجة خلال 48 ساعة ومرافقة قانونية كاملة.',
+  1094→      primaryButton: 'تصفح العقارات',
+  1095→      secondaryButton: 'كيف نعمل',
+  1096→      layout: 'split',
+  1097→      background: 'default',
+  1098→      align: 'start',
+  1099→    },
+  1100→    banner: null,
+  1101→    features: {
+  1102→      title: 'تجربة عقارية راقية',
+  1103→      subtitle: 'من أول تصفح حتى توقيع العقد',
+  1104→      columns: 3,
+  1105→      items: [
+  1106→        { icon: 'building', title: 'عقارات منتقاة', description: 'كل عقار يخضع لمعايير اختيار صارمة.' },
+  1107→        { icon: 'image', title: 'صور عالية الدقة', description: 'جولات مصورة تُغنيك عن زيارات كثيرة.' },
+  1108→        { icon: 'calendar', title: 'زيارات مبرمجة', description: 'حدّد زيارتك خلال 48 ساعة من الطلب.' },
+  1109→        { icon: 'shield', title: 'وسطاء معتمدون', description: 'وسطاء محترفون بترخيص وسمعة موثقة.' },
+  1110→        { icon: 'map-pin', title: 'أرقى الأحياء', description: 'حيدرة، باب الزوار، حي الشط وأكثر.' },
+  1111→        { icon: 'check', title: 'صحة قانونية', description: 'فريق قانوني يراجع وثائق كل عقار.' },
+  1112→      ],
+  1113→    },
+  1114→    stats: {
+  1115→      title: '',
+  1116→      items: [
+  1117→        { label: 'عقار متاح', value: '1,450', change: '+8%' },
+  1118→        { label: 'زيارة مبرمجة شهرياً', value: '920', change: '+12%' },
+  1119→        { label: 'عملية نجحت', value: '3,800', change: '+15%' },
+  1120→        { label: 'حي مغطى', value: '60+', change: '' },
+  1121→      ],
+  1122→    },
+  1123→    steps: {
+  1124→      title: 'طريقك إلى دارك',
+  1125→      subtitle: 'مرافقة كاملة حتى التوقيع',
+  1126→      steps: [
+  1127→        { title: 'حدّد ميزانيتك وذوقك', description: 'حدد المعايير ونقترح عليك الأنسب.' },
+  1128→        { title: 'زر العقارات', description: 'زيارات مبرمجة مع وسيط معتمد.' },
+  1129→        { title: 'أكمل بثقة', description: 'مرافقة قانونية حتى توقيع العقد.' },
+  1130→      ],
+  1131→    },
+  1132→    gallery: {
+  1133→      title: 'عقارات مميزة',
+  1134→      subtitle: 'مختارات هذا الأسبوع',
+  1135→      variant: 'properties',
+  1136→      items: [
+  1137→        { title: 'فيلا فاخرة بحيدرة', description: '420 م² — حديقة ومسبح', price: 95000000, badge: 'حيدرة' },
+  1138→        { title: 'شقة حديثة بباب الزوار', description: '120 م² — طابق 4 مع مصعد', price: 24800000, badge: '' },
+  1139→        { title: 'شقة بإطلالة بحي الشط', description: '95 م² — إطلالة بحرية', price: 15600000, badge: 'وهران' },
+  1140→        { title: 'دوبلكس بقسنطينة', description: '180 م² — شرفة واسعة', price: 31500000, badge: '' },
+  1141→        { title: 'أرض بضواحي سطيف', description: '250 م² — قابلة للبناء', price: 2500000, badge: 'فرصة' },
+  1142→        { title: 'محل تجاري بوهران', description: '60 م² — على الشارع الرئيسي', price: 12800000, badge: '' },
+  1143→      ],
+  1144→    },
+  1145→    testimonials: {
+  1146→      title: 'عملاء وجدوا دارهم معنا',
+  1147→      items: [
+  1148→        { name: 'أحمد بن علي', role: 'مشترٍ — الجزائر', text: 'الوسيط رافقني من الزيارة الأولى حتى توقيع العقد — احترافية نادرة في السوق العقاري.', rating: 5 },
+  1149→        { name: 'أمينة حساني', role: 'مستثمرة — عنابة', text: 'قدموا لي 6 عروض مطابقة لمعاييري خلال أسبوع واحد فقط.', rating: 5 },
+  1150→        { name: 'عمر تواتي', role: 'بائع — قسنطينة', text: 'بيعت شقتي بسعر أعلى مما توقعت خلال شهر، والوثائق كانت جاهزة منذ البداية.', rating: 4 },
+  1151→      ],
+  1152→    },
+  1153→    faq: {
+  1154→      title: 'الأسئلة الشائعة',
+  1155→      subtitle: 'عن البيع والكراء والزيارات',
+  1156→      items: [
+  1157→        { q: 'هل الزيارات مجانية؟', a: 'نعم، مجانية بالكامل ومع مرافق معتمد من فريقنا.' },
+  1158→        { q: 'كيف أتحقق من صحة الوثائق؟', a: 'فريق قانوني يراجع وثائق كل عقار قبل عرضه على المنصة.' },
+  1159→        { q: 'هل تقدمون خدمة الكراء؟', a: 'كراء سنوي بعقود موثقة، مع تسيير كامل للملك إن رغبت.' },
+  1160→        { q: 'هل يمكن التفاوض في السعر؟', a: 'نوصل عرضك للبائع خلال ساعات ونرافقك في التفاوض.' },
+  1161→      ],
+  1162→    },
+  1163→    cta: {
+  1164→      title: 'دارك الجديدة على بعد خطوة',
+  1165→      subtitle: 'سجّل اهتمامك وسنقترح عليك العقارات الأنسب فور نزولها.',
+  1166→      buttonText: 'ابدأ البحث',
+  1167→      style: 'dark',
+  1168→    },
+  1169→    pricing: null,
+  1170→    dashboard: { title: 'لوحة الوسيط', subtitle: 'عقاراتك وزبائنك وزياراتك', statsPreset: 'agency', entity: 'properties' },
+  1171→    profile: {
+  1172→      name: 'رشيد بوعلام',
+  1173→      role: 'وسيط عقاري معتمد',
+  1174→      email: 'rachid@darna.dz',
+  1175→      phone: '+213 770 55 66 77',
+  1176→      bio: '15 سنة في الوساطة العقارية بالجزائر العاصمة — أركز على الفيلات والشقق الراقية في حيدرة ومحيطها.',
+  1177→    },
+  1178→    activity: [
+  1179→      { title: 'زيارة مبرمجة لفيلا حيدرة', subtitle: 'غداً 10:00 مع زبون جاد', meta: 'غداً' },
+  1180→      { title: 'عقار جديد أُضيف: دوبلكس قسنطينة', subtitle: 'بإشرافك المباشر', meta: 'اليوم' },
+  1181→      { title: 'تلقّيت عرضاً بـ 24 مليون دج', subtitle: 'على شقة باب الزوار — بانتظار رد البائع', meta: 'أمس' },
+  1182→      { title: 'اكتملت عملية بيع', subtitle: 'محل تجاري بوهران — عمولة محصّلة', meta: 'هذا الأسبوع' },
+  1183→    ],
+  1184→    nav: {
+  1185→      items: [
+  1186→        { label: 'الرئيسية', key: 'home' },
+  1187→        { label: 'العقارات', key: 'properties' },
+  1188→        { label: 'لوحة الوسيط', key: 'dashboard' },
+  1189→        { label: 'تسجيل الدخول', key: 'login' },
+  1190→      ],
+  1191→      cta: { label: 'سجّل اهتمامك', key: 'signup' },
+  1192→    },
+  1193→    footerNote: 'دارنا — عنوان الثقة العقارية في الجزائر.',
+  1194→    pages: [
+  1195→      { key: 'home', name: 'الرئيسية', type: 'landing' },
+  1196→      { key: 'login', name: 'تسجيل الدخول', type: 'auth', authVariant: 'login' },
+  1197→      { key: 'signup', name: 'إنشاء حساب', type: 'auth', authVariant: 'signup' },
+  1198→      { key: 'forgot', name: 'نسيت كلمة المرور', type: 'auth', authVariant: 'forgot' },
+  1199→      { key: 'dashboard', name: 'لوحة الوسيط', type: 'dashboard' },
+  1200→      { key: 'properties', name: 'العقارات', type: 'table', entity: 'properties' },
+  1201→      { key: 'clients', name: 'الزبناء', type: 'table', entity: 'clients' },
+  1202→      { key: 'visits', name: 'الزيارات', type: 'table', entity: 'appointments' },
+  1203→      { key: 'settings', name: 'الإعدادات', type: 'settings' },
+  1204→      { key: 'profile', name: 'الملف الشخصي', type: 'profile' },
+  1205→    ],
+  1206→  },
+  1207→
+  1208→  // ---------------- 8. booking-pro — حجزتي ----------------
+  1209→  {
+  1210→    id: 'booking-pro',
+  1211→    category: 'booking',
+  1212→    style: 'youthful',
+  1213→    icon: 'calendar',
+  1214→    name: 'حجزتي',
+  1215→    tagline: 'منصة حجز مواعيد صالونات التجميل',
+  1216→    description:
+  1217→      'حجزتي تتيح للمراكز النسائية وصالونات التجميل في الجزائر إدارة مواعيدها أونلاين، مع تذكير تلقائي للعميلات وتقليل المواعيد الملغاة.',
+  1218→    audience: 'صالونات التجميل والمراكز النسائية وعميلاتهن في الجزائر',
+  1219→    theme: lightTheme({
+  1220→      primary: '#db2777',
+  1221→      secondary: '#fdf0f6',
+  1222→      accent: '#f472b6',
+  1223→      bg: '#fdfbfc',
+  1224→      surface: '#ffffff',
+  1225→      text: '#2b1522',
+  1226→      muted: '#7c6370',
+  1227→      border: '#f4e2ec',
+  1228→      radius: 16,
+  1229→      shadow: 'md',
+  1230→      font: CAIRO,
+  1231→    }),
+  1232→    hero: {
+  1233→      title: 'حجزك مضمون، وقتك محترم',
+  1234→      subtitle:
+  1235→        'احجز موعدك في أرقى صالونات التجميل بالجزائر — بدون مكالمات ولا انتظار، مع تذكير تلقائي قبل موعدك وعروض ولاء دائمة.',
+  1236→      primaryButton: 'احجزي الآن',
+  1237→      secondaryButton: 'تصفحي الصالونات',
+  1238→      layout: 'split',
+  1239→      background: 'default',
+  1240→      align: 'start',
+  1241→    },
+  1242→    banner: null,
+  1243→    features: {
+  1244→      title: 'تجربة تجميل سلسة',
+  1245→      subtitle: 'من الحجز حتى الإطلالة النهائية',
+  1246→      columns: 3,
+  1247→      items: [
+  1248→        { icon: 'calendar', title: 'حجز في 30 ثانية', description: 'اختاري الخدمة والوقت وانتهى الأمر.' },
+  1249→        { icon: 'bell', title: 'تذكير تلقائي', description: 'قبل موعدك بساعة حتى لا يفوتك.' },
+  1250→        { icon: 'star', title: 'صالونات مقيّمة', description: 'تقييمات حقيقية من عميلات سابقات.' },
+  1251→        { icon: 'credit-card', title: 'دفع مسبق آمن', description: 'رقم حجز بسيط يُخصم من الخدمة.' },
+  1252→        { icon: 'clock', title: 'إدارة الوقت', description: 'مواعيد دقيقة بلا انتظار في الصالون.' },
+  1253→        { icon: 'heart', title: 'عروض الولاء', description: 'نقاط مع كل حجز تتحول لتخفيضات.' },
+  1254→      ],
+  1255→    },
+  1256→    stats: {
+  1257→      title: '',
+  1258→      items: [
+  1259→        { label: 'صالون شريك', value: '450+', change: '+16%' },
+  1260→        { label: 'موعد محجوز', value: '62,000', change: '+21%' },
+  1261→        { label: 'متوسط التقييم', value: '4.9 / 5', change: '+0.1' },
+  1262→        { label: 'مواعيد ملغاة أقل', value: '-40%', change: '' },
+  1263→      ],
+  1264→    },
+  1265→    steps: {
+  1266→      title: 'كيف تحجزين؟',
+  1267→      subtitle: 'ثلاث خطوات نحو إطلالتك',
+  1268→      steps: [
+  1269→        { title: 'اختاري الصالون والخدمة', description: 'تصفحي التقييمات والأسعار بهدوء.' },
+  1270→        { title: 'حدّدي الوقت المناسب', description: 'الأوقات المتاحة تظهر مباشرة.' },
+  1271→        { title: 'استلمي تذكيراً واستمتعي', description: 'يصلك تذكير قبل موعدك بساعة.' },
+  1272→      ],
+  1273→    },
+  1274→    gallery: {
+  1275→      title: 'خدمات صالوناتنا',
+  1276→      subtitle: 'الأسعار واضحة قبل الحجز',
+  1277→      variant: 'services',
+  1278→      items: [
+  1279→        { title: 'قص وتصفيف', description: 'على يد خبيرات تصفيف معتمدات', price: 1500, badge: 'الأكثر طلباً' },
+  1280→        { title: 'صبغة شعر كاملة', description: 'أصباغ عالمية مع عناية بعد الصبغة', price: 6500, badge: '' },
+  1281→        { title: 'مانيكير وباديكير', description: 'طلبات كريستال وميني رسومات', price: 2800, badge: 'جديد' },
+  1282→        { title: 'مكياج عروس', description: 'إطلالة كاملة مع تجربة مسبقة', price: 15000, badge: '' },
+  1283→        { title: 'حمام مغربي', description: 'تقليدي مع تقشير وماسك طين', price: 3500, badge: '' },
+  1284→        { title: 'عناية بالبشرة', description: 'تنظيف عميق وترطيب بالليزر البارد', price: 4200, badge: 'تخفيض' },
+  1285→      ],
+  1286→    },
+  1287→    testimonials: {
+  1288→      title: 'عميلات سعيدات',
+  1289→      items: [
+  1290→        { name: 'سارة بوزيد', role: 'عميلة — الجزائر', text: 'أخيراً صالون بدون انتظار — أحجز وأصل في وقتي بالضبط.', rating: 5 },
+  1291→        { name: 'أمينة حساني', role: 'صاحبة صالون — وهران', text: 'المواعيد الملغاة انخفضت للنصف بعد تفعيل التذكير التلقائي.', rating: 5 },
+  1292→        { name: 'ليلى مزيان', role: 'عميلة — قسنطينة', text: 'عروض الولاء جعلتني عميلة دائمة — النقاط تُدفع فعلاً.', rating: 5 },
+  1293→      ],
+  1294→    },
+  1295→    faq: {
+  1296→      title: 'الأسئلة الشائعة',
+  1297→      subtitle: 'عن الحجز والدفع والتغيير',
+  1298→      items: [
+  1299→        { q: 'هل الحجز يتطلب دفعاً مسبقاً؟', a: 'رقم حجز بـ 500 دج فقط، ويُخصم من قيمة الخدمة عند الحضور.' },
+  1300→        { q: 'هل يمكن تغيير الموعد؟', a: 'نعم مجاناً حتى 6 ساعات قبل الموعد من نفس التطبيق.' },
+  1301→        { q: 'كيف أصبح صالوناً شريكاً؟', a: 'سجّلي بيانات صالونك وسيتصل بك فريقنا خلال 48 ساعة.' },
+  1302→        { q: 'ماذا لو تأخرت عن موعدي؟', a: 'يُحفظ مكانك لمدة 15 دقيقة، ثم يُمنح للعميلة التالية.' },
+  1303→      ],
+  1304→    },
+  1305→    cta: {
+  1306→      title: 'جمالك يستحق موعداً مؤكداً',
+  1307→      subtitle: 'انضمي لآلاف العميلات السعيدات في كل مدن الجزائر.',
+  1308→      buttonText: 'احجزي موعدك',
+  1309→      style: 'gradient',
+  1310→    },
+  1311→    pricing: null,
+  1312→    dashboard: { title: 'لوحة الصالون', subtitle: 'مواعيد اليوم والأسبوع في لمحة', statsPreset: 'booking', entity: 'bookings' },
+  1313→    profile: {
+  1314→      name: 'أمينة حساني',
+  1315→      role: 'مديرة صالون — وهران',
+  1316→      email: 'salon@hejati.dz',
+  1317→      phone: '+213 555 44 33 22',
+  1318→      bio: 'أدير صالوناً نسائياً في حي الشط — 6 خبيرات وأكثر من 40 عميلة يومياً عبر حجزتي.',
+  1319→    },
+  1320→    activity: [
+  1321→      { title: 'حجز جديد BKG-1202', subtitle: 'صبغة شعر — 11:45', meta: 'قبل قليل' },
+  1322→      { title: 'تأكيد حضور', subtitle: 'BKG-1206 عناية بالبشرة', meta: 'اليوم' },
+  1323→      { title: 'إلغاء متأخر', subtitle: 'BKG-1205 حمام مغربي — الفترة متاحة مجدداً', meta: 'أمس' },
+  1324→      { title: 'تقرير الأسبوع', subtitle: '62 حجزاً — نمو 9%', meta: 'هذا الأسبوع' },
+  1325→    ],
+  1326→    nav: {
+  1327→      items: [
+  1328→        { label: 'الرئيسية', key: 'home' },
+  1329→        { label: 'الخدمات', key: 'services' },
+  1330→        { label: 'لوحة الصالون', key: 'dashboard' },
+  1331→        { label: 'تسجيل الدخول', key: 'login' },
+  1332→      ],
+  1333→      cta: { label: 'احجزي الآن', key: 'signup' },
+  1334→    },
+  1335→    footerNote: 'حجزتي — موعدك أونلاين في ثوانٍ.',
+  1336→    pages: [
+  1337→      { key: 'home', name: 'الرئيسية', type: 'landing' },
+  1338→      { key: 'login', name: 'تسجيل الدخول', type: 'auth', authVariant: 'login' },
+  1339→      { key: 'signup', name: 'إنشاء حساب', type: 'auth', authVariant: 'signup' },
+  1340→      { key: 'forgot', name: 'نسيت كلمة المرور', type: 'auth', authVariant: 'forgot' },
+  1341→      { key: 'dashboard', name: 'لوحة الصالون', type: 'dashboard' },
+  1342→      { key: 'bookings', name: 'الحجوزات', type: 'table', entity: 'bookings' },
+  1343→      { key: 'customers', name: 'العميلات', type: 'table', entity: 'customers' },
+  1344→      { key: 'services', name: 'الخدمات', type: 'table', entity: 'services' },
+  1345→      { key: 'settings', name: 'الإعدادات', type: 'settings' },
+  1346→      { key: 'profile', name: 'الملف الشخصي', type: 'profile' },
+  1347→    ],
+  1348→  },
+  1349→
+  1350→  // ---------------- 9. services-hub — وصل ----------------
+  1351→  {
+  1352→    id: 'services-hub',
+  1353→    category: 'services',
+  1354→    style: 'professional',
+  1355→    icon: 'briefcase',
+  1356→    name: 'وصل',
+  1357→    tagline: 'منصة خدمات احترافية للشركات',
+  1358→    description:
+  1359→      'وصل تجمع خدمات احترافية للشركات الجزائرية — من المحاسبة إلى التسويق إلى تطوير البرمجيات — بعقود شهرية واضحة وفريق متابع.',
+  1360→    audience: 'الشركات الصغيرة والمتوسطة في الجزائر',
+  1361→    theme: lightTheme({
+  1362→      primary: '#1e293b',
+  1363→      secondary: '#f1f5f9',
+  1364→      accent: '#64748b',
+  1365→      bg: '#f8fafc',
+  1366→      surface: '#ffffff',
+  1367→      text: '#16202e',
+  1368→      muted: '#64748b',
+  1369→      border: '#e2e8f0',
+  1370→      radius: 10,
+  1371→      shadow: 'sm',
+  1372→      font: IBM,
+  1373→    }),
+  1374→    hero: {
+  1375→      title: 'خدمات احترافية تنمو مع شركتك',
+  1376→      subtitle:
+  1377→        'من المحاسبة القانونية إلى الحملات التسويقية — فريق وصل يمدّ شركتك بكل ما تحتاجه بعقود شهرية واضحة وبدون مفاجآت.',
+  1378→      primaryButton: 'اطلب استشارة مجانية',
+  1379→      secondaryButton: 'استعرض الخدمات',
+  1380→      layout: 'split',
+  1381→      background: 'default',
+  1382→      align: 'start',
+  1383→    },
+  1384→    banner: null,
+  1385→    features: {
+  1386→      title: 'شريك نمو لشركتك',
+  1387→      subtitle: 'كل الخدمات تحت سقف واحد',
+  1388→      columns: 3,
+  1389→      items: [
+  1390→        { icon: 'briefcase', title: 'خدمات متكاملة', description: 'محاسبة، تسويق، قانون، وتقنية.' },
+  1391→        { icon: 'file-text', title: 'عقود واضحة', description: 'أسعار شهرية ثابتة بلا بنود خفية.' },
+  1392→        { icon: 'users', title: 'فريق متابع', description: 'مدير حساب يعرف شركتك بالاسم.' },
+  1393→        { icon: 'trending-up', title: 'تقارير شهرية', description: 'ماذا أنجزنا وماذا سيأتي — بوضوح.' },
+  1394→        { icon: 'shield', title: 'سرية تامة', description: 'اتفاقية سرية موقعة مع كل عميل.' },
+  1395→        { icon: 'clock', title: 'استجابة سريعة', description: 'رد خلال 4 ساعات عمل كحد أقصى.' },
+  1396→      ],
+  1397→    },
+  1398→    stats: {
+  1399→      title: '',
+  1400→      items: [
+  1401→        { label: 'شركة نخدمها', value: '340', change: '+9%' },
+  1402→        { label: 'مشروع منجز', value: '2,100', change: '+14%' },
+  1403→        { label: 'ساعة خدمة شهرياً', value: '8,600', change: '+7%' },
+  1404→        { label: 'تجديد العقود', value: '92%', change: '+3%' },
+  1405→      ],
+  1406→    },
+  1407→    steps: {
+  1408→      title: 'كيف نعمل؟',
+  1409→      subtitle: 'منهجية واضحة منذ اليوم الأول',
+  1410→      steps: [
+  1411→        { title: 'جلسة تشخيص مجانية', description: 'نستمع لاحتياجاتك ونحدد الفجوات.' },
+  1412→        { title: 'خطة بعقد شهري', description: 'خدمات محددة بسعر ثابت وواضح.' },
+  1413→        { title: 'تنفيذ وتقارير', description: 'تنفيذ من فريقنا وتقارير شهرية.' },
+  1414→      ],
+  1415→    },
+  1416→    gallery: {
+  1417→      title: 'خدماتنا الأكثر طلباً',
+  1418→      subtitle: 'بأسعار شهرية واضحة',
+  1419→      variant: 'services',
+  1420→      items: [
+  1421→        { title: 'محاسبة وضرائب', description: 'دفاتر، تصريحات، ومرافقة ضريبية', price: 25000, badge: 'شهرياً' },
+  1422→        { title: 'تسويق رقمي متكامل', description: 'محتوى، إعلانات، وتقارير أداء', price: 60000, badge: 'الأكثر طلباً' },
+  1423→        { title: 'تطوير موقع شركة', description: 'موقع احترافي مع لوحة تحكم', price: 120000, badge: '' },
+  1424→        { title: 'هوية بصرية', description: 'شعار ودليل استخدام كامل', price: 45000, badge: 'جديد' },
+  1425→        { title: 'دعم قانوني', description: 'عقود ومراسلات رسمية', price: 30000, badge: 'شهرياً' },
+  1426→        { title: 'إدماج أنظمة', description: 'ربط أنظمتك الحالية بأدواتنا', price: 80000, badge: '' },
+  1427→      ],
+  1428→    },
+  1429→    testimonials: {
+  1430→      title: 'شركات تثق بوصل',
+  1431→      items: [
+  1432→        { name: 'محمد قادري', role: 'مدير مالي — شركة توزيع', text: 'تقاريرهم الشهرية أنقذتنا من غرامات ضريبية كانت ستكلفنا أضعاف الاشتراك.', rating: 5 },
+  1433→        { name: 'سارة بوزيد', role: 'مؤسِّسة — براند عطور', text: 'فريق واحد لكل الخدمات وفّر علينا التنسيق مع خمسة مزودين منفصلين.', rating: 5 },
+  1434→        { name: 'كريم بلقاسم', role: 'مدير عام — مصنع صغير', text: 'عقدهم الشهري واضح — نفس المبلغ كل شهر، بلا مفاجآت ولا بنود مخفية.', rating: 4 },
+  1435→      ],
+  1436→    },
+  1437→    faq: {
+  1438→      title: 'الأسئلة الشائعة',
+  1439→      subtitle: 'عن العقود والأسعار والعمل',
+  1440→      items: [
+  1441→        { q: 'كيف تُحدد الأسعار؟', a: 'بعد جلسة التشخيص المجانية نرسل لك عرضاً مفصلاً بأسعار ثابتة شهرية.' },
+  1442→        { q: 'هل يمكن إيقاف الخدمة؟', a: 'بإشعار 30 يوماً فقط، وتستلم كل ملفاتك كاملة عند المغادرة.' },
+  1443→        { q: 'من ينفذ العمل؟', a: 'فريق داخلي معتمد بالكامل — لا وسطاء ولا منصات وسيطة.' },
+  1444→        { q: 'هل تتعاملون مع الشركات الناشئة؟', a: 'نعم، لدينا باقة "انطلاق" مخصصة بميزانيات مخفضة.' },
+  1445→      ],
+  1446→    },
+  1447→    cta: {
+  1448→      title: 'نمو شركتك يبدأ بمحادثة',
+  1449→      subtitle: 'احجز جلسة تشخيص مجانية — 30 دقيقة تكفي لنبدأ.',
+  1450→      buttonText: 'اطلب استشارة',
+  1451→      style: 'default',
+  1452→    },
+  1453→    pricing: {
+  1454→      title: 'باقات شهرية بلا مفاجآت',
+  1455→      subtitle: 'اختر باقتك أو اجمع خدماتك كما تشاء',
+  1456→      plans: [
+  1457→        { name: 'انطلاق', price: 35000, period: 'شهرياً', features: 'محاسبة أساسية\nمراسلات رسمية\nدعم عبر البريد\nتقرير ربع سنوي', highlighted: false, buttonText: 'ابدأ الآن' },
+  1458→        { name: 'نمو', price: 85000, period: 'شهرياً', features: 'كل مميزات انطلاق\nتسويق رقمي شهري\nتقارير شهرية\nمدير حساب مخصص', highlighted: true, buttonText: 'اشترك الآن' },
+  1459→        { name: 'مؤسسات', price: 160000, period: 'شهرياً', features: 'كل مميزات نمو\nدعم قانوني كامل\nتطوير برمجيات\nفريق مخصص\nاتفاقية مستوى خدمة', highlighted: false, buttonText: 'تواصل معنا' },
+  1460→      ],
+  1461→    },
+  1462→    dashboard: { title: 'لوحة المتابعة', subtitle: 'مشاريعك وخدماتك ومهام فريقك', statsPreset: 'agency', entity: 'clients' },
+  1463→    profile: {
+  1464→      name: 'عمر تواتي',
+  1465→      role: 'مدير حساب',
+  1466→      email: 'omar@wasl.dz',
+  1467→      phone: '+213 661 77 88 99',
+  1468→      bio: 'أدير محفظة من 15 شركة عميلة — وسيّي بين احتياجاتهم وفريق التنفيذ لضمان تسليم دائم في الموعد.',
+  1469→    },
+  1470→    activity: [
+  1471→      { title: 'تقرير مارس جاهز للتسليم', subtitle: 'شركة الأمل — المحاسبة والتسويق', meta: 'اليوم' },
+  1472→      { title: 'مهمة جديدة: إعلانات رمضان', subtitle: 'أُسندت لفريق التسويق', meta: 'أمس' },
+  1473→      { title: 'تجديد عقد سنة كاملة', subtitle: 'مطبعة الهنا — باقة نمو', meta: 'هذا الأسبوع' },
+  1474→      { title: 'إضافة خدمة إدماج أنظمة', subtitle: 'بطلب من زبون مؤسساتي', meta: 'هذا الشهر' },
+  1475→    ],
+  1476→    nav: {
+  1477→      items: [
+  1478→        { label: 'الرئيسية', key: 'home' },
+  1479→        { label: 'الخدمات', key: 'services' },
+  1480→        { label: 'الباقات', key: 'pricing' },
+  1481→        { label: 'لوحة المتابعة', key: 'dashboard' },
+  1482→        { label: 'تسجيل الدخول', key: 'login' },
+  1483→      ],
+  1484→      cta: { label: 'ابدأ الآن', key: 'signup' },
+  1485→    },
+  1486→    footerNote: 'وصل — شريك الخدمات الاحترافية لشركتك.',
+  1487→    pages: [
+  1488→      { key: 'home', name: 'الرئيسية', type: 'landing' },
+  1489→      { key: 'login', name: 'تسجيل الدخول', type: 'auth', authVariant: 'login' },
+  1490→      { key: 'signup', name: 'إنشاء حساب', type: 'auth', authVariant: 'signup' },
+  1491→      { key: 'dashboard', name: 'لوحة المتابعة', type: 'dashboard' },
+  1492→      { key: 'services', name: 'الخدمات', type: 'table', entity: 'services' },
+  1493→      { key: 'clients', name: 'الزبناء', type: 'table', entity: 'clients' },
+  1494→      { key: 'tasks', name: 'المهام', type: 'table', entity: 'tasks' },
+  1495→      { key: 'pricing', name: 'الباقات', type: 'pricing' },
+  1496→      { key: 'settings', name: 'الإعدادات', type: 'settings' },
+  1497→      { key: 'profile', name: 'الملف الشخصي', type: 'profile' },
+  1498→    ],
+  1499→  },
+  1500→
+  1501→  // ---------------- 10. restaurant-menu — مطعمنا ----------------
+  1502→  {
+  1503→    id: 'restaurant-menu',
+  1504→    category: 'restaurant',
+  1505→    style: 'modern',
+  1506→    icon: 'utensils',
+  1507→    name: 'مطعمنا',
+  1508→    tagline: 'مطعم جزائري أصيل مع طلب أونلاين',
+  1509→    description:
+  1510→      'مطعمنا يقدم أشهى الأطباق الجزائرية التقليدية — من الكسكس إلى الشخشوخة — مع طلب أونلاين وتوصيل سريع داخل المدن الكبرى.',
+  1511→    audience: 'العائلات الجزائرية وعشاق المطبخ التقليدي',
+  1512→    theme: lightTheme({
+  1513→      primary: '#d97706',
+  1514→      secondary: '#fdf6ea',
+  1515→      accent: '#f59e0b',
+  1516→      bg: '#fdfbf6',
+  1517→      surface: '#ffffff',
+  1518→      text: '#2b1f10',
+  1519→      muted: '#7d6d55',
+  1520→      border: '#f0e8d8',
+  1521→      radius: 12,
+  1522→      shadow: 'md',
+  1523→      font: TAJAWAL,
+  1524→    }),
+  1525→    hero: {
+  1526→      title: 'نكهة البيت الجزائري في كل طبق',
+  1527→      subtitle:
+  1528→        'كسكس بخضر، طاجين زيتون، شخشوخة — أطباق جدّتنا تُحضّر يومياً بمكونات طازجة من السوق، وتوصلك ساخنة حتى باب دارك.',
+  1529→      primaryButton: 'اطلب الآن',
+  1530→      secondaryButton: 'تصفح القائمة',
+  1531→      layout: 'split',
+  1532→      background: 'default',
+  1533→      align: 'start',
+  1534→    },
+  1535→    banner: {
+  1536→      title: 'توصيل مجاني داخل الجزائر العاصمة',
+  1537→      subtitle: 'لكل الطلبات فوق 2,500 دج — يومياً من 11 صباحاً',
+  1538→      buttonText: 'اطلب الآن',
+  1539→      style: 'gradient',
+  1540→    },
+  1541→    features: {
+  1542→      title: 'لماذا مطعمنا؟',
+  1543→      subtitle: 'لأن الطعم الأصيل لا يقبل التنازلات',
+  1544→      columns: 3,
+  1545→      items: [
+  1546→        { icon: 'chef-hat', title: 'أطباق تقليدية أصيلة', description: 'وصفات عائلية توارثناها ثلاثة أجيال.' },
+  1547→        { icon: 'clock', title: 'توصيل خلال 45 دقيقة', description: 'ساخن دائماً، في كل أحياء العاصمة.' },
+  1548→        { icon: 'star', title: 'مكونات طازجة يومياً', description: 'من سوق الواقعين كل صباح.' },
+  1549→        { icon: 'package', title: 'تغليف يحفظ الحرارة', description: 'وصول الطبق كأنه خرج من المطبخ الآن.' },
+  1550→        { icon: 'truck', title: 'توصيل لكل الأحياء', description: 'العاصمة والمدن الكبرى في تغطية مستمرة.' },
+  1551→        { icon: 'phone', title: 'حجز الطاولات', description: 'قاعة عائلية هادئة بحجز مسبق.' },
+  1552→      ],
+  1553→    },
+  1554→    stats: {
+  1555→      title: '',
+  1556→      items: [
+  1557→        { label: 'طبق في القائمة', value: '45', change: '+5' },
+  1558→        { label: 'طلب يومياً', value: '350', change: '+12%' },
+  1559→        { label: 'تقييم الزبائن', value: '4.9 / 5', change: '+0.1' },
+  1560→        { label: 'سنة خبرة', value: '15', change: '' },
+  1561→      ],
+  1562→    },
+  1563→    steps: {
+  1564→      title: 'اطلب في 3 خطوات',
+  1565→      subtitle: 'من التصفح حتى باب دارك',
+  1566→      steps: [
+  1567→        { title: 'تصفح القائمة', description: 'اختر أطباقك المفضلة بحرية.' },
+  1568→        { title: 'أكّد طلبك', description: 'أونلاين أو هاتفياً — كما يريحك.' },
+  1569→        { title: 'استلم ساخناً', description: 'خلال 45 دقيقة كحد أقصى.' },
+  1570→      ],
+  1571→    },
+  1572→    gallery: {
+  1573→      title: 'من قائمتنا',
+  1574→      subtitle: 'أطباق يطلبها زبائنا كل يوم',
+  1575→      variant: 'menu',
+  1576→      items: [
+  1577→        { title: 'كسكس بخضر', description: 'بلحم الدجاج والخضر الموسمية', price: 1200, badge: 'الأكثر طلباً' },
+  1578→        { title: 'طاجين زيتون', description: 'زيتون بلدي مع لحم الغنم', price: 1500, badge: '' },
+  1579→        { title: 'شخشوخة', description: 'بمرقة حمراء ولحم مقدد', price: 1000, badge: '' },
+  1580→        { title: 'حريرة', description: 'شوربة العدس التقليدية', price: 400, badge: '' },
+  1581→        { title: 'بريك بالبيض', description: 'مقرمش من الخارج طري من الداخل', price: 300, badge: '' },
+  1582→        { title: 'بقلاوة وردة', description: 'حلويات تقليدية باللوز والعسل', price: 800, badge: 'حلويات' },
+  1583→      ],
+  1584→    },
+  1585→    testimonials: {
+  1586→      title: 'زبائن تعود كل أسبوع',
+  1587→      items: [
+  1588→        { name: 'أحمد بن علي', role: 'زبون — الجزائر', text: 'طعم الكسكس مثل بيت جدّتي بصدق — أطلب لعائلتي كل جمعة.', rating: 5 },
+  1589→        { name: 'نورة سعدي', role: 'أم لثلاثة أطفال — البليدة', text: 'الحريرة وصلت ساخنة والتغليف ممتاز — الأطفال أحبوا البريك.', rating: 5 },
+  1590→        { name: 'ياسين مراد', role: 'موظف — الجزائر', text: 'أطلب كل يوم خميس — دقة في الوقت وذوق ثابت دائماً.', rating: 4 },
+  1591→      ],
+  1592→    },
+  1593→    faq: {
+  1594→      title: 'الأسئلة الشائعة',
+  1595→      subtitle: 'عن الطلب والتوصيل والحفلات',
+  1596→      items: [
+  1597→        { q: 'هل الكسكس متوفر يومياً؟', a: 'نعم يومياً، وبعض الأطباق الخاصة تحتاج طلباً مسبقاً قبل 24 ساعة.' },
+  1598→        { q: 'هل يوجد مكان للعائلات؟', a: 'قاعة عائلية هادئة بحجز مسبق — تتسع لـ 80 شخصاً.' },
+  1599→        { q: 'هل تقبلون تجهيز الحفلات؟', a: 'نجهّز حفلات من 20 إلى 200 شخص بقائمة تختارها بنفسك.' },
+  1600→        { q: 'هل التوصيل لكل الأحياء؟', a: 'كل أحياء الجزائر العاصمة، ونتوسع قريباً في وهران وقسنطينة.' },
+  1601→      ],
+  1602→    },
+  1603→    cta: {
+  1604→      title: 'جوعان؟ الجواب عندنا',
+  1605→      subtitle: 'اطلب الآن ووصلك ساخن خلال 45 دقيقة.',
+  1606→      buttonText: 'اطلب الآن',
+  1607→      style: 'gradient',
+  1608→    },
+  1609→    pricing: null,
+  1610→    dashboard: { title: 'لوحة المطعم', subtitle: 'طلبات اليوم ومبيعات الأصناف', statsPreset: 'restaurant', entity: 'menuItems' },
+  1611→    profile: {
+  1612→      name: 'كريم بلقاسم',
+  1613→      role: 'مدير المطعم',
+  1614→      email: 'karim@matamna.dz',
+  1615→      phone: '+213 661 10 20 30',
+  1616→      bio: 'أدير مطعماً عائلياً من 2009 — أُشرف بنفسي على جودة كل طبق يخرج من المطبخ.',
+  1617→    },
+  1618→    activity: [
+  1619→      { title: 'طلب جديد — طاجين زيتون ×2', subtitle: 'حريرة ×3 وبريك بالبيض ×5', meta: 'قبل قليل' },
+  1620→      { title: 'نفدت البقلاوة', subtitle: 'دفعة جديدة غداً صباحاً', meta: 'اليوم' },
+  1621→      { title: 'تقييم 5 نجوم جديد', subtitle: 'على الكسكس من الزبون أحمد', meta: 'أمس' },
+  1622→      { title: 'حجز قاعة عائلية', subtitle: 'الأحد القادم — 30 شخصاً', meta: 'هذا الأسبوع' },
+  1623→    ],
+  1624→    nav: {
+  1625→      items: [
+  1626→        { label: 'الرئيسية', key: 'home' },
+  1627→        { label: 'القائمة', key: 'menu' },
+  1628→        { label: 'لوحة المطعم', key: 'dashboard' },
+  1629→        { label: 'تسجيل الدخول', key: 'login' },
+  1630→      ],
+  1631→      cta: { label: 'اطلب الآن', key: 'signup' },
+  1632→    },
+  1633→    footerNote: 'مطعمنا — المطبخ الجزائري الأصيل.',
+  1634→    pages: [
+  1635→      { key: 'home', name: 'الرئيسية', type: 'landing' },
+  1636→      { key: 'login', name: 'تسجيل الدخول', type: 'auth', authVariant: 'login' },
+  1637→      { key: 'signup', name: 'إنشاء حساب', type: 'auth', authVariant: 'signup' },
+  1638→      { key: 'forgot', name: 'نسيت كلمة المرور', type: 'auth', authVariant: 'forgot' },
+  1639→      { key: 'dashboard', name: 'لوحة المطعم', type: 'dashboard' },
+  1640→      { key: 'menu', name: 'قائمة الطعام', type: 'table', entity: 'menuItems' },
+  1641→      { key: 'orders', name: 'الطلبات', type: 'table', entity: 'orders' },
+  1642→      { key: 'settings', name: 'الإعدادات', type: 'settings' },
+  1643→      { key: 'profile', name: 'الملف الشخصي', type: 'profile' },
+  1644→    ],
+  1645→  },
+  1646→
+  1647→  // ---------------- 11. agency-pro — همّة ----------------
+  1648→  {
+  1649→    id: 'agency-pro',
+  1650→    category: 'agency',
+  1651→    style: 'professional',
+  1652→    icon: 'target',
+  1653→    name: 'همّة',
+  1654→    tagline: 'وكالة رقمية: هوية، مواقع، وحملات تسويق',
+  1655→    description:
+  1656→      'همّة وكالة رقمية جزائرية تبني الهويات البصرية والمواقع وحملات التسويق الرقمي للعلامات الطامحة في الجزائر والمنطقة.',
+  1657→    audience: 'العلامات التجارية والشركات الطامحة في الجزائر',
+  1658→    theme: lightTheme({
+  1659→      primary: '#0e7490',
+  1660→      secondary: '#ecf8fb',
+  1661→      accent: '#22d3ee',
+  1662→      bg: '#f9fbfc',
+  1663→      surface: '#ffffff',
+  1664→      text: '#132229',
+  1665→      muted: '#5c7280',
+  1666→      border: '#dcecf0',
+  1667→      radius: 12,
+  1668→      shadow: 'md',
+  1669→      font: IBM,
+  1670→    }),
+  1671→    hero: {
+  1672→      title: 'علامتك تستحق أن تُرى',
+  1673→      subtitle:
+  1674→        'من الشعار إلى الحملة الرقمية — فريق همّة يبني علامتك بخطوات مدروسة، تصميم يليق بطموحك، ونتائج قابلة للقياس.',
+  1675→      primaryButton: 'احجز جلسة تعارف',
+  1676→      secondaryButton: 'استعرض أعمالنا',
+  1677→      layout: 'split',
+  1678→      background: 'default',
+  1679→      align: 'start',
+  1680→    },
+  1681→    banner: null,
+  1682→    features: {
+  1683→      title: 'شراكة إبداعية',
+  1684→      subtitle: 'نعمل كأن فريقك الداخلي — بأفكار وكالة',
+  1685→      columns: 3,
+  1686→      items: [
+  1687→        { icon: 'target', title: 'استراتيجية مدروسة', description: 'بحث قبل تصميم، وتصميم قبل إطلاق.' },
+  1688→        { icon: 'image', title: 'هوية بصرية', description: 'شعارات وهويات تبقى في الذاكرة.' },
+  1689→        { icon: 'smartphone', title: 'مواقع ومتاجر', description: 'مواقع سريعة تبيع وليس تعرض فقط.' },
+  1690→        { icon: 'megaphone', title: 'حملات مدفوعة', description: 'إعلانات بأهداف واضحة وميزانية ذكية.' },
+  1691→        { icon: 'chart', title: 'نتائج مقاسة', description: 'تقارير بمؤشرات تفهمها بدون شرح.' },
+  1692→        { icon: 'award', title: 'جوائز وتقدير', description: '8 جوائز تصميم جزائرية وإقليمية.' },
+  1693→      ],
+  1694→    },
+  1695→    stats: {
+  1696→      title: '',
+  1697→      items: [
+  1698→        { label: 'مشروع منجز', value: '320', change: '+11%' },
+  1699→        { label: 'عميل سعيد', value: '150', change: '+8%' },
+  1700→        { label: 'جائزة تصميم', value: '8', change: '' },
+  1701→        { label: 'متوسط نمو عملائنا', value: '3x', change: '+20%' },
+  1702→      ],
+  1703→    },
+  1704→    steps: {
+  1705→      title: 'من الفكرة إلى الأثر',
+  1706→      subtitle: 'منهجية تحترم ميزانيتك ووقتك',
+  1707→      steps: [
+  1708→        { title: 'نستمع لقصتك', description: 'جلسة تعارف مجانية نفهم فيها هدفك.' },
+  1709→        { title: 'نبني الخطة والهوية', description: 'مقترحات واضحة بجدول زمني ملتزم.' },
+  1710→        { title: 'نطلق ونقيس', description: 'إطلاق ثم تحسين مستمر بالأرقام.' },
+  1711→      ],
+  1712→    },
+  1713→    gallery: {
+  1714→      title: 'خدمات الوكالة',
+  1715→      subtitle: 'مشاريع نفتخر بها وخدمات نتقنها',
+  1716→      variant: 'services',
+  1717→      items: [
+  1718→        { title: 'هوية بصرية كاملة', description: 'شعار، ألوان، خطوط، ودليل استخدام', price: 90000, badge: '' },
+  1719→        { title: 'موقع شركة', description: 'تصميم حصري مع لوحة تحكم', price: 120000, badge: 'الأكثر طلباً' },
+  1720→        { title: 'متجر إلكتروني', description: 'متجر كامل مع بوابات دفع محلية', price: 180000, badge: 'جديد' },
+  1721→        { title: 'إدارة حسابات شهرية', description: 'محتوى وتصميم وتفاعل يومي', price: 45000, badge: 'شهرياً' },
+  1722→        { title: 'حملة إطلاق', description: 'إطلاق منتجك بأقصى أثر ممكن', price: 70000, badge: '' },
+  1723→        { title: 'فيديو تسويقي', description: 'سكريبت وتصوير ومونتاج كامل', price: 35000, badge: '' },
+  1724→      ],
+  1725→    },
+  1726→    testimonials: {
+  1727→      title: 'عملاء صنعنا معهم قصص نجاح',
+  1728→      items: [
+  1729→        { name: 'سارة بوزيد', role: 'مؤسِّسة براند عطور', text: 'أعادوا تصميم هويتنا بالكامل فارتفعت المبيعات 60% خلال ثلاثة أشهر.', rating: 5 },
+  1730→        { name: 'محمد قادري', role: 'مدير شركة تجهيزات', text: 'موقعنا الجديد صار مصدر 40% من طلباتنا — أفضل استثمار سنوي صرفناه.', rating: 5 },
+  1731→        { name: 'ليلى مزيان', role: 'مديرة متجر أزياء', text: 'حملاتهم مدروسة بالأرقام وليست صرفاً إعلانياً عشوائياً كغيرهم.', rating: 4 },
+  1732→      ],
+  1733→    },
+  1734→    faq: {
+  1735→      title: 'الأسئلة الشائعة',
+  1736→      subtitle: 'عن المشاريع والميزانيات والتعاون',
+  1737→      items: [
+  1738→        { q: 'كم يستغرق مشروع الهوية؟', a: 'من 3 إلى 4 أسابيع حسب حجم العلامة وعدد المقترحات المطلوبة.' },
+  1739→        { q: 'هل تعملون بميزانيات صغيرة؟', a: 'لدينا باقة "علامة جديدة" مصممة للعلامات في سنتها الأولى.' },
+  1740→        { q: 'كيف أقيس نجاح الحملة؟', a: 'تقرير شهري بمؤشرات واضحة: وصول، تفاعل، تكلفة العميل، ومبيعات.' },
+  1741→        { q: 'هل تقدمون عقوداً شهرية؟', a: 'إدارة شهرية مستمرة أو مشروع واحد — نتناسب مع نموذج عملك.' },
+  1742→      ],
+  1743→    },
+  1744→    cta: {
+  1745→      title: 'علامتك التالية، قصتنا القادمة',
+  1746→      subtitle: 'احجز جلسة تعارف مجانية — 30 دقيقة قد تغير مسار علامتك.',
+  1747→      buttonText: 'احجز جلسة',
+  1748→      style: 'gradient',
+  1749→    },
+  1750→    pricing: {
+  1751→      title: 'باقات على قياس طموحك',
+  1752→      subtitle: 'أسعار واضحة ونتائج مضمونة بالعقد',
+  1753→      plans: [
+  1754→        { name: 'انطلاق', price: 60000, period: 'مرة واحدة', features: 'شعار أساسي\nبطاقات وقرطاسية\nدليل استخدام مبسط\nمراجعتان', highlighted: false, buttonText: 'اطلب الآن' },
+  1755→        { name: 'نمو', price: 150000, period: 'مرة واحدة', features: 'هوية كاملة\nدليل هوية شامل\nموقع تعريفي\n3 مقترحات للشعار\nمراجعات غير محدودة', highlighted: true, buttonText: 'اطلب الآن' },
+  1756→        { name: 'علامة', price: 320000, period: 'مشروع متكامل', features: 'كل مميزات نمو\nمتجر إلكتروني\nحملة إطلاق كاملة\nإدارة 3 أشهر\nفريق مخصص', highlighted: false, buttonText: 'تواصل معنا' },
+  1757→      ],
+  1758→    },
+  1759→    dashboard: { title: 'لوحة الوكالة', subtitle: 'مشاريعك وزبائنك ومهام فريقك', statsPreset: 'agency', entity: 'clients' },
+  1760→    profile: {
+  1761→      name: 'سارة بوزيد',
+  1762→      role: 'مديرة إبداعية',
+  1763→      email: 'sara@hemma.dz',
+  1764→      phone: '+213 555 66 77 88',
+  1765→      bio: 'أقود الفريق الإبداعي في همّة — 9 سنوات في بناء الهويات التي تبقى في ذاكرة السوق الجزائري.',
+  1766→    },
+  1767→    activity: [
+  1768→      { title: 'تم تسليم هوية براند عطور', subtitle: 'العميلة سارة بوزيد — المرحلة الأخيرة', meta: 'اليوم' },
+  1769→      { title: 'حملة إطلاق متجر أزياء', subtitle: 'الميزانية معتمدة — الانطلاق الأحد', meta: 'هذا الأسبوع' },
+  1770→      { title: 'عميل جديد وقّع عقد نمو', subtitle: 'شركة تجهيزات — قسنطينة', meta: 'أمس' },
+  1771→      { title: 'ترشّح فريقنا لجائزة تصميم', subtitle: 'الترشيح قيد المراجعة', meta: 'هذا الشهر' },
+  1772→    ],
+  1773→    nav: {
+  1774→      items: [
+  1775→        { label: 'الرئيسية', key: 'home' },
+  1776→        { label: 'الباقات', key: 'pricing' },
+  1777→        { label: 'لوحة الوكالة', key: 'dashboard' },
+  1778→        { label: 'تسجيل الدخول', key: 'login' },
+  1779→      ],
+  1780→      cta: { label: 'ابدأ مشروعك', key: 'signup' },
+  1781→    },
+  1782→    footerNote: 'همّة — وكالة رقمية بطموح جزائري.',
+  1783→    pages: [
+  1784→      { key: 'home', name: 'الرئيسية', type: 'landing' },
+  1785→      { key: 'login', name: 'تسجيل الدخول', type: 'auth', authVariant: 'login' },
+  1786→      { key: 'signup', name: 'إنشاء حساب', type: 'auth', authVariant: 'signup' },
+  1787→      { key: 'forgot', name: 'نسيت كلمة المرور', type: 'auth', authVariant: 'forgot' },
+  1788→      { key: 'dashboard', name: 'لوحة الوكالة', type: 'dashboard' },
+  1789→      { key: 'clients', name: 'الزبناء', type: 'table', entity: 'clients' },
+  1790→      { key: 'tasks', name: 'المهام', type: 'table', entity: 'tasks' },
+  1791→      { key: 'pricing', name: 'الباقات', type: 'pricing' },
+  1792→      { key: 'settings', name: 'الإعدادات', type: 'settings' },
+  1793→      { key: 'profile', name: 'الملف الشخصي', type: 'profile' },
+  1794→    ],
+  1795→  },
+  1796→
+  1797→  // ---------------- 12. web-app-starter — انطلاقة ----------------
+  1798→  {
+  1799→    id: 'web-app-starter',
+  1800→    category: 'app',
+  1801→    style: 'minimal',
+  1802→    icon: 'smartphone',
+  1803→    name: 'انطلاقة',
+  1804→    tagline: 'قالب بداية شامل لأي تطبيق ويب',
+  1805→    description:
+  1806→      'انطلاقة قالب بداية احترافي لتطبيقات الويب — صفحة هبوط، مصادقة، لوحة تحكم، جداول ونماذج جاهزة للتخصيص حسب فكرتك خلال ساعات.',
+  1807→    audience: 'المؤسسون المبتدئون والمطورون الذين يريدون نقطة انطلاق سريعة',
+  1808→    theme: lightTheme({
+  1809→      primary: '#3f3f46',
+  1810→      primaryForeground: '#ffffff',
+  1811→      secondary: '#f4f4f5',
+  1812→      accent: '#a1a1aa',
+  1813→      bg: '#fafafa',
+  1814→      surface: '#ffffff',
+  1815→      text: '#1c1c20',
+  1816→      muted: '#71717a',
+  1817→      border: '#e4e4e7',
+  1818→      radius: 12,
+  1819→      shadow: 'md',
+  1820→      font: IBM,
+  1821→    }),
+  1822→    hero: {
+  1823→      title: 'فكرتك تستحق انطلاقة سريعة',
+  1824→      subtitle:
+  1825→        'كل الأساسيات جاهزة مسبقاً: صفحة هبوط، تسجيل دخول، لوحة تحكم، جداول ونماذج — خصّصها وفق فكرتك وانشر خلال ساعات لا أسابيع.',
+  1826→      primaryButton: 'ابدأ مجاناً',
+  1827→      secondaryButton: 'استعرض المكوّنات',
+  1828→      layout: 'split',
+  1829→      background: 'default',
+  1830→      align: 'start',
+  1831→    },
+  1832→    banner: null,
+  1833→    features: {
+  1834→      title: 'أساسيات جاهزة للإطلاق',
+  1835→      subtitle: 'ركّز على فكرتك — نحن جهّزنا الباقي',
+  1836→      columns: 3,
+  1837→      items: [
+  1838→        { icon: 'layers', title: 'مكوّنات جاهزة', description: '25+ مكوّناً قابلاً للتركيب والتعديل.' },
+  1839→        { icon: 'users', title: 'إدارة مستخدمين', description: 'دخول، تسجيل، أدوار وصلاحيات.' },
+  1840→        { icon: 'chart', title: 'لوحات وتحليلات', description: 'رسوم بيانية جاهزة لبياناتك.' },
+  1841→        { icon: 'settings', title: 'إعدادات مرنة', description: 'نماذج إعدادات تُعدّل بالنقر.' },
+  1842→        { icon: 'smartphone', title: 'متجاوب كلياً', description: 'من الهاتف الصغير إلى الشاشة العريضة.' },
+  1843→        { icon: 'zap', title: 'أداء سريع', description: 'تحميل فوري وتجربة انسيابية.' },
+  1844→      ],
+  1845→    },
+  1846→    stats: {
+  1847→      title: '',
+  1848→      items: [
+  1849→        { label: 'مكوّن جاهز', value: '25+', change: '' },
+  1850→        { label: 'صفحة جاهزة', value: '9', change: '' },
+  1851→        { label: 'وقت إطلاق أقل', value: '-80%', change: '' },
+  1852→        { label: 'سطر كود مطلوب', value: '0', change: '' },
+  1853→      ],
+  1854→    },
+  1855→    steps: {
+  1856→      title: 'انطلق في 3 خطوات',
+  1857→      subtitle: 'من النسخ إلى النشر',
+  1858→      steps: [
+  1859→        { title: 'انسخ وخصّص', description: 'غيّر الألوان والخطوط بنقرات قليلة.' },
+  1860→        { title: 'أضف صفحاتك', description: 'صفحات ومكوّنات بلا حدود.' },
+  1861→        { title: 'انشر وشارك', description: 'رابطك جاهز للعالم خلال ساعات.' },
+  1862→      ],
+  1863→    },
+  1864→    gallery: null,
+  1865→    testimonials: {
+  1866→      title: 'مؤسسون انطلقوا أسرع',
+  1867→      items: [
+  1868→        { name: 'أحمد بن علي', role: 'مطور مستقل — الجزائر', text: 'أوفر يومي عمل كامل في كل مشروع جديد أبدأه من انطلاقة.', rating: 5 },
+  1869→        { name: 'نورة سعدي', role: 'مؤسِّسة — سطيف', text: 'أطلقت نسختي الأولى في نفس اليوم — لأول مرة لا أتعثر في التقنيات.', rating: 5 },
+  1870→        { name: 'محمد قادري', role: 'طالب هندسة إعلامية', text: 'استعملته لمشروع التخرج — اللجنة أعجبتها الاحترافية.', rating: 4 },
+  1871→      ],
+  1872→    },
+  1873→    faq: {
+  1874→      title: 'الأسئلة الشائعة',
+  1875→      subtitle: 'عن التخصيص والنشر',
+  1876→      items: [
+  1877→        { q: 'هل أحتاج خبرة برمجية؟', a: 'للتخصيص البصري لا إطلاقاً؛ وللتغييرات العميقة معرفة أساسية تكفي.' },
+  1878→        { q: 'هل يمكن إضافة صفحات غير محدودة؟', a: 'نعم، أضف صفحات ومكوّنات بلا أي حدود من المحرر.' },
+  1879→        { q: 'هل التصميم متجاوب؟', a: 'كل مكوّن مبني بمنهجية الجوال أولاً ويعمل على كل المقاسات.' },
+  1880→        { q: 'هل القالب مجاني؟', a: 'نسخة البداية مجانية بالكامل مع مكوناتها الأساسية.' },
+  1881→      ],
+  1882→    },
+  1883→    cta: {
+  1884→      title: 'ابدأ بناء فكرتك اليوم',
+  1885→      subtitle: 'كل ما تحتاجه للانطلاق في مكان واحد — مجاناً.',
+  1886→      buttonText: 'ابدأ مجاناً',
+  1887→      style: 'gradient',
+  1888→    },
+  1889→    pricing: null,
+  1890→    dashboard: { title: 'لوحة التحكم', subtitle: 'نظرة عامة على تطبيقك ومستخدميه', statsPreset: 'overview', entity: 'users' },
+  1891→    profile: {
+  1892→      name: 'محمد قادري',
+  1893→      role: 'مطوّر مستقل',
+  1894→      email: 'mohamed.ghadri@gmail.com',
+  1895→      phone: '+213 550 98 76 54',
+  1896→      bio: 'أبني نماذج أولية لعملائي بانطلاقة — أركّز على منطق الأعمال وأترك الأساسيات للقالب.',
+  1897→    },
+  1898→    activity: [
+  1899→      { title: 'أضفت 3 صفحات جديدة', subtitle: 'صفحة الأسئلة والدخول والتسجيل', meta: 'اليوم' },
+  1900→      { title: 'غيّرت الهوية اللونية', subtitle: 'من البنفسجي إلى الأخضر', meta: 'أمس' },
+  1901→      { title: 'أضفت جدول المهام', subtitle: 'مع البحث والترقيم', meta: 'هذا الأسبوع' },
+  1902→      { title: 'نشرت النسخة الأولى', subtitle: 'على رابط تجريبي للمختبِرين', meta: 'هذا الشهر' },
+  1903→    ],
+  1904→    nav: {
+  1905→      items: [
+  1906→        { label: 'الرئيسية', key: 'home' },
+  1907→        { label: 'الأسئلة الشائعة', key: 'faq' },
+  1908→        { label: 'لوحة التحكم', key: 'dashboard' },
+  1909→        { label: 'تسجيل الدخول', key: 'login' },
+  1910→      ],
+  1911→      cta: { label: 'إنشاء حساب', key: 'signup' },
+  1912→    },
+  1913→    footerNote: 'انطلاقة — قالبك نحو الإطلاق السريع.',
+  1914→    pages: [
+  1915→      { key: 'home', name: 'الرئيسية', type: 'landing' },
+  1916→      { key: 'login', name: 'تسجيل الدخول', type: 'auth', authVariant: 'login' },
+  1917→      { key: 'signup', name: 'إنشاء حساب', type: 'auth', authVariant: 'signup' },
+  1918→      { key: 'forgot', name: 'نسيت كلمة المرور', type: 'auth', authVariant: 'forgot' },
+  1919→      { key: 'dashboard', name: 'لوحة التحكم', type: 'dashboard' },
+  1920→      { key: 'users', name: 'المستخدمون', type: 'table', entity: 'users' },
+  1921→      { key: 'tasks', name: 'المهام', type: 'table', entity: 'tasks' },
+  1922→      { key: 'faq', name: 'الأسئلة الشائعة', type: 'faq' },
+  1923→      { key: 'settings', name: 'الإعدادات', type: 'settings' },
+  1924→      { key: 'profile', name: 'الملف الشخصي', type: 'profile' },
+  1925→    ],
+  1926→  },
+  1927→
+  1928→  // ---------------- 13. fintech-wallet — محفظتي ----------------
+  1929→  {
+  1930→    id: 'fintech-wallet',
+  1931→    category: 'fintech',
+  1932→    style: 'professional',
+  1933→    icon: 'wallet',
+  1934→    name: 'محفظتي',
+  1935→    tagline: 'محفظة رقمية للدفع والتحويل داخل الجزائر',
+  1936→    description:
+  1937→      'محفظتي تتيح الدفع والتحويل وتسديد الفواتير من هاتفك — بسرعة وأمان وتكامل مع الحسابات البريدية والبنكية الجزائرية.',
+  1938→    audience: 'المستخدمون الجزائريون الباحثون عن دفع رقمي سهل وآمن',
+  1939→    theme: lightTheme({
+  1940→      primary: '#1e3a8a',
+  1941→      primaryForeground: '#ffffff',
+  1942→      secondary: '#eef2fb',
+  1943→      accent: '#60a5fa',
+  1944→      bg: '#f9fafc',
+  1945→      surface: '#ffffff',
+  1946→      text: '#131a2c',
+  1947→      muted: '#64748b',
+  1948→      border: '#e3e8f2',
+  1949→      radius: 12,
+  1950→      shadow: 'md',
+  1951→      font: IBM,
+  1952→    }),
+  1953→    hero: {
+  1954→      title: 'كل أموالك، في جيبك',
+  1955→      subtitle:
+  1956→        'أرسل، استلم، وادفع من هاتفك خلال ثوانٍ — مع رسوم شفافة، أمان بمستوى البنوك، وتكامل كامل مع البريد موب وحساباتك البنكية.',
+  1957→      primaryButton: 'حمّل التطبيق',
+  1958→      secondaryButton: 'كيف يعمل؟',
+  1959→      layout: 'split',
+  1960→      background: 'dark',
+  1961→      align: 'start',
+  1962→    },
+  1963→    banner: null,
+  1964→    features: {
+  1965→      title: 'بنكك في جيبك',
+  1966→      subtitle: 'خدمات مالية صُممت للواقع الجزائري',
+  1967→      columns: 3,
+  1968→      items: [
+  1969→        { icon: 'zap', title: 'تحويل فوري', description: 'بين محافظ محفظتي خلال ثوانٍ.' },
+  1970→        { icon: 'shield', title: 'أمان مصرفي', description: 'تشفير بمعايير البنوك العالمية.' },
+  1971→        { icon: 'credit-card', title: 'تسديد الفواتير', description: 'كهرباء، غاز، ماء، أنترنت — الكل.' },
+  1972→        { icon: 'globe', title: 'دفع أونلاين', description: 'ادفع في المتاجر الجزائرية بلمسة.' },
+  1973→        { icon: 'trending-up', title: 'تتبع المصاريف', description: 'تصنيف تلقائي لكل مصاريفك.' },
+  1974→        { icon: 'users', title: 'تحويل بين الأصدقاء', description: 'بالبطاقة أو رمز الهاتف.' },
+  1975→      ],
+  1976→    },
+  1977→    stats: {
+  1978→      title: '',
+  1979→      items: [
+  1980→        { label: 'مستخدم نشط', value: '120,000', change: '+28%' },
+  1981→        { label: 'معاملة يومياً', value: '45,000', change: '+17%' },
+  1982→        { label: 'قيمة معالجة شهرياً', value: '2.4 مليار دج', change: '+22%' },
+  1983→        { label: 'رسوم التحويل العائلي', value: '0%', change: '' },
+  1984→      ],
+  1985→    },
+  1986→    steps: {
+  1987→      title: 'ابدأ في 3 خطوات',
+  1988→      subtitle: 'دقيقة واحدة تكفي',
+  1989→      steps: [
+  1990→        { title: 'حمّل وأنشئ محفظتك', description: 'برقم هاتفك ووثيقة هوية واحدة.' },
+  1991→        { title: 'اربط حسابك', description: 'حساب بريدي (CCP) أو بنكي خلال دقائق.' },
+  1992→        { title: 'أرسل وادفع', description: 'بلمسة واحدة، في أي وقت ومن أي مكان.' },
+  1993→      ],
+  1994→    },
+  1995→    gallery: null,
+  1996→    testimonials: {
+  1997→      title: 'مستخدمون يعتمدونها يومياً',
+  1998→      items: [
+  1999→        { name: 'أحمد بن علي', role: 'تاجر صغير — الجزائر', text: 'أستقبل مدفوعات متجري مباشرة على محفظتي — انتهى مشكل البقية والفتات.', rating: 5 },
+  2000→        { name: 'سارة بوزيد', role: 'طالبة — وهران', text: 'تحويل مصاريفي من والديّ يصل فوراً — أربع سنوات من الانتظار انتهت.', rating: 5 },
+
+[showing lines 1-2000 of 2574; use offset=2001 with limit to continue reading]
