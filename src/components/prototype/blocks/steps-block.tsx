@@ -3,9 +3,10 @@ import type { ReactElement } from 'react'
 
 // ============================================================
 // نموذج — مكوّن خطوات العمل: دوائر مرقّمة + خط واصل
+// Task 9-a — خلفية صورة للقسم (bgImage + bgOverlay) بنبرة نص متكيّفة
 // ============================================================
 import type { Block } from '@/lib/types'
-import { L, S, iS, SectionHeading, SectionShell } from './shared'
+import { L, S, iS, SectionHeading, SectionShell, isImageNoOverlay, sectionImageStyle } from './shared'
 
 export function StepsBlock({ block }: { block: Block }): ReactElement {
   const p = block.props
@@ -13,9 +14,12 @@ export function StepsBlock({ block }: { block: Block }): ReactElement {
   const subtitle = S(p, 'subtitle')
   const steps = L(p, 'steps')
 
+  const { style: sectionStyle, dark } = sectionImageStyle(p)
+  const noOverlay = isImageNoOverlay(p)
+
   return (
-    <SectionShell>
-      <SectionHeading title={title} subtitle={subtitle} />
+    <SectionShell style={sectionStyle}>
+      <SectionHeading title={title} subtitle={subtitle} dark={dark} textShadow={noOverlay} />
       {steps.length > 0 ? (
         <ol className="relative grid grid-cols-1 gap-8 md:grid-cols-3 md:gap-8">
           {/* الخط الواصل على الشاشات الكبيرة */}

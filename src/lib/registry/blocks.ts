@@ -57,6 +57,11 @@ const HERO_VISUAL_OPTIONS = [
   { value: 'phone', label: 'هاتف تطبيق' },
   { value: 'video', label: 'بطاقة فيديو' },
   { value: 'form', label: 'نموذج بريد (جمع تسجيلات)' },
+  { value: 'analytics', label: 'بطاقة تحليلات' },
+  { value: 'orders', label: 'طلبات المتجر' },
+  { value: 'chat', label: 'المحادثات' },
+  { value: 'calendar', label: 'التقويم' },
+  { value: 'testimonial', label: 'رأي عميل' },
   { value: 'none', label: 'بدون رسم' },
 ]
 const HERO_TITLE_SIZE_OPTIONS = [
@@ -224,6 +229,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
           { key: 'description', label: 'الوصف', type: 'textarea' },
         ],
       },
+      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
     ],
   },
 
@@ -255,6 +262,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
           { key: 'change', label: 'التغيّر (مثل +12%)', type: 'text' },
         ],
       },
+      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
     ],
   },
 
@@ -286,6 +295,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
           { key: 'description', label: 'الوصف', type: 'textarea' },
         ],
       },
+      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
     ],
   },
 
@@ -374,6 +385,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
           { key: 'rating', label: 'التقييم (1-5)', type: 'number' },
         ],
       },
+      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
     ],
   },
 
@@ -406,6 +419,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
           { key: 'a', label: 'الجواب', type: 'textarea' },
         ],
       },
+      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
     ],
   },
 
@@ -426,6 +441,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
       { key: 'buttonText', label: 'نص الزر', type: 'text' },
       { key: 'style', label: 'النمط', type: 'select', options: CTA_STYLE_OPTIONS },
+      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
     ],
   },
 
@@ -478,12 +495,15 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
         type: 'list',
         itemLabel: 'عنصر',
         itemFields: [
+          { key: 'image', label: 'صورة العنصر', type: 'image' },
           { key: 'title', label: 'العنوان', type: 'text' },
           { key: 'description', label: 'الوصف', type: 'textarea' },
           { key: 'price', label: 'السعر (دج)', type: 'number' },
           { key: 'badge', label: 'الشارة', type: 'text' },
         ],
       },
+      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
     ],
   },
 
@@ -504,6 +524,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
       { key: 'buttonText', label: 'نص الزر', type: 'text' },
       { key: 'style', label: 'النمط', type: 'select', options: [{ value: 'gradient', label: 'تدرّج' }, { value: 'dark', label: 'داكن' }] },
+      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
     ],
   },
 
@@ -562,10 +584,13 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
         type: 'list',
         itemLabel: 'عضو',
         itemFields: [
+          { key: 'image', label: 'صورة العضو', type: 'image' },
           { key: 'name', label: 'الاسم', type: 'text' },
           { key: 'role', label: 'الدور', type: 'text' },
         ],
       },
+      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
     ],
   },
 

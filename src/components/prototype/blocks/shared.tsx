@@ -3,8 +3,10 @@
 // ============================================================
 // نموذج — مشترك بين مكوّنات النموذج الأولي:
 // سياق العرض + قُرّاء خصائص آمنين + عناوين الأقسام التسويقية
+// Task 9-a — sectionImageStyle: خلفية صورة موحّدة لأقسام الصفحة
+// (bgImage + bgOverlay بنفس دلالات البطل) + SectionHeading داكن.
 // ============================================================
-import type { ReactElement, ReactNode } from 'react'
+import type { CSSProperties, ReactElement, ReactNode } from 'react'
 import type { ProjectSchema } from '@/lib/types'
 
 /** سياق يُمرَّر لكل مكوّن أثناء العرض */
@@ -72,46 +74,111 @@ export function scrollToAnchor(anchor: string): void {
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+// ---------- خلفية صورة الأقسام (Task 9) ----------
+
+export type SectionOverlay = 'dark' | 'medium' | 'light' | 'none'
+
+const SECTION_OVERLAYS: readonly SectionOverlay[] = ['dark', 'medium', 'light', 'none']
+
+/** غطاء تعتيم فوق صورة القسم — نفس قيم البطل حرفياً */
+function sectionOverlayCss(overlay: SectionOverlay): string | undefined {
+  switch (overlay) {
+    case 'dark':
+      return 'linear-gradient(180deg, rgba(13,10,25,.62), rgba(13,10,25,.78))'
+    case 'medium':
+      return 'linear-gradient(180deg, rgba(13,10,25,.38), rgba(13,10,25,.55))'
+    case 'light':
+      return 'linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.72))'
+    default:
+      return undefined
+  }
+}
+
+/** يقرأ bgImage/bgOverlay من خصائص الكتلة ويُنتج نمط الخلفية + نبرة النص */
+export function sectionImageStyle(p: Record<string, unknown>): { style?: CSSProperties; dark: boolean } {
+  const bgImage = S(p, 'bgImage')
+  if (!bgImage.trim()) return { dark: false }
+  const overlayRaw = S(p, 'bgOverlay', 'dark') as SectionOverlay
+  const overlay = SECTION_OVERLAYS.includes(overlayRaw) ? overlayRaw : 'dark'
+  const css = sectionOverlayCss(overlay)
+  return {
+    style: {
+      backgroundImage: `${css ? `${css}, ` : ''}url("${bgImage}")`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+    },
+    dark: overlay !== 'light',
+  }
+}
+
+/** ظل نص فوق الصورة عند غياب التعتيم (نفس قيمة البطل) */
+export const IMAGE_TEXT_SHADOW = '0 2px 12px rgba(0,0,0,.45)' as const
+
+/** هل القسم ذو صورة بلا تعتيم؟ (لإضافة ظل النصوص) */
+export function isImageNoOverlay(p: Record<string, unknown>): boolean {
+  const bgImage = S(p, 'bgImage')
+  if (!bgImage.trim()) return false
+  return S(p, 'bgOverlay', 'dark') === 'none'
+}
+
 // ---------- عناصر تخطيط مشتركة ----------
 
-/** حاوية أقسام التسويق: فراغات سخية + قناة مركزية */
+/** حاوية أقسام التسويق: فراغات سخية + قناة مركزية (+ خلفية صورة اختيارية) */
 export function SectionShell({
   children,
   className = '',
   id,
   tight = false,
+  style,
 }: {
   children: ReactNode
   className?: string
   id?: string
   /** تباعد مضغوط للأقسام المدمجة */
   tight?: boolean
+  /** نمط جذر القسم — يُستعمل لخلفية صورة القسم (Task 9) */
+  style?: CSSProperties
 }): ReactElement {
   return (
-    <section id={id} className={`px-4 ${tight ? 'py-8 md:py-12' : 'py-14 md:py-20'} md:px-8 ${className}`}>
+    <section id={id} style={style} className={`px-4 ${tight ? 'py-8 md:py-12' : 'py-14 md:py-20'} md:px-8 ${className}`}>
       <div className="mx-auto w-full max-w-6xl">{children}</div>
     </section>
   )
 }
 
-/** عنوان قسم تسويقي: كبير + فرعي تحته */
+/** عنوان قسم تسويقي: كبير + فرعي تحته (+ نبرة داكنة فوق صورة القسم) */
 export function SectionHeading({
   title,
   subtitle,
   align = 'center',
+  dark = false,
+  textShadow = false,
 }: {
   title: string
   subtitle?: string
   align?: 'center' | 'start'
+  /** نص أبيض — عند صورة خلفية مع تأتيم داكن/متوسط أو بلا تأتيم */
+  dark?: boolean
+  /** ظل نص خفيف — عند صورة بلا تعتيم */
+  textShadow?: boolean
 }): ReactElement | null {
   if (!title && !subtitle) return null
+  const shadowStyle = textShadow ? { textShadow: IMAGE_TEXT_SHADOW } : undefined
   return (
     <div className={`mb-10 md:mb-12 ${align === 'center' ? 'mx-auto max-w-2xl text-center' : 'max-w-2xl text-start'}`}>
       {title ? (
-        <h2 className="text-2xl font-bold leading-tight text-[var(--pt-text)] md:text-4xl">{title}</h2>
+        <h2
+          style={shadowStyle}
+          className={`text-2xl font-bold leading-tight md:text-4xl ${dark ? 'text-white' : 'text-[var(--pt-text)]'}`}
+        >
+          {title}
+        </h2>
       ) : null}
       {subtitle ? (
-        <p className="mt-3 text-sm leading-relaxed text-[var(--pt-muted)] md:text-base">{subtitle}</p>
+        <p className={`mt-3 text-sm leading-relaxed md:text-base ${dark ? 'text-white/80' : 'text-[var(--pt-muted)]'}`}>
+          {subtitle}
+        </p>
       ) : null}
     </div>
   )

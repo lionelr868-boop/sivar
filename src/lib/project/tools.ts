@@ -725,27 +725,69 @@ export function applyActions(schema: ProjectSchema, actions: AgentAction[]): Act
 export type { PageType, BlockType, AuthVariant, ProjectPage, ProjectSchema }
 
 // ============================================================
-// Task 8 — الصور المؤقتة (خلفية البطل)
+// Task 8/9 — الصور المؤقتة (كل صور المخطط)
 // ============================================================
 
 /**
- * يزيل خصائص الصور المؤقتة (bgImage/bgImageName) من كل كتل البطل.
+ * يزيل كل خصائص الصور المؤقتة من المخطط كاملاً (Task 9-b):
+ * - كل كتلة (أي نوع): bgImage / bgImageName من الخصائص.
+ * - عناصر القوائم داخل الخصائص: image / imageName (مشياً عاماً على أي مصفوفة).
+ * - branding: bgImage / bgImageName / bgOverlay (الشعار logo/logoName يبقى).
  * الصور لا تبقى في قاعدة البيانات: تُحذف بعد تحميل المشروع ZIP،
  * وتُنقّى من نسخ الإصدارات التاريخية (المشروع الحي يحتفظ بها
  * حتى التحميل كنسخة عمل للمعاينة والتصدير).
+ * نقية ومتوافقة رجعياً: مخطط بلا صور يُعاد كما هو (نفس المرجع).
  */
 export function stripTransientImages(schema: ProjectSchema): ProjectSchema {
   let changed = false
+
+  // ---- الكتل: خصائص الصورة على مستوى الكتلة + داخل عناصر القوائم ----
   const pages = (schema.pages ?? []).map((page) => ({
     ...page,
     blocks: (page.blocks ?? []).map((block) => {
-      if (block?.type !== 'hero') return block
+      if (!block) return block
       const props = block.props ?? {}
-      if (props.bgImage === undefined && props.bgImageName === undefined) return block
-      changed = true
-      const { bgImage: _i, bgImageName: _n, ...rest } = props
-      return { ...block, props: rest }
+      let nextProps: Record<string, unknown> | null = null
+      if (props.bgImage !== undefined || props.bgImageName !== undefined) {
+        const { bgImage: _bi, bgImageName: _bn, ...rest } = props
+        nextProps = rest
+        changed = true
+      }
+      // عناصر القوائم داخل أي خاصية مصفوفة (عناصر المعرض/الفريق وغيرها)
+      for (const [key, value] of Object.entries(nextProps ?? props)) {
+        if (!Array.isArray(value)) continue
+        let listChanged = false
+        const nextList = value.map((item) => {
+          if (!item || typeof item !== 'object' || Array.isArray(item)) return item
+          const rec = item as Record<string, unknown>
+          if (rec.image === undefined && rec.imageName === undefined) return item
+          listChanged = true
+          const { image: _im, imageName: _inm, ...restItem } = rec
+          return restItem
+        })
+        if (!listChanged) continue
+        changed = true
+        if (!nextProps) nextProps = { ...props }
+        nextProps[key] = nextList
+      }
+      return nextProps ? { ...block, props: nextProps } : block
     }),
   }))
-  return changed ? { ...schema, pages } : schema
+
+  // ---- branding: خلفية المشروع (الشعار يبقى كما هو) ----
+  let cleanedBranding: ProjectSchema['branding'] | null = null
+  const branding = schema.branding
+  if (branding) {
+    const b = branding as unknown as Record<string, unknown>
+    if (b.bgImage !== undefined || b.bgImageName !== undefined || b.bgOverlay !== undefined) {
+      const { bgImage: _bgi, bgImageName: _bgn, bgOverlay: _bgo, ...rest } = b
+      cleanedBranding = rest as unknown as ProjectSchema['branding']
+      changed = true
+    }
+  }
+
+  if (!changed) return schema
+  const next: ProjectSchema = { ...schema, pages }
+  if (cleanedBranding) next.branding = cleanedBranding
+  return next
 }

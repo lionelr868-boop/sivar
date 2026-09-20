@@ -3,10 +3,11 @@ import type { ReactElement } from 'react'
 
 // ============================================================
 // نموذج — مكوّن المميزات: شبكة بطاقات بأيقونات مصبوغة
+// Task 9-a — خلفية صورة للقسم (bgImage + bgOverlay) بنبرة نص متكيّفة
 // ============================================================
 import type { Block } from '@/lib/types'
 import { ProtoIcon } from '../icon-map'
-import { L, S, iS, SectionHeading, SectionShell } from './shared'
+import { L, S, iS, SectionHeading, SectionShell, isImageNoOverlay, sectionImageStyle } from './shared'
 
 export function FeaturesBlock({ block }: { block: Block }): ReactElement {
   const p = block.props
@@ -16,6 +17,10 @@ export function FeaturesBlock({ block }: { block: Block }): ReactElement {
   const colsRaw = S(p, 'columns', '3')
   const cols = colsRaw === '2' ? 2 : colsRaw === '4' ? 4 : 3
 
+  // خلفية صورة القسم (اختيارية) — بلا صورة: السلوك القديم حرفياً
+  const { style: sectionStyle, dark } = sectionImageStyle(p)
+  const noOverlay = isImageNoOverlay(p)
+
   const gridClass =
     cols === 2
       ? 'sm:grid-cols-2'
@@ -24,8 +29,8 @@ export function FeaturesBlock({ block }: { block: Block }): ReactElement {
         : 'sm:grid-cols-2 lg:grid-cols-3'
 
   return (
-    <SectionShell id="features">
-      <SectionHeading title={title} subtitle={subtitle} />
+    <SectionShell id="features" style={sectionStyle}>
+      <SectionHeading title={title} subtitle={subtitle} dark={dark} textShadow={noOverlay} />
       {items.length > 0 ? (
         <div className={`grid grid-cols-1 gap-4 md:gap-6 ${gridClass}`}>
           {items.map((item, i) => (

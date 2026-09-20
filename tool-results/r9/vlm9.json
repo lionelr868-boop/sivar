@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "(1) **Yes** – The hero section features a realistic \"أحدث الطلبات\" (Latest Orders) card mockup containing user avatars, names, status badges (e.g., مكتمل, قيد التنفيذ), and specific monetary amounts.\n\n(2) **No** – The provided image only displays the Hero/CTA area. There is no product gallery or placeholder cards visible in this view.\n\n(3) **No** – The background of the main content area is a soft light pink gradient, not a teal photographic background.\n\n(4) **No** – The visible background is a light pinkish-white gradient; there is no dark purple background visible at the edges in this screenshot.\n\n**Overall Quality: 7/10**\nThe design is clean, modern, and the RTL typography is well-executed. The UI components (buttons, cards, badges) look professional and polished. However, it loses points for missing the specific visual elements requested in your checklist (teal photo bg, purple edges, gallery).",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1789941033,
+  "id": "20260921055023b6aa2e3b6ba24623",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20260921055023b6aa2e3b6ba24623",
+  "usage": {
+    "completion_tokens": 212,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1762,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 1974
+  }
+}

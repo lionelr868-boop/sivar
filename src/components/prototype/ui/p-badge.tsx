@@ -2,8 +2,11 @@
 
 // ============================================================
 // نموذج — PBadge: شارة ناعمة بدرجات دلالية (متغيرات --pt-* فقط)
+// Task 9-a — دمج className عبر cn حتى تتجاوز الأحجام المخصصة
+// (text-[9px] في رسوم البطل) القيمة الافتراضية بلا صراع.
 // ============================================================
 import type { ReactElement, CSSProperties, ReactNode } from 'react'
+import { cn } from '@/lib/utils'
 
 export type PBadgeTone = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'primary'
 
@@ -52,7 +55,10 @@ export function PBadge({
   return (
     <span
       style={TONE_STYLES[tone]}
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] leading-5 font-semibold whitespace-nowrap ${className}`}
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] leading-5 font-semibold whitespace-nowrap',
+        className,
+      )}
     >
       {children}
     </span>

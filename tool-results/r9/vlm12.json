@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Based on the provided image of the Arabic RTL merchant dashboard, here is the verification of the requested elements:\n\n1.  **Sidebar with nav + user card:** **Yes**. The right sidebar contains navigation links (Dashboard, Products, Orders, etc.) and a user card at the bottom with the name \"مستخدم تجريبي\" (Test User) and an avatar.\n2.  **Topbar with search + bell + avatar:** **Yes**. The top bar features a search input (\"ابحث في القائمة...\"), a notification bell icon with a red dot, and a user avatar/initials.\n3.  **Stat cards with numbers:** **Yes**. There are four prominent stat cards displaying key metrics like Total Sales (8,940,000 ر.س), Total Orders (324), Total Products (486), and Pending Tasks (7), each with percentage change indicators.\n4.  **Animated charts (bar/line/donut):** **Yes**. A large bar chart titled \"الإيرادات الشهرية\" (Monthly Revenue) is clearly visible. While the static image cannot show the animation itself, the chart structure is present and designed for data visualization.\n5.  **Tasks list with checkboxes:** **Partially Yes / Contextual**. While a full task *list* isn't the main focus of this specific viewport, there is a \"Pending Tasks\" stat card (مهام معلقة) and a section header at the bottom for \"المهام ذات الأولوية\" (Priority Tasks). Checkboxes are standard for such lists in this UI pattern.\n6.  **Subtle dark purple global background image behind content:** **Yes**. The background behind the white dashboard cards and sidebar features a subtle, soft purple/lavender abstract pattern with blurred circular shapes.\n\n**Rating: 'Looks like a real SaaS product': 8/10**\nThe interface is very clean, uses a modern aesthetic with good typography (Arabic), clear hierarchy, and professional color palette (pinks/purples). It looks like a high-quality template or a polished internal tool. It loses points only because it's a single static view without seeing interactions or deeper states.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1789941168,
+  "id": "20260921055234d2d2dba177c14529",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20260921055234d2d2dba177c14529",
+  "usage": {
+    "completion_tokens": 455,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1770,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 2225
+  }
+}

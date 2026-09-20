@@ -3,10 +3,11 @@ import type { ReactElement } from 'react'
 
 // ============================================================
 // نموذج — مكوّن الأسئلة الشائعة: أكورديون details أصلي
+// Task 9-a — خلفية صورة للقسم (bgImage + bgOverlay) بنبرة نص متكيّفة
 // ============================================================
 import type { Block } from '@/lib/types'
 import { ChevronDown } from 'lucide-react'
-import { L, S, iS, SectionHeading, SectionShell } from './shared'
+import { L, S, iS, SectionHeading, SectionShell, isImageNoOverlay, sectionImageStyle } from './shared'
 
 export function FaqBlock({ block }: { block: Block }): ReactElement {
   const p = block.props
@@ -14,9 +15,12 @@ export function FaqBlock({ block }: { block: Block }): ReactElement {
   const subtitle = S(p, 'subtitle')
   const items = L(p, 'items')
 
+  const { style: sectionStyle, dark } = sectionImageStyle(p)
+  const noOverlay = isImageNoOverlay(p)
+
   return (
-    <SectionShell>
-      <SectionHeading title={title} subtitle={subtitle} />
+    <SectionShell style={sectionStyle}>
+      <SectionHeading title={title} subtitle={subtitle} dark={dark} textShadow={noOverlay} />
       {items.length > 0 ? (
         <div className="mx-auto max-w-3xl space-y-3">
           {items.map((item, i) => (

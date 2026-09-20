@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Based on the provided screenshot, here is the detailed analysis of the **Hero Section's Side Illustration Card** (the dashboard mockup located to the left of the main headline):\n\n### **Contents of the Mockup Card:**\n\n1.  **Window Bar (Browser Chrome):**\n    *   Includes a URL bar displaying `home.netlify.app`.\n    *   Standard window control buttons (traffic lights) on the right (red, yellow, green).\n    *   Navigation/toolbar icons on the left.\n\n2.  **Navigation Header (Inside the app):**\n    *   A top navigation bar with links (RTL order): \"الرئيسية\" (Home - Active, red background), \"المنتجات\" (Products), \"وحدة التحكم\" (Dashboard), \"سجل الطلبات\" (Order Log), and a \"شحن مجاني\" (Free Shipping) CTA button in red.\n\n3.  **Sidebar (Vertical):**\n    *   Located on the right side of the inner content area.\n    *   Contains a user profile section at the top (\"أهلاً بك...\", Hello...).\n    *   Menu items with icons: \"الإعدادات\" (Settings), \"المساعدة\" (Help), \"الشركاء\" (Partners), and \"الخصوصية\" (Privacy).\n\n4.  **KPI Cards (Key Performance Indicators):**\n    *   Three distinct metric cards at the top of the main area.\n    *   **Card 1:** Label \"إجمالي المبيعات\" (Total Sales), Value **5,880**, with a green positive trend indicator (+6.4%).\n    *   **Card 2:** Label \"إجمالي الطلبات\" (Total Orders), Value **1,248**, with a green positive trend indicator (+8.2%).\n    *   **Card 3:** Label \"متوسط قيمة الطلب\" (Average Order Value), Value **ر.س ٤٢٥** (SAR 425), with a green positive trend indicator (+12.5%).\n\n5.  **Line Chart:**\n    *   Positioned below the KPI cards.\n    *   A line graph showing data trends over time (likely sales or traffic) with a red/pink gradient fill under the line.\n    *   X-axis labels appear to represent days or months.\n\n6.  **Order Rows / Transaction List:**\n    *   Located below the chart.\n    *   Each row contains:\n        *   A circular avatar with an initial (e.g., \"نـ\", \"سـ\", \"أ+\").\n        *   Customer name (e.g., \"نادية بن علي\", \"سارة فوزية\").\n        *   A status badge/tag (e.g., \"جديدة\" - New in orange/yellow, \"قيد التنفيذ\" - In Progress in green, \"تم التسليم\" - Delivered in gold/brown).\n        *   A monetary value in Saudi Riyals (e.g., ر.س 12,500).\n\n### **Ratings:**\n\n*   **Realism: 9/10**\n    The mockup is highly realistic. It uses authentic Arabic UI patterns (RTL alignment), real currency formats (SAR/Riyals), plausible data values, and standard SaaS dashboard components (KPIs, charts, activity feeds). The typography and spacing look like a production-ready interface rather than a generic wireframe.\n\n*   **Beauty: 9/10**\n    The design is aesthetically pleasing and modern. It features a clean color palette (soft grays, crisp whites, and a vibrant red accent), excellent use of whitespace, soft shadows for depth, and legible Arabic typography. The layout is balanced and professional, fitting perfectly within the context of a premium landing page.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1789940016,
+  "id": "20260921053314c2469895db134ad6",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20260921053314c2469895db134ad6",
+  "usage": {
+    "completion_tokens": 802,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1772,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 2574
+  }
+}

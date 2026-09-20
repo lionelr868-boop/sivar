@@ -280,11 +280,16 @@ export type LandingVariantId =
   | 'minimal-startup'
   | 'stats-lead'
 
-// ===== Branding (الشعار) =====
+// ===== Branding (الشعار + خلفية المشروع) =====
 export interface ProjectBranding {
   /** شعار المشروع — data URL (png) بعد تصغير العميل، أو رابط نسبي assets/logo.png عند التصدير */
   logo?: string
   logoName?: string
+  /** خلفية المشروع كلّه — data URL (jpeg) بعد تصغير العميل — تظهر خلف كل الصفحات */
+  bgImage?: string
+  bgImageName?: string
+  /** قوة ظهور الخلفية (افتراضي medium عند وجود صورة بلا قيمة) */
+  bgOverlay?: 'none' | 'strong' | 'medium' | 'soft'
 }
 
 export interface ProjectSchema {

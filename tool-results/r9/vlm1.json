@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Based on the screenshot, here is a description of the hero's side visual:\n\n**Type:** It looks like a **REAL product mockup** (specifically, a UI simulation of a web dashboard or mobile app interface).\n\n**Visible Elements:**\n*   **Browser/Window Chrome:** A realistic browser address bar showing `home.netlify.app` and standard window control buttons (close, minimize, maximize).\n*   **Header:** An app header with a hamburger menu icon, the title \"موقع الطلبات\" (Orders Site), and a red notification/action button.\n*   **Main Card (Active Orders):** \n    *   Title: \"أحدث الطلبات\" (Latest Orders) with a box icon.\n    *   Subtitle: \"هذه اللحظة\" (This moment).\n    *   **Order Rows (5 visible):** Each row contains:\n        *   A colored circular avatar with an Arabic initial (أ, س, ر, م, ن).\n        *   Customer Name (e.g., \"أحمد ...\", \"سالم زويد ...\").\n        *   Status Badge with specific labels like \"مكتمل\" (Completed), \"قيد التنفيذ\" (In Progress), \"ملغي\" (Cancelled), and \"معلق\" (Pending). These badges have distinct background colors (green, yellow, grey, pink).\n        *   Specific monetary values in Saudi Riyals (e.g., 12,500 ر.س, 8,200 ر.س).\n        *   Specific timestamps (e.g., 16:20 منذ, 13:05 منذ).\n    *   Footer text indicating \"5 طلبات جديدة هذه اللحظة\" (5 new orders this moment).\n*   **Summary Stat:** A line below the card stating \"أعلى مبيعات اليوم كانت 3,500 ر.س\" (Today's highest sale was 3,500 SR).\n*   **Bottom Navigation:** A dock-style nav bar with icons for \"الرئيسية\" (Home), \"الطلبات\" (Orders), and \"الحساب\" (Account), along with a user profile avatar labeled \"N\".\n\n**Realism Rating: 9/10**\n\n**Reasoning:** This is not an abstract skeleton. It uses **realistic data** (specific names, currency formats, and logical timestamps), **functional UI patterns** (status badges, avatars, navigation), and **correct Arabic grammar and RTL layout**. The only reason it isn't a perfect 10 is that it is clearly a stylized \"marketing mockup\" designed to look perfect (all data is positive/clean), rather than a raw screenshot of a live, messy production database.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1789939899,
+  "id": "20260921053117e5bcf3390038463c",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20260921053117e5bcf3390038463c",
+  "usage": {
+    "completion_tokens": 563,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 413,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 976
+  }
+}

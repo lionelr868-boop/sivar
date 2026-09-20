@@ -1,9 +1,12 @@
 'use client'
 import type { ReactElement } from 'react'
+import { useState } from 'react'
 
 // ============================================================
-// نموذج — DonutChart: رسم دائري SVG يدوي (شرائح dasharray)
-// + إجمالي في المركز + شبكة مفتاح بألوان لوحة الهوية
+// نموذج — DonutChart: رسم دائري SVG يدوي (Task 9-a مُرتقى)
+// شرائح dasharray + إجمالي في المركز + شبكة مفتاح بألوان الهوية +
+// تفاعل موحّد: تحويم الشريحة أو صف المفتاح يبرزها (سماكة +23
+// والبقية تلفّ 0.55) عبر حالة فهرس مشتركة.
 // ============================================================
 import { CHART_PALETTE } from './chart-frame'
 import type { ChartDatum } from './bar-chart'
@@ -20,6 +23,7 @@ interface Segment {
 }
 
 export function DonutChart({ data }: { data: ChartDatum[] }): ReactElement | null {
+  const [hover, setHover] = useState<number | null>(null)
   const raw: ChartDatum[] = (Array.isArray(data) ? data : [])
     .filter((d) => d && typeof d.label === 'string' && Number.isFinite(Number(d.value)) && Number(d.value) > 0)
     .map((d) => ({ label: d.label, value: Number(d.value) }))
@@ -57,8 +61,15 @@ export function DonutChart({ data }: { data: ChartDatum[] }): ReactElement | nul
           {segments.map((seg, i) => {
             const len = seg.frac * C
             const offset = -(seg.cum - seg.frac) * C
+            const isHover = hover === i
+            const dimmed = hover != null && hover !== i
             return (
-              <g key={`s-${i}-${seg.label}`} className="transition-opacity duration-150 hover:opacity-75">
+              <g
+                key={`s-${i}-${seg.label}`}
+                onMouseEnter={() => setHover(i)}
+                onMouseLeave={() => setHover(null)}
+                style={{ cursor: 'pointer' }}
+              >
                 <title>{`${seg.label}: ${seg.value.toLocaleString('en-US')} (${Math.round(seg.frac * 100)}%)`}</title>
                 <circle
                   cx="80"
@@ -67,10 +78,12 @@ export function DonutChart({ data }: { data: ChartDatum[] }): ReactElement | nul
                   style={{
                     fill: 'none',
                     stroke: CHART_PALETTE[i % CHART_PALETTE.length],
-                    strokeWidth: 20,
+                    strokeWidth: isHover ? 23 : 20,
                     strokeDasharray: `${len} ${C - len}`,
                     strokeDashoffset: offset,
                     strokeLinecap: 'butt',
+                    opacity: dimmed ? 0.55 : 1,
+                    transition: 'stroke-width .18s ease, opacity .18s ease',
                   }}
                 />
               </g>
@@ -83,19 +96,29 @@ export function DonutChart({ data }: { data: ChartDatum[] }): ReactElement | nul
         </div>
       </div>
 
-      {/* المفتاح */}
+      {/* المفتاح — تحويم الصف يبرز شريحته */}
       <ul className="grid w-full grid-cols-1 gap-x-5 gap-y-2 sm:grid-cols-2">
-        {segments.map((seg, i) => (
-          <li key={`l-${i}-${seg.label}`} className="flex items-center gap-2 text-sm">
-            <span
-              aria-hidden
-              className="size-2.5 shrink-0 rounded-full"
-              style={{ background: CHART_PALETTE[i % CHART_PALETTE.length] }}
-            />
-            <span className="min-w-0 flex-1 truncate text-[var(--pt-text)]">{seg.label}</span>
-            <span className="shrink-0 font-semibold text-[var(--pt-text)]">{Math.round(seg.frac * 100)}%</span>
-          </li>
-        ))}
+        {segments.map((seg, i) => {
+          const isHover = hover === i
+          const dimmed = hover != null && hover !== i
+          return (
+            <li
+              key={`l-${i}-${seg.label}`}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+              className={`flex cursor-pointer items-center gap-2 rounded-[calc(var(--pt-radius)-6px)] px-1.5 py-0.5 text-sm transition-opacity duration-150 ${dimmed ? 'opacity-55' : 'opacity-100'}`}
+              style={isHover ? { background: 'var(--pt-secondary)' } : undefined}
+            >
+              <span
+                aria-hidden
+                className="size-2.5 shrink-0 rounded-full transition-transform duration-150"
+                style={{ background: CHART_PALETTE[i % CHART_PALETTE.length], transform: isHover ? 'scale(1.35)' : undefined }}
+              />
+              <span className="min-w-0 flex-1 truncate text-[var(--pt-text)]">{seg.label}</span>
+              <span className="shrink-0 font-semibold text-[var(--pt-text)]">{Math.round(seg.frac * 100)}%</span>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )

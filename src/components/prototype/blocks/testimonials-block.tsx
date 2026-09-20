@@ -3,20 +3,24 @@ import type { ReactElement } from 'react'
 
 // ============================================================
 // نموذج — مكوّن آراء العملاء: بطاقات + نجوم + صور رمزية
+// Task 9-a — خلفية صورة للقسم (bgImage + bgOverlay) بنبرة نص متكيّفة
 // ============================================================
 import { Star } from 'lucide-react'
 import type { Block } from '@/lib/types'
 import { PAvatar } from '../ui/p-avatar'
-import { L, S, iN, iS, SectionHeading, SectionShell } from './shared'
+import { L, S, iN, iS, SectionHeading, SectionShell, isImageNoOverlay, sectionImageStyle } from './shared'
 
 export function TestimonialsBlock({ block }: { block: Block }): ReactElement {
   const p = block.props
   const title = S(p, 'title')
   const items = L(p, 'items')
 
+  const { style: sectionStyle, dark } = sectionImageStyle(p)
+  const noOverlay = isImageNoOverlay(p)
+
   return (
-    <SectionShell id="testimonials">
-      <SectionHeading title={title} />
+    <SectionShell id="testimonials" style={sectionStyle}>
+      <SectionHeading title={title} dark={dark} textShadow={noOverlay} />
       {items.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
           {items.map((item, i) => {

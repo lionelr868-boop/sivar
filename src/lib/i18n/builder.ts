@@ -212,4 +212,18 @@ export const builder = {
   pageFieldAuto: 'تلقائي (ذكي)',
   imageFieldInvalid: 'تعذّر قراءة الصورة — جرّب ملفاً آخر',
   imageFieldUploaded: 'تم رفع الصورة',
+  // ===== Task 9-a: خلفية المشروع كلّه (لوحة الهوية) =====
+  projectBgSection: 'خلفية المشروع',
+  projectBgUploadBtn: 'رفع خلفية للمشروع كله',
+  projectBgHint: 'تظهر خلف كل صفحات المشروع — تُحذف من قاعدة البيانات بعد تحميل المشروع وتبقى داخل الملف',
+  projectBgReplace: 'استبدال',
+  projectBgRemove: 'إزالة',
+  projectBgOverlay: 'قوة ظهور الخلفية',
+  projectBgOverlayStrong: 'تعتيم قوي (يظهر أثر خفيف للصورة)',
+  projectBgOverlayMedium: 'متوازن (موصى به)',
+  projectBgOverlaySoft: 'ظهور واضح للصورة',
+  projectBgOverlayNone: 'الصورة كما هي',
+  projectBgUploaded: 'تم رفع خلفية المشروع',
+  projectBgTooLarge: 'حجم الصورة يتجاوز 5 ميغابايت',
+  projectBgInvalid: 'تعذّر قراءة الصورة — جرّب ملفاً آخر',
 } as const

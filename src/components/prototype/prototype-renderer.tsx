@@ -230,6 +230,8 @@ function SiteShell({
   const [menuOpen, setMenuOpen] = useState(false)
   const nav = schema.navigation
   const logo = ctx.schema.branding?.logo
+  // خلفية المشروع كلّه (Task 9) — الجذر يصبح شفافاً والصورة خلفه
+  const projectBg = ctx.schema.branding?.bgImage
   const homeId = schema.pages.find((pg) => pg.type === 'landing')?.id ?? schema.pages[0]?.id
   const go = (pageId: string) => {
     if (ctx.onNavigate) ctx.onNavigate(pageId)
@@ -260,7 +262,7 @@ function SiteShell({
   )
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-[var(--pt-bg)] text-[var(--pt-text)]">
+    <div className={`flex min-h-screen w-full flex-col ${projectBg ? 'bg-transparent' : 'bg-[var(--pt-bg)]'} text-[var(--pt-text)]`}>
       {/* الترويسة */}
       <header className="sticky top-0 z-30 border-b border-[var(--pt-border)] bg-[var(--pt-bg)]/95 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 md:px-8">
@@ -413,11 +415,14 @@ function AuthShell({
   onBlockSelect?: (blockId: string | null) => void
 }): ReactElement {
   const homeId = schema.pages.find((pg) => pg.type === 'landing')?.id ?? schema.pages[0]?.id
+  const projectBg = ctx.schema.branding?.bgImage
   const goHome = () => {
     if (homeId && ctx.onNavigate) ctx.onNavigate(homeId)
   }
   return (
-    <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-[var(--pt-bg)] px-4 py-10 text-[var(--pt-text)]">
+    <div
+      className={`relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden ${projectBg ? 'bg-transparent' : 'bg-[var(--pt-bg)]'} px-4 py-10 text-[var(--pt-text)]`}
+    >
       {/* توهجات خلفية ناعمة (Task 8 — جمالية) */}
       <span
         aria-hidden
@@ -684,6 +689,7 @@ function DashboardShell({
 }): ReactElement {
   const items = schema.dashboardNav.items
   const logo = ctx.schema.branding?.logo
+  const projectBg = ctx.schema.branding?.bgImage
   const homeId = schema.pages.find((pg) => pg.type === 'landing')?.id ?? schema.pages[0]?.id
   const go = (pageId: string) => {
     if (ctx.onNavigate) ctx.onNavigate(pageId)
@@ -717,7 +723,7 @@ function DashboardShell({
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-[var(--pt-bg)] text-[var(--pt-text)]">
+    <div className={`flex min-h-screen w-full ${projectBg ? 'bg-transparent' : 'bg-[var(--pt-bg)]'} text-[var(--pt-text)]`}>
       {/* الشريط الجانبي — سطح المكتب */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-e border-[var(--pt-border)] bg-[var(--pt-surface)] lg:flex">
         <div className="flex items-center gap-2.5 border-b border-[var(--pt-border)] px-4 py-4">
@@ -866,10 +872,18 @@ export function PrototypeRenderer({
 
   const shellProps = { schema, page, ctx, selectedBlockId, onBlockSelect }
 
+  // خلفية المشروع كلّه (Task 9) — تُمرَّر للنطاق فترسم خلف كل الصفحات
+  const brandingBg = schema.branding?.bgImage
+
   return (
-    <PrototypeThemeScope theme={schema.theme} className="w-full">
+    <PrototypeThemeScope
+      theme={schema.theme}
+      className="w-full"
+      bgImage={brandingBg}
+      bgOverlay={schema.branding?.bgOverlay ?? 'medium'}
+    >
       {!page ? (
-        <div className="flex min-h-96 items-center justify-center bg-[var(--pt-bg)] p-8 text-center text-sm text-[var(--pt-muted)]">
+        <div className="flex min-h-96 items-center justify-center bg-transparent p-8 text-center text-sm text-[var(--pt-muted)]">
           لا توجد صفحات في هذا النموذج بعد.
         </div>
       ) : page.type === 'auth' ? (

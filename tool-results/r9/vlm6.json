@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "**Yes.** The bottom CTA card (\"هل تحتاج\" section) features a dark, gradient-style background (likely a deep teal/blue with bokeh effects) that provides sufficient contrast for the white text to be readable.\n\n**Rating: 9/10**  \nThe background is clearly a photographic or stylized gradient image with a dark overlay/toning that ensures excellent text readability and visual hierarchy.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1789940531,
+  "id": "20260921054208e9f634776cec49ea",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20260921054208e9f634776cec49ea",
+  "usage": {
+    "completion_tokens": 83,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1709,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 1792
+  }
+}

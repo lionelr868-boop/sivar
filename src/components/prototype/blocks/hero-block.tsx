@@ -5,22 +5,52 @@ import { useState } from 'react'
 // ============================================================
 // نموذج — مكوّن البطل (Hero)
 // Task 8-a — خلفية صورة مرفوعة (bgImage + bgOverlay) +
-// خلفيات جديدة (gradient-soft / mesh) + أزرار عاملة:
-// الأساسي → هدف ذكي (دخول/تسعير/لوحة)، والثانوي → مرساة قسم
-// أو صفحة، وزر تشغيل الفيديو يتبدّل حالةً.
+// خلفيات جديدة (gradient-soft / mesh) + أزرار عاملة.
+// Task 9-a — الرسم الجانبي واقعي: 10 خيارات (لوحة/هاتف/فيديو/
+// نموذج/تحليلات/طلبات/محادثات/تقويم/رأي/بلا) عبر hero-visuals.
 // ============================================================
 import type { Block } from '@/lib/types'
 import { PButton } from '../ui/p-button'
 import { PAvatar } from '../ui/p-avatar'
 import { heroPrimaryTarget, heroSecondaryTarget } from '@/lib/project/nav-targets'
 import { B, S, scrollToAnchor, type BlockCtx } from './shared'
+import {
+  AnalyticsVisual,
+  CalendarVisual,
+  ChatVisual,
+  DashboardMockVisual,
+  OrdersVisual,
+  PhoneMockVisual,
+  TestimonialVisual,
+} from './hero-visuals'
 
 type HeroBackground = 'default' | 'muted' | 'gradient-soft' | 'mesh' | 'dark' | 'gradient'
-type HeroVisualKind = 'dashboard' | 'phone' | 'video' | 'form' | 'none'
+type HeroVisualKind =
+  | 'dashboard'
+  | 'phone'
+  | 'video'
+  | 'form'
+  | 'analytics'
+  | 'orders'
+  | 'chat'
+  | 'calendar'
+  | 'testimonial'
+  | 'none'
 type HeroTitleSize = 'md' | 'lg' | 'xl'
 type HeroOverlay = 'dark' | 'medium' | 'light' | 'none'
 
-const VISUAL_KINDS: readonly HeroVisualKind[] = ['dashboard', 'phone', 'video', 'form', 'none']
+const VISUAL_KINDS: readonly HeroVisualKind[] = [
+  'dashboard',
+  'phone',
+  'video',
+  'form',
+  'analytics',
+  'orders',
+  'chat',
+  'calendar',
+  'testimonial',
+  'none',
+]
 const BG_KINDS: readonly HeroBackground[] = ['default', 'muted', 'gradient-soft', 'mesh', 'dark', 'gradient']
 const OVERLAYS: readonly HeroOverlay[] = ['dark', 'medium', 'light', 'none']
 const TITLE_SIZE_CLASSES: Record<HeroTitleSize, string> = {
@@ -72,159 +102,6 @@ function overlayStyle(overlay: HeroOverlay): string | undefined {
     default:
       return undefined
   }
-}
-
-/** رسم مجرّد يحاكي واجهة لوحة تحكم (أشكال هندسية فقط) */
-function HeroVisual(): ReactElement {
-  const bars = [38, 62, 45, 78, 56, 88, 70]
-  return (
-    <div className="relative mx-auto w-full max-w-lg">
-      {/* هالة دائرية خلف البطاقة */}
-      <div
-        aria-hidden
-        className="absolute -top-8 -end-6 size-44 rounded-full opacity-30 blur-2xl"
-        style={{ background: 'var(--pt-accent)' }}
-      />
-      <div
-        aria-hidden
-        className="absolute -bottom-10 -start-8 size-52 rounded-full opacity-20 blur-3xl"
-        style={{ background: 'var(--pt-primary)' }}
-      />
-
-      <div
-        className="relative overflow-hidden rounded-[calc(var(--pt-radius)+6px)] border border-[var(--pt-border)] bg-[var(--pt-surface)] p-4 md:p-5"
-        style={{ boxShadow: 'var(--pt-shadow)' }}
-        role="img"
-        aria-label="رسم توضيحي لواجهة المنتج"
-      >
-        {/* شريط علوي */}
-        <div className="mb-4 flex items-center gap-2">
-          <span className="size-2.5 rounded-full" style={{ background: 'var(--pt-primary)' }} />
-          <span className="size-2.5 rounded-full opacity-60" style={{ background: 'var(--pt-accent)' }} />
-          <span className="size-2.5 rounded-full opacity-30" style={{ background: 'var(--pt-border)' }} />
-          <span className="ms-2 h-2.5 w-24 rounded-full bg-[var(--pt-secondary)]" />
-        </div>
-
-        {/* بطاقات أرقام مصغّرة */}
-        <div className="mb-4 grid grid-cols-3 gap-3">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="rounded-[calc(var(--pt-radius)-2px)] border border-[var(--pt-border)] bg-[var(--pt-bg)] p-3">
-              <span className="mb-2 block h-2 w-2/3 rounded-full bg-[var(--pt-secondary)]" />
-              <span
-                className="block h-3 rounded-[4px]"
-                style={{
-                  background: i === 0 ? 'var(--pt-primary)' : 'var(--pt-border)',
-                  width: `${70 - i * 12}%`,
-                }}
-              />
-            </div>
-          ))}
-        </div>
-
-        {/* رسم أعمدة مصغّر */}
-        <div className="flex h-32 items-end justify-between gap-2 rounded-[calc(var(--pt-radius)-2px)] border border-[var(--pt-border)] bg-[var(--pt-bg)] p-3">
-          {bars.map((h, i) => (
-            <div
-              key={i}
-              className="w-full rounded-t-[6px] transition-all duration-500 hover:opacity-80"
-              style={{
-                height: `${h}%`,
-                background: i % 3 === 0 ? 'var(--pt-accent)' : 'var(--pt-primary)',
-                opacity: 0.45 + (i / bars.length) * 0.55,
-              }}
-            />
-          ))}
-        </div>
-
-        {/* أسطر نصية مجرّدة */}
-        <div className="mt-4 space-y-2">
-          <span className="block h-2.5 w-full rounded-full bg-[var(--pt-secondary)]" />
-          <span className="block h-2.5 w-3/4 rounded-full bg-[var(--pt-secondary)]" />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/** إطار هاتف يعرض واجهة تطبيق مصغّرة (أشكال هندسية فقط) */
-function PhoneVisual(): ReactElement {
-  const bars = [34, 58, 42, 72, 50, 66]
-  return (
-    <div className="relative mx-auto w-full max-w-[280px]">
-      {/* هالة دائرية خلف الهاتف */}
-      <div
-        aria-hidden
-        className="absolute -top-8 -end-6 size-40 rounded-full opacity-30 blur-2xl"
-        style={{ background: 'var(--pt-accent)' }}
-      />
-      <div
-        aria-hidden
-        className="absolute -bottom-10 -start-6 size-44 rounded-full opacity-20 blur-3xl"
-        style={{ background: 'var(--pt-primary)' }}
-      />
-
-      <div
-        role="img"
-        aria-label="رسم توضيحي لتطبيق الهاتف"
-        className="relative flex aspect-[9/19] flex-col overflow-hidden rounded-[28px] border border-[var(--pt-border)] bg-[var(--pt-surface)] p-3"
-        style={{ boxShadow: 'var(--pt-shadow)' }}
-      >
-        {/* نوتش علوي */}
-        <div className="mx-auto mb-3 h-1.5 w-16 shrink-0 rounded-full bg-[var(--pt-secondary)]" />
-
-        {/* رأس التطبيق: نقصة رمزية + سطرا نص */}
-        <div className="mb-3 flex shrink-0 items-center gap-2.5">
-          <span className="size-6 shrink-0 rounded-full" style={{ background: 'var(--pt-primary)' }} />
-          <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <span className="block h-1.5 w-3/4 rounded-full bg-[var(--pt-secondary)]" />
-            <span className="block h-1.5 w-1/2 rounded-full bg-[var(--pt-secondary)]" />
-          </span>
-        </div>
-
-        {/* بطاقتا أرقام مصغّرتان */}
-        <div className="mb-3 grid shrink-0 grid-cols-2 gap-2">
-          {[0, 1].map((i) => (
-            <div
-              key={i}
-              className="rounded-[calc(var(--pt-radius)-2px)] border border-[var(--pt-border)] bg-[var(--pt-bg)] p-2.5"
-            >
-              <span className="mb-1.5 block h-1.5 w-2/3 rounded-full bg-[var(--pt-secondary)]" />
-              <span
-                className="block h-2 rounded-[4px]"
-                style={{
-                  background: i === 0 ? 'var(--pt-primary)' : 'var(--pt-border)',
-                  width: `${72 - i * 18}%`,
-                }}
-              />
-            </div>
-          ))}
-        </div>
-
-        {/* رسم أعمدة مصغّر */}
-        <div className="mb-3 flex min-h-0 flex-1 items-end justify-between gap-1.5 rounded-[calc(var(--pt-radius)-2px)] border border-[var(--pt-border)] bg-[var(--pt-bg)] p-2.5">
-          {bars.map((h, i) => (
-            <div
-              key={i}
-              className="w-full rounded-t-[4px]"
-              style={{
-                height: `${h}%`,
-                background: i % 3 === 0 ? 'var(--pt-accent)' : 'var(--pt-primary)',
-                opacity: 0.4 + (i / bars.length) * 0.6,
-              }}
-            />
-          ))}
-        </div>
-
-        {/* شريط زر سفلي */}
-        <div
-          className="flex h-9 shrink-0 items-center justify-center rounded-full"
-          style={{ background: 'var(--pt-primary)' }}
-        >
-          <span className="block h-1.5 w-12 rounded-full bg-[var(--pt-primary-fg)] opacity-90" />
-        </div>
-      </div>
-    </div>
-  )
 }
 
 /** بطاقة فيديو 16:9 بزر تشغيل يتبدّل حالةً عند الضغط */
@@ -418,8 +295,9 @@ export function HeroBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): Reac
     if (ctx.onNavigate && primaryTarget) ctx.onNavigate(primaryTarget)
   }
 
-  // الرسم الجانبي لا يظهر إلا في التخطيط المقسّم وللأنواع البصرية فقط
-  const hasSideVisual = layout === 'split' && (visual === 'dashboard' || visual === 'phone' || visual === 'video')
+  // الرسم الجانبي يظهر في التخطيط المقسّم لكل الأنواع البصرية (بلا النموذج/البلا)
+  const hasSideVisual =
+    layout === 'split' && visual !== 'none' && visual !== 'form'
 
   const textCol = (
     <div className={hasSideVisual ? 'md:w-[46%] md:shrink-0' : 'mx-auto max-w-2xl'}>
@@ -482,14 +360,24 @@ export function HeroBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): Reac
     </div>
   )
 
-  // اختيار الرسم حسب النوع
+  // اختيار الرسم حسب النوع — رسوم واقعية من hero-visuals
   const visualNode: ReactElement =
     visual === 'phone' ? (
-      <PhoneVisual />
+      <PhoneMockVisual />
     ) : visual === 'video' ? (
       <VideoVisual playing={playing} onToggle={() => setPlaying((v) => !v)} />
+    ) : visual === 'analytics' ? (
+      <AnalyticsVisual />
+    ) : visual === 'orders' ? (
+      <OrdersVisual />
+    ) : visual === 'chat' ? (
+      <ChatVisual />
+    ) : visual === 'calendar' ? (
+      <CalendarVisual />
+    ) : visual === 'testimonial' ? (
+      <TestimonialVisual />
     ) : (
-      <HeroVisual />
+      <DashboardMockVisual />
     )
 
   // التخطيط الموسّط: الرسوم الجديدة (فيديو/هاتف) تُكوَّم تحت النص (نمط video-lead)

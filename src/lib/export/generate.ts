@@ -10,6 +10,10 @@
 // صفحة غير رئيسية، تروستة لوحة تحكم (بحث/إشعارات/قائمة مستخدم)، ترقيم
 // الجداول، خلفية صور البطل (assets/hero-bg)، خلفيتا gradient-soft/mesh،
 // كتل جديدة (activity-feed/tasks-list/quick-actions) وتحسينات جمالية.
+// Task 9-b — رسوم جانبية واقعية للبطل (dashboard/phone/analytics/orders/
+// chat/calendar/testimonial) بـ .pt-mock، صور لكل قسم (bgImage/bgOverlay →
+// assets/img-{n})، خلفية مشروع ثابتة (branding.bgImage → assets/bg)، رسوم
+// بيانية متحركة بتلميحات hover (pt-tip/pt-draw/pt-grow)، ومعرض/فريق بصور.
 // ============================================================
 import type {
   Block,
@@ -212,6 +216,17 @@ const ICON_SVG: Record<string, string> = {
   smartphone: '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
   briefcase: '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
   calendar: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+  'shopping-bag': '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  'message-circle': '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  'chevron-left': '<path d="m15 18-6-6 6-6"/>',
+  'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+  wifi: '<path d="M5 13a10 10 0 0 1 14 0"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 20 0"/><line x1="12" x2="12.01" y1="20" y2="20"/>',
+  battery: '<rect width="16" height="10" x="2" y="7" rx="2" ry="2"/><line x1="22" x2="22" y1="11" y2="13"/>',
+  signal: '<path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/>',
+  'more-horizontal': '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  'file-text': '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
 }
 
 /** أيقونة مضمّنة بالاسم (Sparkles بديلاً عند الاسم غير المعروف) */
@@ -328,6 +343,14 @@ main{display:block}
 :focus-visible{outline:2px solid var(--pt-primary);outline-offset:2px}
 ::selection{background:color-mix(in srgb,var(--pt-primary) 22%,transparent)}
 
+/* ===== خلفية المشروع الثابتة (branding.bgImage → assets/bg) ===== */
+.pt-pagebg{position:fixed;inset:0;z-index:-1;background-size:cover;background-position:center}
+body.pt-hasbg{background:transparent}
+body.pt-hasbg .pt-sidebar-layout{background:transparent}
+body.pt-hasbg--strong::after{content:'';position:fixed;inset:0;z-index:-1;background:var(--pt-bg);opacity:.9}
+body.pt-hasbg--medium::after{content:'';position:fixed;inset:0;z-index:-1;background:var(--pt-bg);opacity:.74}
+body.pt-hasbg--soft::after{content:'';position:fixed;inset:0;z-index:-1;background:var(--pt-bg);opacity:.55}
+
 /* ===== الأزرار ===== */
 .pt-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;font-weight:600;border-radius:var(--pt-radius);min-height:40px;padding:0 20px;font-size:14px;transition:filter .15s ease,background .15s ease,transform .1s ease}
 .pt-btn:hover{filter:brightness(1.08)}
@@ -429,6 +452,23 @@ main{display:block}
 .blk-heading h2{font-size:clamp(24px,4vw,36px);font-weight:700;line-height:1.25}
 .blk-heading p{margin-top:12px;font-size:15px;color:var(--pt-muted)}
 
+/* ===== أقسام بخلفية صورة (bgImage/bgOverlay) — دلالات مطابقة للبطل ===== */
+.blk-section--onimage{background-size:cover;background-position:center}
+.blk-section--onimage .blk-heading h2{color:#fff}
+.blk-section--onimage .blk-heading p{color:rgba(255,255,255,.82)}
+.blk-section--onimage .blk-stat__label{color:rgba(255,255,255,.8)}
+.blk-section--onimage .blk-cta__title{color:#fff}
+.blk-section--onimage .blk-cta__subtitle{color:rgba(255,255,255,.88)}
+.blk-section--onimage .blk-cta__card{background:rgba(13,10,25,.42);border:1px solid rgba(255,255,255,.24);backdrop-filter:blur(10px)}
+.blk-section--onimage .blk-banner{background:rgba(13,10,25,.42);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(10px)}
+.blk-section--onimage-none .blk-heading h2,.blk-section--onimage-none .blk-cta__title{text-shadow:0 2px 12px rgba(0,0,0,.45)}
+.blk-section--onimage-light .blk-heading h2{color:var(--pt-text)}
+.blk-section--onimage-light .blk-heading p{color:var(--pt-muted)}
+.blk-section--onimage-light .blk-stat__label{color:var(--pt-muted)}
+.blk-section--onimage-light .blk-cta__title{color:var(--pt-text)}
+.blk-section--onimage-light .blk-cta__subtitle{color:var(--pt-muted)}
+.blk-section--onimage-light .blk-cta__card--default{background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.75)}
+
 /* ===== hero ===== */
 .blk-hero{padding-block:64px}
 .blk-hero--muted{background:var(--pt-secondary)}
@@ -452,23 +492,11 @@ main{display:block}
 .blk-hero__subtitle{margin-top:16px;font-size:clamp(15px,2vw,18px);color:var(--pt-muted)}
 .blk-hero__actions{margin-top:28px;display:flex;flex-wrap:wrap;gap:12px}
 .blk-hero--centered .blk-hero__actions{justify-content:center}
-/* الرسم المجرد */
+/* الرسوم الجانبية (visual) — Task 9-b */
 .blk-hero__visual{position:relative;width:100%;max-width:520px}
+.blk-hero__viscol{flex:1;min-width:0;display:flex;justify-content:center}
 .blk-hero__glow1{position:absolute;top:-32px;inset-inline-end:-24px;width:176px;height:176px;border-radius:999px;background:var(--pt-accent);opacity:.3;filter:blur(40px)}
 .blk-hero__glow2{position:absolute;bottom:-40px;inset-inline-start:-32px;width:208px;height:208px;border-radius:999px;background:var(--pt-primary);opacity:.2;filter:blur(48px)}
-.blk-hero__panel{position:relative;border-radius:calc(var(--pt-radius) + 6px);border:1px solid var(--pt-border);background:var(--pt-surface);box-shadow:var(--pt-shadow);padding:20px}
-.blk-hero__dots{display:flex;align-items:center;gap:8px;margin-bottom:16px}
-.blk-hero__dot{width:10px;height:10px;border-radius:999px}
-.blk-hero__line{margin-inline-start:8px;width:96px;height:10px;border-radius:999px;background:var(--pt-secondary)}
-.blk-hero__ministats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
-.blk-hero__ministat{border-radius:calc(var(--pt-radius) - 2px);border:1px solid var(--pt-border);background:var(--pt-bg);padding:12px}
-.blk-hero__minibar{height:8px;border-radius:999px;background:var(--pt-secondary);margin-bottom:8px;width:66%}
-.blk-hero__minival{display:block;height:12px;border-radius:4px}
-.blk-hero__bars{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;height:128px;border-radius:calc(var(--pt-radius) - 2px);border:1px solid var(--pt-border);background:var(--pt-bg);padding:12px}
-.blk-hero__bar{flex:1;border-radius:6px 6px 0 0}
-.blk-hero__skel{margin-top:16px}
-.blk-hero__skel span{display:block;height:10px;border-radius:999px;background:var(--pt-secondary)}
-.blk-hero__skel span+span{margin-top:8px;width:75%}
 
 /* ===== hero: eyebrow / أحجام العنوان / الهاتف / الفيديو / نموذج البريد ===== */
 .pt-eyebrow{display:inline-flex;align-items:center;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:600;border:1px solid var(--pt-border);background:var(--pt-secondary);color:var(--pt-text);margin-bottom:16px}
@@ -476,21 +504,150 @@ main{display:block}
 .blk-hero__title--lg{font-size:clamp(2rem,5vw,3.75rem)}
 .blk-hero__title--xl{font-size:clamp(2.5rem,6.5vw,4.5rem);letter-spacing:-.015em}
 .blk-hero__stack{margin-top:40px;display:flex;justify-content:center}
-/* موك الهاتف */
-.pt-phone-wrap{display:flex;align-items:center;justify-content:center;width:280px;max-width:100%}
-.pt-phone{position:relative;width:min(280px,100%);aspect-ratio:9/19;border:8px solid var(--pt-border);border-radius:28px;background:var(--pt-surface);box-shadow:var(--pt-shadow);overflow:hidden;padding:14px 12px 16px;display:flex;flex-direction:column;gap:12px}
-.pt-phone__notch{width:72px;height:7px;border-radius:999px;background:color-mix(in srgb,var(--pt-text) 22%,transparent);margin-inline:auto;flex-shrink:0}
-.pt-phone__header{display:flex;align-items:center;gap:8px}
-.pt-phone__avatar{width:26px;height:26px;border-radius:999px;background:var(--pt-primary);flex-shrink:0}
-.pt-phone__lines{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
-.pt-phone__line{height:6px;border-radius:999px;background:var(--pt-secondary)}
-.pt-phone__stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.pt-phone__stat{border:1px solid var(--pt-border);border-radius:calc(var(--pt-radius) - 4px);background:var(--pt-bg);padding:10px;display:flex;flex-direction:column;gap:7px}
-.pt-phone__stat-bar{height:6px;border-radius:999px;background:var(--pt-secondary)}
-.pt-phone__stat-val{height:9px;border-radius:4px;background:var(--pt-primary);opacity:.85}
-.pt-phone__chart{flex:1;min-height:70px;display:flex;align-items:flex-end;gap:7px;border:1px solid var(--pt-border);border-radius:calc(var(--pt-radius) - 4px);background:var(--pt-bg);padding:10px}
-.pt-phone__chart-bar{flex:1;border-radius:5px 5px 0 0}
-.pt-phone__cta{height:30px;border-radius:999px;background:var(--pt-primary);flex-shrink:0}
+/* ===== الرسوم التوضيحية الواقعية (.pt-mock) — عقد مشترك مع عارض React ===== */
+.pt-mock{position:relative;border-radius:calc(var(--pt-radius) + 6px);border:1px solid var(--pt-border);background:var(--pt-surface);box-shadow:var(--pt-shadow)}
+/* لوحة التحكم */
+.pt-mock-dash__topbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--pt-border);background:var(--pt-bg)}
+.pt-mock-dots{display:flex;gap:5px;flex-shrink:0}
+.pt-mock-dots span{width:8px;height:8px;border-radius:999px}
+.pt-mock-dots span:nth-child(1){background:#f87171}
+.pt-mock-dots span:nth-child(2){background:#fbbf24}
+.pt-mock-dots span:nth-child(3){background:#34d399}
+.pt-mock-dash__addr{flex:1;min-width:0;direction:ltr;text-align:center;font-size:10.5px;color:var(--pt-muted);background:var(--pt-secondary);border:1px solid var(--pt-border);border-radius:999px;padding:2px 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt-mock-dash__bell{position:relative;color:var(--pt-muted);display:inline-flex;flex-shrink:0}
+.pt-mock-dash__belldot{position:absolute;top:-2px;inset-inline-end:-3px;width:7px;height:7px;border-radius:999px;background:#dc2626}
+.pt-mock-dash__body{display:grid;grid-template-columns:126px minmax(0,1fr)}
+.pt-mock-dash__side{border-inline-end:1px solid var(--pt-border);background:color-mix(in srgb,var(--pt-bg) 45%,var(--pt-surface));padding:12px 10px;display:flex;flex-direction:column;gap:3px}
+.pt-mock-dash__brand{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;margin-bottom:9px;padding-inline:7px}
+.pt-mock-dash__brand i{width:18px;height:18px;border-radius:5px;background:var(--pt-primary);flex-shrink:0}
+.pt-mock-nav{display:flex;align-items:center;gap:8px;min-height:30px;padding:4px 8px;border-radius:calc(var(--pt-radius) - 4px);border-inline-start:2px solid transparent;font-size:11px;font-weight:600;color:var(--pt-muted);white-space:nowrap}
+.pt-mock-nav svg{flex-shrink:0}
+.pt-mock-nav--active{background:var(--pt-secondary);color:var(--pt-primary);border-inline-start-color:var(--pt-primary)}
+.pt-mock-dash__main{padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.pt-mock-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.pt-mock-kpi{background:var(--pt-bg);border:1px solid var(--pt-border);border-radius:calc(var(--pt-radius) - 2px);padding:10px 12px}
+.pt-mock-kpi span{display:block;font-size:10px;color:var(--pt-muted)}
+.pt-mock-kpi b{display:block;margin-top:3px;font-size:14px;font-weight:800;letter-spacing:-.01em}
+.pt-mock-kpi .pt-badge{margin-top:7px;font-size:9px;padding:1px 7px;line-height:16px}
+.pt-mock-chart,.pt-mock-chart-lg{background:var(--pt-bg);border:1px solid var(--pt-border);border-radius:calc(var(--pt-radius) - 2px);padding:10px 10px 4px}
+.pt-mock-chart svg,.pt-mock-chart-lg svg{display:block;width:100%;height:auto}
+.pt-mock-chart-lg{padding:12px 12px 8px}
+.pt-mock-rows{display:flex;flex-direction:column}
+.pt-mock-row{display:flex;align-items:center;gap:9px;padding:8px 2px}
+.pt-mock-row+.pt-mock-row{border-top:1px solid color-mix(in srgb,var(--pt-border) 60%,transparent)}
+.pt-mock-row__name{font-size:11.5px;font-weight:700}
+.pt-mock-row__amount{margin-inline-start:auto;font-size:11.5px;font-weight:800;flex-shrink:0;white-space:nowrap}
+.pt-mock-row .pt-badge{flex-shrink:0;font-size:9px;padding:1px 7px;line-height:16px}
+/* شريحة الإشعار العائمة */
+.pt-mock-chip--float{position:absolute;top:46px;inset-inline-start:-16px;z-index:3;display:flex;align-items:center;gap:9px;max-width:236px;background:var(--pt-surface);border:1px solid var(--pt-border);border-radius:999px;box-shadow:var(--pt-shadow);padding:8px 14px 8px 10px;animation:pt-float 5.5s ease-in-out infinite}
+.pt-mock-chip__dot{width:8px;height:8px;border-radius:999px;background:#16a34a;flex-shrink:0}
+.pt-mock-chip__text{min-width:0}
+.pt-mock-chip__text b{display:block;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt-mock-chip__text span{display:block;font-size:9.5px;color:var(--pt-muted);white-space:nowrap}
+@keyframes pt-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+/* الهاتف */
+.pt-mock-phone-wrap{display:flex;justify-content:center;width:100%}
+.pt-mock-phone{position:relative;width:min(262px,88vw);aspect-ratio:9/19;border-radius:34px;background:var(--pt-surface);border:1px solid var(--pt-border);box-shadow:var(--pt-shadow),0 0 0 7px color-mix(in srgb,var(--pt-border) 65%,transparent);padding:10px 12px 8px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.pt-mock-phone__status{display:flex;align-items:center;justify-content:space-between;direction:ltr;font-size:10px;font-weight:700;color:var(--pt-muted);padding-inline:8px;flex-shrink:0}
+.pt-mock-phone__status-icons{display:flex;align-items:center;gap:4px}
+.pt-mock-phone__notch{width:74px;height:7px;border-radius:999px;background:color-mix(in srgb,var(--pt-text) 20%,transparent);margin:-3px auto 0;flex-shrink:0}
+.pt-mock-phone__head{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.pt-mock-phone__hi{flex:1;min-width:0}
+.pt-mock-phone__hi b{display:block;font-size:11.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt-mock-phone__hi span{display:block;font-size:9px;color:var(--pt-muted)}
+.pt-mock-phone__bell{position:relative;color:var(--pt-muted);display:inline-flex;flex-shrink:0}
+.pt-mock-phone__belldot{position:absolute;top:-2px;inset-inline-end:-3px;width:7px;height:7px;border-radius:999px;background:#dc2626}
+.pt-mock-phone__balance{position:relative;border-radius:calc(var(--pt-radius) + 2px);background:linear-gradient(135deg,var(--pt-primary),var(--pt-accent));color:#fff;padding:12px 14px;flex-shrink:0;overflow:hidden}
+.pt-mock-phone__balance::before{content:'';position:absolute;top:-40%;inset-inline-end:-20%;width:70%;height:120%;background:radial-gradient(closest-side,rgba(255,255,255,.22),transparent);pointer-events:none}
+.pt-mock-phone__balance>span{display:block;font-size:9.5px;opacity:.85}
+.pt-mock-phone__balance b{display:block;margin-top:3px;font-size:18px;font-weight:800;letter-spacing:-.01em}
+.pt-mock-phone__bchip{display:inline-flex;margin-top:7px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:2px 9px;font-size:9px;font-weight:700}
+.pt-mock-phone__actions{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;flex-shrink:0}
+.pt-mock-phone__action{display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center}
+.pt-mock-phone__action i{width:34px;height:34px;border-radius:999px;background:color-mix(in srgb,var(--pt-primary) 10%,transparent);color:var(--pt-primary);display:inline-flex;align-items:center;justify-content:center}
+.pt-mock-phone__action span{font-size:8.5px;color:var(--pt-muted);font-weight:600}
+.pt-mock-phone__chart{background:var(--pt-bg);border:1px solid var(--pt-border);border-radius:calc(var(--pt-radius) - 2px);padding:10px 12px;flex-shrink:0}
+.pt-mock-phone__chart-title{display:flex;align-items:center;justify-content:space-between;font-size:9.5px;font-weight:700;margin-bottom:8px}
+.pt-mock-phone__chart-title span{color:var(--pt-muted);font-weight:500;font-size:8.5px}
+.pt-mock-phone__bars{display:flex;align-items:flex-end;gap:7px;height:54px}
+.pt-mock-phone__bar{flex:1;border-radius:5px 5px 2px 2px;background:linear-gradient(180deg,var(--pt-primary),color-mix(in srgb,var(--pt-primary) 45%,transparent));transform-origin:bottom}
+.pt-mock-phone__txs{display:flex;flex-direction:column}
+.pt-mock-tx{display:flex;align-items:center;gap:8px;padding:7px 2px}
+.pt-mock-tx+.pt-mock-tx{border-top:1px solid color-mix(in srgb,var(--pt-border) 60%,transparent)}
+.pt-mock-tx__body{flex:1;min-width:0}
+.pt-mock-tx__name{font-size:10.5px;font-weight:700}
+.pt-mock-tx__sub{margin-top:1px;font-size:8.5px;color:var(--pt-muted)}
+.pt-mock-tx__amt{font-size:10.5px;font-weight:800;flex-shrink:0;white-space:nowrap}
+.pt-mock-tx__amt--in{color:#16a34a}
+.pt-mock-phone__tabs{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--pt-border);padding-top:7px;flex-shrink:0}
+.pt-mock-tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--pt-muted);font-size:8px;font-weight:600}
+.pt-mock-tab--active{color:var(--pt-primary)}
+.pt-mock-phone__homebar{width:92px;height:4px;border-radius:999px;background:color-mix(in srgb,var(--pt-text) 22%,transparent);margin:6px auto 0;flex-shrink:0}
+/* بطاقة التحليلات */
+.pt-mock-analytics{padding:16px;display:flex;flex-direction:column;gap:12px}
+.pt-mock-analytics__head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pt-mock-analytics__head b{font-size:14.5px;font-weight:800}
+.pt-mock-chips{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pt-mock-chipstat{display:flex;flex-direction:column;gap:2px;background:var(--pt-bg);border:1px solid var(--pt-border);border-radius:calc(var(--pt-radius) - 2px);padding:9px 11px}
+.pt-mock-chipstat span{font-size:9px;color:var(--pt-muted)}
+.pt-mock-chipstat b{font-size:12px;font-weight:800;white-space:nowrap}
+.pt-mock-chipstat--up b{color:#16a34a}
+/* بطاقة الطلبات */
+.pt-mock-orders__head{padding:14px 16px;border-bottom:1px solid var(--pt-border);font-size:14.5px;font-weight:800}
+.pt-mock-orders__list{padding:2px 16px}
+.pt-mock-order{display:flex;align-items:center;gap:10px;padding:11px 0}
+.pt-mock-order+.pt-mock-order{border-top:1px solid color-mix(in srgb,var(--pt-border) 60%,transparent)}
+.pt-mock-order__body{flex:1;min-width:0}
+.pt-mock-order__name{font-size:12.5px;font-weight:700}
+.pt-mock-order__city{margin-top:1px;font-size:10px;color:var(--pt-muted)}
+.pt-mock-order__end{text-align:end;flex-shrink:0}
+.pt-mock-order__amount{display:block;font-size:12px;font-weight:800;white-space:nowrap}
+.pt-mock-order__date{display:block;margin-top:1px;font-size:9.5px;color:var(--pt-muted);white-space:nowrap}
+.pt-mock-order .pt-badge{flex-shrink:0}
+.pt-mock-orders__foot{padding:10px 16px 14px;border-top:1px solid var(--pt-border);text-align:center}
+/* بطاقة المحادثة */
+.pt-mock-chat__head{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--pt-border)}
+.pt-mock-chat__who{flex:1;min-width:0}
+.pt-mock-chat__who b{display:block;font-size:13.5px;font-weight:800}
+.pt-mock-chat__status{display:inline-flex;align-items:center;gap:5px;margin-top:2px;font-size:10.5px;font-weight:600;color:#16a34a}
+.pt-mock-chat__status i{width:7px;height:7px;border-radius:999px;background:#16a34a;flex-shrink:0}
+.pt-mock-chat__body{padding:16px;display:flex;flex-direction:column;gap:10px}
+.pt-mock-bubble{max-width:84%;border-radius:14px;padding:9px 13px;font-size:12.5px;line-height:1.7}
+.pt-mock-bubble__who{display:block;margin-bottom:3px;font-size:9.5px;font-weight:700;color:var(--pt-primary)}
+.pt-mock-bubble--in{background:var(--pt-bg);border:1px solid var(--pt-border);align-self:flex-start;border-start-start-radius:4px}
+.pt-mock-bubble--out{background:var(--pt-primary);color:var(--pt-primary-fg);align-self:flex-end;border-start-end-radius:4px}
+.pt-mock-typing{display:inline-flex;align-items:center;gap:4px;align-self:flex-start;background:var(--pt-bg);border:1px solid var(--pt-border);border-radius:14px;border-start-start-radius:4px;padding:11px 13px}
+.pt-mock-typing span{width:6px;height:6px;border-radius:999px;background:var(--pt-muted);animation:pt-typing 1.2s ease-in-out infinite}
+.pt-mock-typing span:nth-child(2){animation-delay:.15s}
+.pt-mock-typing span:nth-child(3){animation-delay:.3s}
+@keyframes pt-typing{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}
+.pt-mock-chat__input{display:flex;align-items:center;gap:8px;margin:0 16px 16px;padding:5px 5px 5px 14px;border:1px solid var(--pt-border);border-radius:999px;background:var(--pt-bg)}
+.pt-mock-chat__placeholder{flex:1;min-width:0;font-size:11px;color:var(--pt-muted)}
+.pt-mock-chat__send{width:32px;height:32px;border-radius:999px;background:var(--pt-primary);color:var(--pt-primary-fg);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+/* بطاقة التقويم */
+.pt-mock-cal__head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;border-bottom:1px solid var(--pt-border)}
+.pt-mock-cal__head b{font-size:13.5px;font-weight:800}
+.pt-mock-cal__navs{display:flex;gap:6px}
+.pt-mock-cal__nav{width:26px;height:26px;border-radius:8px;border:1px solid var(--pt-border);background:transparent;color:var(--pt-muted);display:inline-flex;align-items:center;justify-content:center}
+.pt-mock-cal__body{padding:14px 16px}
+.pt-mock-cal__week{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:7px}
+.pt-mock-cal__wd{text-align:center;font-size:9px;font-weight:700;color:var(--pt-muted)}
+.pt-mock-cal__days{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.pt-mock-cal__day{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--pt-text);border-radius:999px}
+.pt-mock-cal__day--today{background:var(--pt-primary);color:var(--pt-primary-fg);font-weight:800}
+.pt-mock-cal__day--dot::after{content:'';position:absolute;bottom:2.5px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:999px;background:var(--pt-accent)}
+.pt-mock-cal__foot{padding:0 16px 16px;text-align:center}
+.pt-mock-chipnote{display:inline-flex;align-items:center;gap:6px;background:color-mix(in srgb,var(--pt-primary) 10%,transparent);color:var(--pt-primary);font-size:11px;font-weight:700;border-radius:999px;padding:6px 13px}
+/* بطاقة رأي العميل */
+.pt-mock-quote{padding:26px 24px 22px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.pt-mock-quote__glyph{position:absolute;top:-10px;inset-inline-start:10px;font-size:92px;line-height:1;font-weight:900;font-family:Georgia,'Times New Roman',serif;color:color-mix(in srgb,var(--pt-primary) 15%,transparent);pointer-events:none;user-select:none}
+.pt-mock-quote__stars{position:relative;color:#f59e0b;letter-spacing:2.5px;font-size:15px}
+.pt-mock-quote__text{position:relative;margin-top:2px;font-size:14.5px;line-height:1.85}
+.pt-mock-quote__person{position:relative;display:flex;align-items:center;gap:10px;padding-top:13px;border-top:1px solid color-mix(in srgb,var(--pt-border) 70%,transparent)}
+.pt-mock-quote__who{flex:1;min-width:0}
+.pt-mock-quote__who b{display:block;font-size:13px;font-weight:800}
+.pt-mock-quote__who span{display:block;margin-top:1px;font-size:10.5px;color:var(--pt-muted)}
+.pt-mock-verified{display:inline-flex;align-items:center;gap:4px;flex-shrink:0;font-size:10px;font-weight:700;color:#16a34a;background:color-mix(in srgb,#16a34a 10%,transparent);border-radius:999px;padding:4px 9px}
 /* بطاقة الفيديو */
 .pt-video-wrap{width:520px;max-width:100%}
 .pt-video{position:relative;aspect-ratio:16/9;border:1px solid var(--pt-border);background:var(--pt-surface);border-radius:calc(var(--pt-radius) + 6px);box-shadow:var(--pt-shadow);display:flex;align-items:center;justify-content:center;overflow:hidden}
@@ -624,6 +781,7 @@ main{display:block}
 .blk-gallery__price{font-size:16px;font-weight:800;color:var(--pt-primary);flex-shrink:0}
 .blk-gallery__price small{font-size:11px;font-weight:500;color:var(--pt-muted)}
 .blk-gallery__desc{margin-top:6px;font-size:13.5px;color:var(--pt-muted)}
+.blk-gallery__photo{display:block;width:100%;height:100%;object-fit:cover}
 
 /* ===== list / team ===== */
 .blk-list__items{display:flex;flex-direction:column;gap:12px;max-width:760px;margin-inline:auto}
@@ -636,6 +794,7 @@ main{display:block}
 .blk-team__card{padding:28px 20px;text-align:center;border-radius:var(--pt-radius);border:1px solid var(--pt-border);background:var(--pt-surface);box-shadow:var(--pt-shadow);display:flex;flex-direction:column;align-items:center;gap:12px}
 .blk-team__name{font-size:15.5px;font-weight:700}
 .blk-team__role{font-size:13px;color:var(--pt-muted)}
+.blk-team__photo{width:56px;height:56px;border-radius:999px;object-fit:cover;box-shadow:0 0 0 3px color-mix(in srgb,var(--pt-primary) 22%,transparent)}
 
 /* ===== custom-html ===== */
 .blk-custom-label{display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:12.5px;font-weight:600;color:var(--pt-muted)}
@@ -683,6 +842,20 @@ main{display:block}
 .blk-donut__legend li{display:flex;align-items:center;gap:8px;font-size:14px}
 .blk-donut__legend .dot{width:10px;height:10px;border-radius:999px;flex-shrink:0}
 .blk-donut__legend .pct{margin-inline-start:auto;font-weight:700}
+
+/* ===== حركات الرسوم البيانية + تلميح hover (data-tip) ===== */
+.pt-anim-line{stroke-dasharray:1;stroke-dashoffset:1;animation:pt-draw 1.1s cubic-bezier(.25,.6,.3,1) forwards;filter:drop-shadow(0 2px 6px color-mix(in srgb,var(--pt-primary) 45%,transparent))}
+.pt-anim-area{opacity:0;animation:pt-fadein .9s ease .4s forwards}
+.pt-anim-bar{transform-box:fill-box;transform-origin:bottom;transform:scaleY(0);animation:pt-grow .7s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes pt-draw{to{stroke-dashoffset:0}}
+@keyframes pt-fadein{to{opacity:1}}
+@keyframes pt-grow{to{transform:scaleY(1)}}
+.pt-donut-seg circle{stroke-width:20;transition:stroke-width .18s ease,opacity .18s ease;cursor:default}
+.blk-donut:hover .pt-donut-seg{opacity:.55}
+.blk-donut .pt-donut-seg:hover{opacity:1}
+.pt-donut-seg:hover circle{stroke-width:23}
+.pt-tip{position:fixed;z-index:9999;pointer-events:none;background:var(--pt-surface);border:1px solid var(--pt-border);border-radius:calc(var(--pt-radius) - 4px);box-shadow:var(--pt-shadow);padding:6px 10px;font-size:12px;font-weight:600;white-space:nowrap;color:var(--pt-text);opacity:0;transition:opacity .12s ease}
+.pt-tip.show{opacity:1}
 
 /* ===== data table ===== */
 .blk-table{overflow:hidden}
@@ -843,6 +1016,13 @@ main{display:block}
   .pt-top{transition:none}
   .pt-wave span{animation:none}
   .pt-back__label{transition:none}
+  .pt-anim-line{stroke-dasharray:none;stroke-dashoffset:0;animation:none}
+  .pt-anim-area{opacity:1;animation:none}
+  .pt-anim-bar{transform:none;animation:none}
+  .pt-mock-typing span{animation:none}
+  .pt-mock-chip--float{animation:none}
+  .pt-donut-seg circle{transition:none}
+  .pt-tip{transition:none}
 }
 
 /* ===== زر العودة للخلف (صفحات غير الرئيسية) ===== */
@@ -881,6 +1061,15 @@ body:has(.pt-back) .pt-demo-badge{display:none}
   .blk-features__grid{grid-template-columns:1fr}
   .blk-hero{padding-block:44px}
   .pt-lead-form{flex-direction:column}
+}
+@media (max-width:640px){
+  .pt-mock-dash__body{grid-template-columns:104px minmax(0,1fr)}
+  .pt-mock-chip--float{inset-inline-start:-6px;max-width:210px}
+  .pt-mock-analytics{padding:14px}
+}
+@media (max-width:380px){
+  .pt-mock-dash__body{grid-template-columns:minmax(0,1fr)}
+  .pt-mock-dash__side{display:none}
 }
 `
 }
@@ -1114,6 +1303,57 @@ function buildScriptJs(): string {
     revealEls.forEach(function (el) { el.classList.add('pt-in') })
   }
 
+  // ===== تلميحات الرسوم البيانية (data-tip) — معالج مفوَّض واحد =====
+  var tipEl = null
+  function ensureTip() {
+    if (!tipEl) {
+      tipEl = document.createElement('div')
+      tipEl.className = 'pt-tip'
+      tipEl.setAttribute('role', 'tooltip')
+      document.body.appendChild(tipEl)
+    }
+    return tipEl
+  }
+  function hideTip() {
+    if (tipEl) tipEl.classList.remove('show')
+  }
+  function placeTip(x, y) {
+    var t = ensureTip()
+    var w = t.offsetWidth
+    var h = t.offsetHeight
+    var vw = window.innerWidth
+    var vh = window.innerHeight
+    var left = x + 14
+    if (left + w > vw - 8) left = x - w - 14
+    if (left < 8) left = Math.max(8, Math.min(x + 14, vw - w - 8))
+    var top = y - h - 12
+    if (top < 8) top = y + 20
+    if (top + h > vh - 8) top = Math.max(8, vh - h - 8)
+    t.style.left = left + 'px'
+    t.style.top = top + 'px'
+  }
+  function showTipFor(el, x, y) {
+    var text = el.getAttribute('data-tip')
+    if (!text) { hideTip(); return }
+    var t = ensureTip()
+    t.textContent = text
+    t.classList.add('show')
+    placeTip(x, y)
+  }
+  document.addEventListener('mousemove', function (e) {
+    var el = e.target && e.target.closest ? e.target.closest('[data-tip]') : null
+    if (el) showTipFor(el, e.clientX, e.clientY)
+    else hideTip()
+  })
+  document.addEventListener('mouseleave', hideTip)
+  document.addEventListener('focusin', function (e) {
+    var el = e.target && e.target.closest ? e.target.closest('[data-tip]') : null
+    if (!el) return
+    var r = el.getBoundingClientRect()
+    showTipFor(el, r.left + r.width / 2, r.top)
+  })
+  document.addEventListener('focusout', hideTip)
+
   // زر العودة إلى الأعلى (صفحات الموقع فقط)
   var topBtn = document.querySelector('.pt-top')
   if (topBtn) {
@@ -1144,7 +1384,8 @@ function buildNetlifyToml(): string {
 function buildReadmeMd(schema: ProjectSchema): string {
   const name = schema.metadata.name || 'مشروعك'
   const hasLogo = !!dataUrlToAsset(schema.branding?.logo ?? '')
-  const hasHeroBg = !!findHeroImage(schema)
+  const imageCount = collectSchemaImages(schema).length
+  const hasBrandBg = !!dataUrlToAsset(brandingBgImage(schema))
   return `# ${name} — نموذج أولي جاهز للنشر
 
 مشروعك جاهز! هذه حزمة موقع ثابت (HTML + CSS + JS بدون أي مكتبات) أُنشئت بواسطة منصة **نموذج**.
@@ -1155,10 +1396,10 @@ function buildReadmeMd(schema: ProjectSchema): string {
 | --- | --- |
 | \`index.html\` | الصفحة الرئيسية لموقعك |
 | \`styles.css\` | كل التنسيقات والألوان (سهل التعديل) |
-| \`script.js\` | تفاعلات خفيفة: القائمة، النماذج، بحث الجداول وترقيم صفحاتها، تروستة اللوحة (بحث/إشعارات/قائمة المستخدم)، مهام قابلة للتحديد، زر العودة للخلف والأعلى، ظهور الأقسام عند التمرير |
+| \`script.js\` | تفاعلات خفيفة: القائمة، النماذج، بحث الجداول وترقيم صفحاتها، تروستة اللوحة (بحث/إشعارات/قائمة المستخدم)، مهام قابلة للتحديد، زر العودة للخلف والأعلى، تلميحات الرسوم البيانية عند التمرير، ظهور الأقسام عند التمرير |
 | \`404.html\` | صفحة الخطأ |
 | \`netlify.toml\` | إعداد النشر على Netlify |
-${hasLogo ? '| \`assets/logo\` | شعار مشروعك — يظهر في الترويسة والتذييل وكأيقونة المتصفح |\n' : ''}${hasHeroBg ? '| \`assets/hero-bg\` | خلفية صورة قسم البطل في الصفحة الرئيسية |\n' : ''}| باقي المجلدات | صفحة لكل قسم من موقعك |
+${hasLogo ? '| \`assets/logo.*\` | شعار مشروعك — يظهر في الترويسة والتذييل وكأيقونة المتصفح |\n' : ''}${imageCount > 0 ? '| \`assets/img-*.jpg|png|webp\` | صور الأقسام المرفوعة (خلفية البطل والأقسام وصور بطاقات المعرض والفريق) |\n' : ''}${hasBrandBg ? '| \`assets/bg.*\` | خلفية المشروع الثابتة خلف كل الصفحات |\n' : ''}| باقي المجلدات | صفحة لكل قسم من موقعك |
 
 ## خطوات النشر على Netlify
 
@@ -1221,7 +1462,7 @@ function barChartSvg(data: ChartDatum[], gid: string): string {
   const skipLabels = rtl.length > 8
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="رسم بياني بالأعمدة">`
-  svg += `<defs><linearGradient id="bar-${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" style="stop-color:var(--pt-primary);stop-opacity:1"/><stop offset="100%" style="stop-color:var(--pt-primary);stop-opacity:.62"/></linearGradient></defs>`
+  svg += `<defs><linearGradient id="bar-${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" style="stop-color:var(--pt-primary);stop-opacity:1"/><stop offset="100%" style="stop-color:var(--pt-primary);stop-opacity:.62"/></linearGradient><linearGradient id="barhi-${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" style="stop-color:var(--pt-accent);stop-opacity:1"/><stop offset="100%" style="stop-color:var(--pt-accent);stop-opacity:.62"/></linearGradient></defs>`
 
   for (const f of [0, 0.25, 0.5, 0.75, 1]) {
     const y = baseline - areaH * f
@@ -1233,7 +1474,11 @@ function barChartSvg(data: ChartDatum[], gid: string): string {
     const cx = padX + slot * i + slot / 2
     const x = cx - barW / 2
     const y = baseline - h
-    svg += `<g><title>${esc(d.label)}: ${esc(d.value.toLocaleString('en-US'))}</title><path d="${topRoundedRect(x, y, barW, h, 6)}" style="fill:url(#bar-${gid})"/></g>`
+    // العمود الأعلى بتدرّج accent (أكثر نية تصميمية) + حركة نمو متتابعة
+    const isMax = d.value === max && max > 0
+    const fill = isMax ? `url(#barhi-${gid})` : `url(#bar-${gid})`
+    const tip = `${esc(d.label)}: ${esc(d.value.toLocaleString('en-US'))}`
+    svg += `<g data-tip="${tip}"><title>${esc(d.label)}: ${esc(d.value.toLocaleString('en-US'))}</title><path class="pt-anim-bar" d="${topRoundedRect(x, y, barW, h, 6)}" style="fill:${fill};animation-delay:${i * 60}ms"/></g>`
   })
   rtl.forEach((d, i) => {
     if (skipLabels && i % 2 === 1) return
@@ -1286,16 +1531,17 @@ function lineChartSvg(data: ChartDatum[], gid: string): string {
   const area = `${line} L${pts[pts.length - 1].x},${baseline} L${pts[0].x},${baseline} Z`
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="رسم بياني خطي">`
-  svg += `<defs><linearGradient id="area-${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" style="stop-color:var(--pt-primary);stop-opacity:.26"/><stop offset="100%" style="stop-color:var(--pt-primary);stop-opacity:.02"/></linearGradient></defs>`
+  svg += `<defs><linearGradient id="area-${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" style="stop-color:var(--pt-primary);stop-opacity:.26"/><stop offset="100%" style="stop-color:var(--pt-primary);stop-opacity:.02"/></linearGradient><linearGradient id="line-${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" style="stop-color:var(--pt-primary);stop-opacity:1"/><stop offset="100%" style="stop-color:color-mix(in srgb,var(--pt-primary) 55%,#fff);stop-opacity:1"/></linearGradient></defs>`
   for (const f of [0, 0.25, 0.5, 0.75, 1]) {
     const y = baseline - areaH * f
     svg += `<line x1="${padX}" y1="${y}" x2="${W - padX}" y2="${y}" style="stroke:var(--pt-border);stroke-width:1"${f === 0 ? '' : ' stroke-dasharray="4 6"'}/>`
     svg += `<text x="${W - padX + 8}" y="${y + 3.5}" text-anchor="start" style="fill:var(--pt-muted);font-size:10px">${esc(compactNum(min + span * f))}</text>`
   }
-  svg += `<path d="${area}" style="fill:url(#area-${gid})"/>`
-  svg += `<path d="${line}" style="fill:none;stroke:var(--pt-primary);stroke-width:2.5;stroke-linecap:round"/>`
+  svg += `<path d="${area}" class="pt-anim-area" style="fill:url(#area-${gid})"/>`
+  svg += `<path d="${line}" pathLength="1" class="pt-anim-line" style="fill:none;stroke:url(#line-${gid});stroke-width:3;stroke-linecap:round"/>`
   pts.forEach((p, i) => {
-    svg += `<g><title>${esc(rtl[i].label)}: ${esc(rtl[i].value.toLocaleString('en-US'))}</title><circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="3.5" style="fill:var(--pt-primary);stroke:var(--pt-surface);stroke-width:2"/></g>`
+    const tip = `${esc(rtl[i].label)}: ${esc(rtl[i].value.toLocaleString('en-US'))}`
+    svg += `<g data-tip="${tip}"><title>${esc(rtl[i].label)}: ${esc(rtl[i].value.toLocaleString('en-US'))}</title><circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="3.5" style="fill:var(--pt-primary);stroke:var(--pt-surface);stroke-width:2"/><circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="14" fill="transparent" tabindex="0" data-tip="${tip}"/></g>`
   })
   const skipLabels = rtl.length > 8
   rtl.forEach((d, i) => {
@@ -1334,7 +1580,9 @@ function donutChartSvg(data: ChartDatum[]): string {
     const len = seg.frac * C
     const offset = -seg.start * C
     const color = CHART_PALETTE[i % CHART_PALETTE.length]
-    svg += `<g><title>${esc(seg.label)}: ${esc(seg.value.toLocaleString('en-US'))} (${Math.round(seg.frac * 100)}%)</title><circle cx="80" cy="80" r="${R}" style="fill:none;stroke:${color};stroke-width:20;stroke-dasharray:${len} ${C - len};stroke-dashoffset:${offset}"/></g>`
+    const pct = Math.round(seg.frac * 100)
+    const tip = `${esc(seg.label)}: ${esc(seg.value.toLocaleString('en-US'))} (${pct}%)`
+    svg += `<g class="pt-donut-seg" data-tip="${tip}"><title>${esc(seg.label)}: ${esc(seg.value.toLocaleString('en-US'))} (${pct}%)</title><circle cx="80" cy="80" r="${R}" style="fill:none;stroke:${color};stroke-dasharray:${len} ${C - len};stroke-dashoffset:${offset}"/></g>`
   })
   svg += `</svg><div class="blk-donut__center"><span class="blk-donut__total">${esc(compactTotal)}</span><span class="blk-donut__total-label">الإجمالي</span></div></div>`
   svg += `<ul class="blk-donut__legend">`
@@ -1359,8 +1607,10 @@ interface RenderCtx {
   seq: { n: number }
   /** الشعار المُصدَّر (مسار نسبي من هذه الصفحة) أو null إن لا شعار */
   logo: { src: string; mime: string } | null
-  /** خلفية صور البطل المُصدَّرة (مسار نسبي) أو null إن لا صورة */
-  heroBg: { src: string } | null
+  /** مسار نسبي لصورة مجمّعة (assets/img-{n}) من هذه الصفحة أو null إن لم تُجمّع */
+  imgSrc: (dataUrl: string) => string | null
+  /** خلفية المشروع الثابتة (assets/bg) أو null إن لا خلفية */
+  pageBg: { src: string; overlay: string } | null
   /** معرّف الصفحة الجاري عرضها (لأهداف الأزرار الذكية) */
   pageId: string
 }
@@ -1378,8 +1628,38 @@ function sectionHeading(title: string, subtitle: string): string {
   return `<div class="blk-heading">${title ? `<h2>${esc(title)}</h2>` : ''}${subtitle ? `<p>${esc(subtitle)}</p>` : ''}</div>`
 }
 
-function sectionWrap(inner: string, tight = false, id = ''): string {
-  return `<section${id ? ` id="${esc(id)}"` : ''} class="blk-section${tight ? ' blk-section--tight' : ''}"><div class="blk-section__inner">${inner}</div></section>`
+function sectionWrap(inner: string, tight = false, id = '', bg: SectionBg = EMPTY_SECTION_BG): string {
+  return `<section${id ? ` id="${esc(id)}"` : ''} class="blk-section${tight ? ' blk-section--tight' : ''}${bg.cls}"${bg.style}><div class="blk-section__inner">${inner}</div></section>`
+}
+
+/** خلفية صورة لقسم تسويقي (bgImage/bgOverlay) — نفس دلالات البطل (Task 9-b) */
+interface SectionBg {
+  cls: string
+  style: string
+}
+const EMPTY_SECTION_BG: SectionBg = { cls: '', style: '' }
+
+const SECTION_BG_OVERLAY_KINDS: ReadonlySet<string> = new Set(['dark', 'medium', 'light', 'none'])
+
+/** يقرأ bgImage/bgOverlay من خصائص القسم ويعيد صنف+نمط الخلفية (فارغ دون صورة) */
+function sectionBgOf(p: Record<string, unknown>, ctx: RenderCtx): SectionBg {
+  const bgImage = S(p, 'bgImage')
+  if (!bgImage.trim()) return EMPTY_SECTION_BG
+  const src = ctx.imgSrc(bgImage)
+  if (!src) return EMPTY_SECTION_BG
+  const overlayRaw = S(p, 'bgOverlay')
+  const overlay = SECTION_BG_OVERLAY_KINDS.has(overlayRaw) ? overlayRaw : 'dark'
+  const layers = overlay === 'none' ? '' : `${HERO_OVERLAY_GRADIENTS[overlay]},`
+  const cls =
+    overlay === 'light'
+      ? ' blk-section--onimage blk-section--onimage-light'
+      : overlay === 'none'
+        ? ' blk-section--onimage blk-section--onimage-none'
+        : ' blk-section--onimage'
+  return {
+    cls,
+    style: ` style="background-image:${layers}url('${esc(src)}');background-size:cover;background-position:center"`,
+  }
 }
 
 // ============================================================
@@ -1425,29 +1705,29 @@ function renderBlock(block: Block, ctx: RenderCtx): string {
     case 'hero':
       return renderHero(p, ctx)
     case 'features':
-      return renderFeatures(p)
+      return renderFeatures(p, ctx)
     case 'stats':
-      return renderStats(p)
+      return renderStats(p, ctx)
     case 'steps':
-      return renderSteps(p)
+      return renderSteps(p, ctx)
     case 'pricing':
       return renderPricing(p, ctx)
     case 'testimonials':
-      return renderTestimonials(p)
+      return renderTestimonials(p, ctx)
     case 'faq':
-      return renderFaq(p)
+      return renderFaq(p, ctx)
     case 'cta':
       return renderCta(p, ctx)
     case 'contact-form':
       return renderContactForm(p)
     case 'gallery':
-      return renderGallery(p)
+      return renderGallery(p, ctx)
     case 'banner':
       return renderBanner(p, ctx)
     case 'list':
       return renderList(p)
     case 'team':
-      return renderTeam(p)
+      return renderTeam(p, ctx)
     case 'auth-card':
       return renderAuthCard(p, ctx)
     case 'dashboard-header':
@@ -1486,65 +1766,333 @@ function renderBlock(block: Block, ctx: RenderCtx): string {
 }
 
 // ---------- hero ----------
-const HERO_DASH_BARS: number[] = [38, 62, 45, 78, 56, 88, 70]
-const PHONE_BARS: number[] = [40, 65, 50, 80, 60, 90]
 const LEAD_SOCIAL_NAMES: string[] = ['أحمد بن علي', 'سارة بوزيد', 'ياسين مراد']
 
-/** الرسم المجرد لواجهة لوحة تحكم (كما في السابق) */
-function heroDashboardVisualHtml(): string {
-  const barsHtml = HERO_DASH_BARS.map((h, i) => {
-    const color = i % 3 === 0 ? 'var(--pt-accent)' : 'var(--pt-primary)'
-    const opacity = 0.45 + (i / HERO_DASH_BARS.length) * 0.55
-    return `<span class="blk-hero__bar" style="height:${h}%;background:${color};opacity:${opacity.toFixed(2)}"></span>`
-  }).join('')
+/** أنواع الرسم الجانبي (عقد R9 المشترك مع عارض React) */
+const HERO_VISUAL_KINDS: ReadonlySet<string> = new Set([
+  'dashboard', 'phone', 'video', 'form', 'analytics', 'orders', 'chat', 'calendar', 'testimonial', 'none',
+])
+/** رسوم جانبية في التخطيط المقسّم */
+const SIDE_VISUAL_KINDS: ReadonlySet<string> = new Set([
+  'dashboard', 'phone', 'video', 'analytics', 'orders', 'chat', 'calendar', 'testimonial',
+])
+/** ما يُكدَّس أسفل النص في التخطيط الموسّط (قاعدة قائمة) */
+const STACK_VISUAL_KINDS: ReadonlySet<string> = new Set(['phone', 'video'])
 
-  return `<div class="blk-hero__visual" role="img" aria-label="رسم توضيحي لواجهة المنتج">
+/** عدّاد معرّفات فريدة لمنحنيات الرسوم التوضيحية */
+let MOCK_SEQ = 0
+
+/** منحنى SVG أملس (Catmull-Rom عبر smoothPath) للرسوم التوضيحية — بتلميح hover */
+function mockCurveSvg(
+  points: Array<{ label: string; value: number }>,
+  o: { w: number; h: number; padX: number; padTop: number; padBottom: number; grid: number; strokeW: number; visibleLabels: number[] }
+): string {
+  MOCK_SEQ += 1
+  const gid = `mock${MOCK_SEQ}`
+  const { w, h, padX, padTop, padBottom, grid, strokeW } = o
+  const areaW = w - padX * 2
+  const areaH = h - padTop - padBottom
+  const baseline = padTop + areaH
+  const values = points.map((p) => p.value)
+  const min = Math.min(...values)
+  const span = (Math.max(...values) - min) || 1
+  const pts = points.map((p, i) => ({
+    x: padX + (points.length > 1 ? (areaW / (points.length - 1)) * i : areaW / 2),
+    y: padTop + areaH * (1 - 0.08 - ((p.value - min) / span) * 0.84),
+  }))
+  const line = smoothPath(pts)
+  const area = `${line} L${pts[pts.length - 1].x.toFixed(2)},${baseline} L${pts[0].x.toFixed(2)},${baseline} Z`
+
+  let svg = `<svg viewBox="0 0 ${w} ${h}" aria-hidden="true" focusable="false">`
+  svg += `<defs><linearGradient id="area-${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" style="stop-color:var(--pt-primary);stop-opacity:.28"/><stop offset="100%" style="stop-color:var(--pt-primary);stop-opacity:.02"/></linearGradient></defs>`
+  for (let i = 1; i <= grid; i++) {
+    const y = padTop + areaH * (i / (grid + 1))
+    svg += `<line x1="${padX}" y1="${y.toFixed(1)}" x2="${w - padX}" y2="${y.toFixed(1)}" style="stroke:var(--pt-border);stroke-width:1;stroke-dasharray:4 6"/>`
+  }
+  svg += `<path d="${area}" class="pt-anim-area" style="fill:url(#area-${gid})"/>`
+  svg += `<path d="${line}" pathLength="1" class="pt-anim-line" style="fill:none;stroke:var(--pt-primary);stroke-width:${strokeW};stroke-linecap:round"/>`
+  points.forEach((p, i) => {
+    const tip = `${esc(p.label)}: ${esc(p.value.toLocaleString('en-US'))}`
+    svg += `<g data-tip="${tip}"><circle cx="${pts[i].x.toFixed(1)}" cy="${pts[i].y.toFixed(1)}" r="3.5" style="fill:#fff;stroke:var(--pt-primary);stroke-width:2"/><circle cx="${pts[i].x.toFixed(1)}" cy="${pts[i].y.toFixed(1)}" r="13" fill="transparent" data-tip="${tip}"/></g>`
+  })
+  for (const i of o.visibleLabels) {
+    if (!points[i]) continue
+    svg += `<text x="${pts[i].x.toFixed(1)}" y="${h - 5}" text-anchor="middle" style="fill:var(--pt-muted);font-size:9.5px">${esc(points[i].label)}</text>`
+  }
+  svg += '</svg>'
+  return svg
+}
+
+/** موك لوحة تحكم واقعية: نافذة بشريط علوي + شريط جانبي + مؤشرات ومنحنى وطلبات */
+const DASH_CURVE: Array<{ label: string; value: number }> = [
+  { label: 'جانفي', value: 32 },
+  { label: 'فيفري', value: 45 },
+  { label: 'مارس', value: 38 },
+  { label: 'أفريل', value: 56 },
+  { label: 'ماي', value: 50 },
+  { label: 'جوان', value: 68 },
+  { label: 'جويلية', value: 82 },
+]
+const DASH_ORDERS: Array<{ name: string; status: string; tone: string; amount: string }> = [
+  { name: 'أحمد بن علي', status: 'جديد', tone: 'warning', amount: '12,500 دج' },
+  { name: 'سارة بوزيد', status: 'مكتمل', tone: 'success', amount: '8,200 دج' },
+  { name: 'ياسين مراد', status: 'قيد المعالجة', tone: 'warning', amount: '24,300 دج' },
+]
+
+function heroDashboardVisualHtml(): string {
+  const navRows = [
+    { label: 'لوحة التحكم', icon: 'home', active: true },
+    { label: 'الطلبات', icon: 'shopping-bag', active: false },
+    { label: 'العملاء', icon: 'users', active: false },
+    { label: 'الإعدادات', icon: 'settings', active: false },
+  ]
+    .map(
+      (r) =>
+        `<span class="pt-mock-nav${r.active ? ' pt-mock-nav--active' : ''}">${iconSvg(r.icon, 13)}<span>${esc(r.label)}</span></span>`
+    )
+    .join('')
+  const kpis = [
+    { label: 'الإيرادات', value: '3.4م دج', change: '+12.5%' },
+    { label: 'الطلبات', value: '1,248', change: '+8.2%' },
+    { label: 'العملاء', value: '5,880', change: '+4.6%' },
+  ]
+    .map((k) => `<div class="pt-mock-kpi"><span>${esc(k.label)}</span><b>${esc(k.value)}</b>${badgeHtml(k.change, 'success')}</div>`)
+    .join('')
+  const orders = DASH_ORDERS.map(
+    (o) =>
+      `<div class="pt-mock-row">${avatarHtml(o.name, 26)}<div class="pt-mock-row__body"><p class="pt-mock-row__name">${esc(o.name)}</p></div>${badgeHtml(o.status, o.tone)}<span class="pt-mock-row__amount">${esc(o.amount)}</span></div>`
+  ).join('')
+
+  return `<div class="blk-hero__visual" role="img" aria-label="رسم توضيحي لواجهة لوحة تحكم — إيرادات وطلبات عملاء">
   <span class="blk-hero__glow1" aria-hidden="true"></span>
   <span class="blk-hero__glow2" aria-hidden="true"></span>
-  <div class="blk-hero__panel">
-    <div class="blk-hero__dots" aria-hidden="true">
-      <span class="blk-hero__dot" style="background:var(--pt-primary)"></span>
-      <span class="blk-hero__dot" style="background:var(--pt-accent);opacity:.6"></span>
-      <span class="blk-hero__dot" style="background:var(--pt-border);opacity:.4"></span>
-      <span class="blk-hero__line"></span>
+  <div class="pt-mock pt-mock-dash" aria-hidden="true">
+    <div class="pt-mock-dash__topbar">
+      <span class="pt-mock-dots"><span></span><span></span><span></span></span>
+      <span class="pt-mock-dash__addr" dir="ltr">app.example.dz</span>
+      <span class="pt-mock-dash__bell">${iconSvg('bell', 14)}<span class="pt-mock-dash__belldot"></span></span>
     </div>
-    <div class="blk-hero__ministats" aria-hidden="true">
-      ${[0, 1, 2]
-        .map(
-          (i) => `<div class="blk-hero__ministat"><span class="blk-hero__minibar"></span><span class="blk-hero__minival" style="width:${70 - i * 12}%;background:${i === 0 ? 'var(--pt-primary)' : 'var(--pt-border)'}"></span></div>`
-        )
-        .join('')}
+    <div class="pt-mock-dash__body">
+      <div class="pt-mock-dash__side">
+        <span class="pt-mock-dash__brand"><i></i><b>لوحتي</b></span>
+        ${navRows}
+      </div>
+      <div class="pt-mock-dash__main">
+        <div class="pt-mock-kpis">${kpis}</div>
+        <div class="pt-mock-chart">${mockCurveSvg(DASH_CURVE, { w: 340, h: 128, padX: 12, padTop: 12, padBottom: 20, grid: 2, strokeW: 2.5, visibleLabels: [0, 2, 4] })}</div>
+        <div class="pt-mock-rows">${orders}</div>
+      </div>
     </div>
-    <div class="blk-hero__bars" aria-hidden="true">${barsHtml}</div>
-    <div class="blk-hero__skel" aria-hidden="true"><span></span><span></span></div>
+  </div>
+  <div class="pt-mock-chip--float" aria-hidden="true">
+    <span class="pt-mock-chip__dot"></span>
+    <span class="pt-mock-chip__text"><b>طلب جديد من وهران</b><span>12,500 دج — قبل دقيقتين</span></span>
   </div>
 </div>`
 }
 
-/** موك هاتف يعرض واجهة تطبيق مصغّرة (visual = phone) */
+/** موك هاتف واقعي: حالة النظام + رصيد متدرج + إجراءات + مخطط أعمدة + حركات */
+const PHONE_BARS_PCT: number[] = [40, 65, 50, 80, 60, 90]
+
 function heroPhoneVisualHtml(): string {
-  const barsHtml = PHONE_BARS.map((h, i) => {
-    const color = i % 2 === 0 ? 'var(--pt-primary)' : 'var(--pt-accent)'
-    const opacity = 0.5 + (i / PHONE_BARS.length) * 0.5
-    return `<span class="pt-phone__chart-bar" style="height:${h}%;background:${color};opacity:${opacity.toFixed(2)}"></span>`
-  }).join('')
-  return `<div class="blk-hero__visual pt-phone-wrap" role="img" aria-label="موك هاتف يعرض واجهة التطبيق">
+  const bars = PHONE_BARS_PCT.map(
+    (p, i) => `<span class="pt-mock-phone__bar pt-anim-bar" style="height:${p}%;animation-delay:${160 + i * 70}ms"></span>`
+  ).join('')
+  const actions = [
+    { label: 'تحويل', icon: 'send' },
+    { label: 'طلب', icon: 'shopping-bag' },
+    { label: 'فواتير', icon: 'file-text' },
+    { label: 'المزيد', icon: 'more-horizontal' },
+  ]
+    .map((a) => `<span class="pt-mock-phone__action"><i>${iconSvg(a.icon, 15)}</i><span>${esc(a.label)}</span></span>`)
+    .join('')
+  const tabs = [
+    { label: 'الرئيسية', icon: 'home', active: true },
+    { label: 'الطلبات', icon: 'shopping-bag', active: false },
+    { label: 'الرسائل', icon: 'message-circle', active: false },
+    { label: 'الحساب', icon: 'user', active: false },
+  ]
+    .map((t) => `<span class="pt-mock-tab${t.active ? ' pt-mock-tab--active' : ''}">${iconSvg(t.icon, 15)}<span>${esc(t.label)}</span></span>`)
+    .join('')
+  const txs = [
+    { name: 'أحمد بن علي', sub: 'تحويل صادر', amount: '−2,400 دج', incoming: false },
+    { name: 'سارة بوزيد', sub: 'طلب جديد', amount: '+12,500 دج', incoming: true },
+  ]
+    .map(
+      (t) =>
+        `<div class="pt-mock-tx">${avatarHtml(t.name, 26)}<div class="pt-mock-tx__body"><p class="pt-mock-tx__name">${esc(t.name)}</p><p class="pt-mock-tx__sub">${esc(t.sub)}</p></div><span class="pt-mock-tx__amt${t.incoming ? ' pt-mock-tx__amt--in' : ''}">${esc(t.amount)}</span></div>`
+    )
+    .join('')
+
+  return `<div class="blk-hero__visual pt-mock-phone-wrap" role="img" aria-label="موك هاتف يعرض واجهة تطبيق — رصيد وإجراءات سريعة وحركات مالية">
   <span class="blk-hero__glow1" aria-hidden="true"></span>
   <span class="blk-hero__glow2" aria-hidden="true"></span>
-  <div class="pt-phone" aria-hidden="true">
-    <span class="pt-phone__notch"></span>
-    <div class="pt-phone__header">
-      <span class="pt-phone__avatar"></span>
-      <span class="pt-phone__lines"><span class="pt-phone__line" style="width:55%"></span><span class="pt-phone__line" style="width:34%"></span></span>
+  <div class="pt-mock-phone" aria-hidden="true">
+    <div class="pt-mock-phone__status" dir="ltr"><span>9:41</span><span class="pt-mock-phone__status-icons">${iconSvg('signal', 12)}${iconSvg('wifi', 12)}${iconSvg('battery', 14)}</span></div>
+    <span class="pt-mock-phone__notch"></span>
+    <div class="pt-mock-phone__head">
+      ${avatarHtml('س', 30)}
+      <div class="pt-mock-phone__hi"><b>صباح الخير، سارة</b><span>إليك ملخص اليوم</span></div>
+      <span class="pt-mock-phone__bell">${iconSvg('bell', 15)}<span class="pt-mock-phone__belldot"></span></span>
     </div>
-    <div class="pt-phone__stats">
-      <span class="pt-phone__stat"><span class="pt-phone__stat-bar" style="width:70%"></span><span class="pt-phone__stat-val" style="width:52%"></span></span>
-      <span class="pt-phone__stat"><span class="pt-phone__stat-bar" style="width:56%"></span><span class="pt-phone__stat-val" style="width:64%"></span></span>
+    <div class="pt-mock-phone__balance">
+      <span>الرصيد الحالي</span>
+      <b>248,500 دج</b>
+      <span class="pt-mock-phone__bchip">+12.5% هذا الشهر</span>
     </div>
-    <div class="pt-phone__chart">${barsHtml}</div>
-    <span class="pt-phone__cta"></span>
+    <div class="pt-mock-phone__actions">${actions}</div>
+    <div class="pt-mock-phone__chart">
+      <div class="pt-mock-phone__chart-title"><b>آخر 7 أيام</b><span>دج</span></div>
+      <div class="pt-mock-phone__bars">${bars}</div>
+    </div>
+    <div class="pt-mock-phone__txs">${txs}</div>
+    <div class="pt-mock-phone__tabs">${tabs}</div>
+    <span class="pt-mock-phone__homebar"></span>
   </div>
 </div>`
+}
+
+/** بطاقة تحليلات: منحنى أداء كبير + 3 مؤشرات */
+const ANALYTICS_CURVE: Array<{ label: string; value: number }> = [
+  { label: 'يوم 3', value: 18 },
+  { label: 'يوم 6', value: 26 },
+  { label: 'يوم 9', value: 22 },
+  { label: 'يوم 12', value: 34 },
+  { label: 'يوم 15', value: 46 },
+  { label: 'يوم 18', value: 58 },
+  { label: 'يوم 21', value: 66 },
+  { label: 'يوم 24', value: 78 },
+  { label: 'يوم 27', value: 86 },
+  { label: 'يوم 30', value: 94 },
+]
+
+function heroAnalyticsVisualHtml(): string {
+  const chips = [
+    { label: 'النمو', value: '+12.5%', up: true },
+    { label: 'معدل التحويل', value: '3.8%', up: false },
+    { label: 'متوسط الطلب', value: '4,200 دج', up: false },
+  ]
+    .map((c) => `<div class="pt-mock-chipstat${c.up ? ' pt-mock-chipstat--up' : ''}"><span>${esc(c.label)}</span><b>${esc(c.value)}</b></div>`)
+    .join('')
+  return `<div class="blk-hero__visual" role="img" aria-label="بطاقة تقرير أداء — منحنى نمو صاعد ومؤشرات رئيسية">
+  <span class="blk-hero__glow1" aria-hidden="true"></span>
+  <span class="blk-hero__glow2" aria-hidden="true"></span>
+  <div class="pt-mock pt-mock-analytics" aria-hidden="true">
+    <div class="pt-mock-analytics__head"><b>تقرير الأداء</b>${badgeHtml('آخر 30 يوماً', 'primary')}</div>
+    <div class="pt-mock-chart-lg">${mockCurveSvg(ANALYTICS_CURVE, { w: 520, h: 180, padX: 14, padTop: 18, padBottom: 16, grid: 4, strokeW: 3, visibleLabels: [] })}</div>
+    <div class="pt-mock-chips">${chips}</div>
+  </div>
+</div>`
+}
+
+/** بطاقة أحدث الطلبات: 5 صفوف بمدن وحالات ومبالغ */
+const MOCK_ORDERS: Array<{ name: string; city: string; status: string; tone: string; amount: string; date: string }> = [
+  { name: 'أحمد بن علي', city: 'الجزائر', status: 'مكتمل', tone: 'success', amount: '12,500 دج', date: 'اليوم 10:24' },
+  { name: 'سارة بوزيد', city: 'وهران', status: 'جديد', tone: 'warning', amount: '8,200 دج', date: 'اليوم 09:51' },
+  { name: 'ياسين مراد', city: 'قسنطينة', status: 'قيد المعالجة', tone: 'warning', amount: '24,300 دج', date: 'أمس 18:05' },
+  { name: 'ليلى مزيان', city: 'سطيف', status: 'مكتمل', tone: 'success', amount: '5,900 دج', date: 'أمس 14:32' },
+  { name: 'محمد قادري', city: 'عنابة', status: 'ملغى', tone: 'danger', amount: '15,700 دج', date: 'أمس 11:18' },
+]
+
+function heroOrdersVisualHtml(): string {
+  const rows = MOCK_ORDERS.map(
+    (o) =>
+      `<div class="pt-mock-order">${avatarHtml(o.name, 32)}<div class="pt-mock-order__body"><p class="pt-mock-order__name">${esc(o.name)}</p><p class="pt-mock-order__city">${esc(o.city)}</p></div>${badgeHtml(o.status, o.tone)}<div class="pt-mock-order__end"><span class="pt-mock-order__amount">${esc(o.amount)}</span><span class="pt-mock-order__date">${esc(o.date)}</span></div></div>`
+  ).join('')
+  return `<div class="blk-hero__visual" role="img" aria-label="بطاقة أحدث الطلبات — خمسة طلبات بمدن جزائرية وحالات مختلفة">
+  <span class="blk-hero__glow1" aria-hidden="true"></span>
+  <span class="blk-hero__glow2" aria-hidden="true"></span>
+  <div class="pt-mock pt-mock-orders" aria-hidden="true">
+    <div class="pt-mock-orders__head"><b>أحدث الطلبات</b></div>
+    <div class="pt-mock-orders__list">${rows}</div>
+    <div class="pt-mock-orders__foot"><span class="pt-mock-chipnote">${iconSvg('package', 13)}<span>5 طلبات جديدة هذا الأسبوع</span></span></div>
+  </div>
+</div>`
+}
+
+/** بطاقة محادثة دعم: فقاعات + مؤشر كتابة + شريط إدخال */
+function heroChatVisualHtml(): string {
+  return `<div class="blk-hero__visual" role="img" aria-label="بطاقة محادثة دعم — رسائل واردة وصادرة ومؤشر كتابة">
+  <span class="blk-hero__glow1" aria-hidden="true"></span>
+  <span class="blk-hero__glow2" aria-hidden="true"></span>
+  <div class="pt-mock pt-mock-chat" aria-hidden="true">
+    <div class="pt-mock-chat__head">
+      ${avatarHtml('د', 36)}
+      <div class="pt-mock-chat__who"><b>فريق الدعم</b><span class="pt-mock-chat__status"><i></i>متصل الآن</span></div>
+    </div>
+    <div class="pt-mock-chat__body">
+      <div class="pt-mock-bubble pt-mock-bubble--in"><span class="pt-mock-bubble__who">سارة</span>السلام عليكم، متى يصل طلبي؟</div>
+      <div class="pt-mock-bubble pt-mock-bubble--out">وصل طلبك إلى مركز التوزيع — سيصلك غداً إن شاء الله</div>
+      <div class="pt-mock-typing"><span></span><span></span><span></span></div>
+    </div>
+    <div class="pt-mock-chat__input">
+      <span class="pt-mock-chat__placeholder">اكتب رسالتك...</span>
+      <span class="pt-mock-chat__send">${iconSvg('send', 15)}</span>
+    </div>
+  </div>
+</div>`
+}
+
+/** بطاقة تقويم: ديسمبر 2024 — اليوم 12 دائرة primary و3 نقاط مواعيد */
+function heroCalendarVisualHtml(): string {
+  const weekdays = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
+    .map((d) => `<span class="pt-mock-cal__wd">${esc(d)}</span>`)
+    .join('')
+  const dotDays = new Set([3, 18, 25])
+  const days = Array.from({ length: 31 }, (_, i) => i + 1)
+    .map((d) => {
+      const cls = `pt-mock-cal__day${d === 12 ? ' pt-mock-cal__day--today' : ''}${dotDays.has(d) ? ' pt-mock-cal__day--dot' : ''}`
+      return `<span class="${cls}">${d}</span>`
+    })
+    .join('')
+  return `<div class="blk-hero__visual" role="img" aria-label="بطاقة تقويم ديسمبر 2024 — اليوم 12 وثلاثة مواعيد ملونة">
+  <span class="blk-hero__glow1" aria-hidden="true"></span>
+  <span class="blk-hero__glow2" aria-hidden="true"></span>
+  <div class="pt-mock pt-mock-cal" aria-hidden="true">
+    <div class="pt-mock-cal__head">
+      <b>ديسمبر 2024</b>
+      <span class="pt-mock-cal__navs">
+        <span class="pt-mock-cal__nav">${iconSvg('chevron-right', 14)}</span>
+        <span class="pt-mock-cal__nav">${iconSvg('chevron-left', 14)}</span>
+      </span>
+    </div>
+    <div class="pt-mock-cal__body">
+      <div class="pt-mock-cal__week">${weekdays}</div>
+      <div class="pt-mock-cal__days">${days}</div>
+    </div>
+    <div class="pt-mock-cal__foot"><span class="pt-mock-chipnote">${iconSvg('calendar', 13)}<span>3 مواعيد هذا الأسبوع</span></span></div>
+  </div>
+</div>`
+}
+
+/** بطاقة رأي عميل: اقتباس كبير + 5 نجوم + شخص موثّق */
+function heroTestimonialVisualHtml(): string {
+  return `<div class="blk-hero__visual" role="img" aria-label="بطاقة رأي عميل — تقييم خمس نجوم واقتباس توصي بالمنصة">
+  <span class="blk-hero__glow1" aria-hidden="true"></span>
+  <span class="blk-hero__glow2" aria-hidden="true"></span>
+  <div class="pt-mock pt-mock-quote" aria-hidden="true">
+    <span class="pt-mock-quote__glyph">”</span>
+    <div class="pt-mock-quote__stars">★★★★★</div>
+    <p class="pt-mock-quote__text">«وفّرت علينا المنصة أسابيع من العمل — تجربة ممتازة من البداية للنهاية.»</p>
+    <div class="pt-mock-quote__person">
+      ${avatarHtml('أحمد بن علي', 44)}
+      <div class="pt-mock-quote__who"><b>أحمد بن علي</b><span>مدير تقنية — شركة ناشئة</span></div>
+      <span class="pt-mock-verified">${iconSvg('check', 12)}<span>عميل موثّق</span></span>
+    </div>
+  </div>
+</div>`
+}
+
+/** خريطة مولدات الرسوم الجانبية حسب نوع visual */
+const HERO_VISUAL_RENDERERS: Record<string, () => string> = {
+  dashboard: heroDashboardVisualHtml,
+  phone: heroPhoneVisualHtml,
+  video: heroVideoVisualHtml,
+  analytics: heroAnalyticsVisualHtml,
+  orders: heroOrdersVisualHtml,
+  chat: heroChatVisualHtml,
+  calendar: heroCalendarVisualHtml,
+  testimonial: heroTestimonialVisualHtml,
 }
 
 /** بطاقة فيديو 16:9 بزر تشغيل حقيقي يتبدّل + موجة صوت (visual = video) */
@@ -1602,17 +2150,18 @@ function renderHero(p: Record<string, unknown>, ctx: RenderCtx): string {
     ? S(p, 'background')
     : 'default'
   const align = S(p, 'align', 'start') === 'center' ? 'center' : 'start'
-  const visual = (['dashboard', 'phone', 'video', 'form', 'none'] as const).includes(S(p, 'visual') as 'dashboard')
-    ? S(p, 'visual')
-    : 'dashboard'
+  // أنواع الرسم الجانبي (عقد R9): + analytics/orders/chat/calendar/testimonial
+  const visualRaw = S(p, 'visual')
+  const visual = HERO_VISUAL_KINDS.has(visualRaw) ? visualRaw : 'dashboard'
   const titleSize = (['md', 'lg', 'xl'] as const).includes(S(p, 'titleSize') as 'md') ? S(p, 'titleSize') : 'md'
 
-  // ---- خلفية الصورة المرفوعة (Task 8): تُكتب كملف داخل الحزمة ----
+  // ---- خلفية الصورة المرفوعة: ملف assets/img-{n} داخل الحزمة (لا data URL) ----
   const bgImage = S(p, 'bgImage')
   const bgOverlay = (['dark', 'medium', 'light', 'none'] as const).includes(S(p, 'bgOverlay') as 'dark')
     ? S(p, 'bgOverlay')
     : 'dark'
-  const hasImage = bgImage.trim() !== '' && !!ctx.heroBg
+  const heroSrc = bgImage.trim() !== '' ? ctx.imgSrc(bgImage) : null
+  const hasImage = heroSrc !== null
   const dark = hasImage ? bgOverlay !== 'light' : background === 'dark' || background === 'gradient'
 
   // ---- الأزرار: أهداف ذكية دائماً (نفس عقد عارض React / nav-targets) ----
@@ -1630,19 +2179,13 @@ function renderHero(p: Record<string, unknown>, ctx: RenderCtx): string {
       ? `<div class="blk-hero__actions">${primaryButton ? `<a class="pt-btn pt-btn--primary pt-btn--lg" href="${esc(primaryHref)}">${esc(primaryButton)}</a>` : ''}${secondaryButton ? `<a class="pt-btn pt-btn--${dark ? 'on-dark' : 'outline'} pt-btn--lg" href="${esc(secondaryHref)}">${esc(secondaryButton)}</a>` : ''}</div>`
       : ''
 
-  // الرسم الجانبي: فقط في التخطيط المقسّم (dashboard/phone/video)
-  const hasSideVisual = layout === 'split' && (visual === 'dashboard' || visual === 'phone' || visual === 'video')
-  // في التخطيط الموسّط نعرض الهاتف/الفيديو أسفل النص (مطابق لمنطق عارض React)
-  const hasStackedVisual = layout === 'centered' && (visual === 'phone' || visual === 'video')
+  // الرسم الجانبي: كل الأنواع البصرية في التخطيط المقسّم (عقد R9)
+  const hasSideVisual = layout === 'split' && SIDE_VISUAL_KINDS.has(visual)
+  // في التخطيط الموسّط نعرض الهاتف/الفيديو أسفل النص (قاعدة قائمة)
+  const hasStackedVisual = layout === 'centered' && STACK_VISUAL_KINDS.has(visual)
   const centeredCol = !hasSideVisual
-  const visualHtml =
-    hasSideVisual || hasStackedVisual
-      ? visual === 'phone'
-        ? heroPhoneVisualHtml()
-        : visual === 'video'
-          ? heroVideoVisualHtml()
-          : heroDashboardVisualHtml()
-      : ''
+  const renderVisual = HERO_VISUAL_RENDERERS[visual]
+  const visualHtml = (hasSideVisual || hasStackedVisual) && renderVisual ? renderVisual() : ''
 
   const textCol = `<div class="blk-hero__text" style="${align === 'center' ? 'text-align:center' : ''}">
   ${eyebrow ? `<span class="pt-eyebrow${dark ? ' pt-eyebrow--dark' : ''}">${esc(eyebrow)}</span>` : ''}
@@ -1654,7 +2197,7 @@ function renderHero(p: Record<string, unknown>, ctx: RenderCtx): string {
 
   let inner: string
   if (hasSideVisual) {
-    inner = `<div class="blk-hero__split">${textCol}<div style="flex:1;min-width:0">${visualHtml}</div></div>`
+    inner = `<div class="blk-hero__split">${textCol}<div class="blk-hero__viscol">${visualHtml}</div></div>`
   } else if (hasStackedVisual) {
     inner = `${textCol}<div class="blk-hero__stack">${visualHtml}</div>`
   } else {
@@ -1662,9 +2205,8 @@ function renderHero(p: Record<string, unknown>, ctx: RenderCtx): string {
   }
 
   // خلفية الصورة: تدرّج الغطاء + الصورة (مسار الملف داخل الحزمة — لا data URL في HTML)
-  const heroSrc = ctx.heroBg?.src ?? ''
   const heroStyle = hasImage
-    ? ` style="background-image:${HERO_OVERLAY_GRADIENTS[bgOverlay] ? `${HERO_OVERLAY_GRADIENTS[bgOverlay]},` : ''}url('${esc(heroSrc)}');background-size:cover;background-position:center"`
+    ? ` style="background-image:${HERO_OVERLAY_GRADIENTS[bgOverlay] ? `${HERO_OVERLAY_GRADIENTS[bgOverlay]},` : ''}url('${esc(heroSrc ?? '')}');background-size:cover;background-position:center"`
     : ''
   const heroClass = `blk-hero blk-hero--${esc(background)}${hasImage ? ' blk-hero--image blk-hero--image-' + (bgOverlay === 'light' ? 'light' : 'dark') : ''}${hasImage && bgOverlay === 'none' ? ' blk-hero--image-none' : ''}`
 
@@ -1672,11 +2214,12 @@ function renderHero(p: Record<string, unknown>, ctx: RenderCtx): string {
 }
 
 // ---------- features ----------
-function renderFeatures(p: Record<string, unknown>): string {
+function renderFeatures(p: Record<string, unknown>, ctx: RenderCtx): string {
   const title = S(p, 'title')
   const subtitle = S(p, 'subtitle')
   const columns = Math.max(1, Math.min(4, Math.round(N(p, 'columns', 3))))
   const items = L(p, 'items')
+  const bg = sectionBgOf(p, ctx)
   const cards = items
     .map((item) => {
       const t = iS(item, 'title')
@@ -1692,14 +2235,16 @@ function renderFeatures(p: Record<string, unknown>): string {
   return sectionWrap(
     `${sectionHeading(title, subtitle)}<div class="blk-features__grid" style="--cols:${columns}">${cards}</div>`,
     false,
-    'features'
+    'features',
+    bg
   )
 }
 
 // ---------- stats ----------
-function renderStats(p: Record<string, unknown>): string {
+function renderStats(p: Record<string, unknown>, ctx: RenderCtx): string {
   const title = S(p, 'title')
   const items = L(p, 'items')
+  const bg = sectionBgOf(p, ctx)
   const cells = items
     .map((item) => {
       const label = iS(item, 'label')
@@ -1713,13 +2258,14 @@ function renderStats(p: Record<string, unknown>): string {
     })
     .join('')
   const heading = title ? `<div class="blk-heading" style="padding-block:0 0;margin-bottom:20px"><h2 style="font-size:20px">${esc(title)}</h2></div>` : ''
-  return `<section class="blk-stats"><div class="blk-section__inner">${heading}<div class="blk-stats__grid">${cells}</div></div></section>`
+  return `<section class="blk-stats${bg.cls}"${bg.style}><div class="blk-section__inner">${heading}<div class="blk-stats__grid">${cells}</div></div></section>`
 }
 
 // ---------- steps ----------
-function renderSteps(p: Record<string, unknown>): string {
+function renderSteps(p: Record<string, unknown>, ctx: RenderCtx): string {
   const title = S(p, 'title')
   const subtitle = S(p, 'subtitle')
+  const bg = sectionBgOf(p, ctx)
   const steps = L(p, 'steps')
   const items = steps
     .map((step, i) => {
@@ -1732,7 +2278,7 @@ function renderSteps(p: Record<string, unknown>): string {
     </li>`
     })
     .join('')
-  return sectionWrap(`${sectionHeading(title, subtitle)}<ol class="blk-steps__list">${items}</ol>`)
+  return sectionWrap(`${sectionHeading(title, subtitle)}<ol class="blk-steps__list">${items}</ol>`, false, '', bg)
 }
 
 // ---------- pricing ----------
@@ -1771,8 +2317,9 @@ function renderPricing(p: Record<string, unknown>, ctx: RenderCtx): string {
 }
 
 // ---------- testimonials ----------
-function renderTestimonials(p: Record<string, unknown>): string {
+function renderTestimonials(p: Record<string, unknown>, ctx: RenderCtx): string {
   const title = S(p, 'title')
+  const bg = sectionBgOf(p, ctx)
   const items = L(p, 'items')
   const cards = items
     .map((item) => {
@@ -1791,13 +2338,14 @@ function renderTestimonials(p: Record<string, unknown>): string {
     </article>`
     })
     .join('')
-  return sectionWrap(`${sectionHeading(title, '')}<div class="blk-testimonials__grid">${cards}</div>`, false, 'testimonials')
+  return sectionWrap(`${sectionHeading(title, '')}<div class="blk-testimonials__grid">${cards}</div>`, false, 'testimonials', bg)
 }
 
 // ---------- faq ----------
-function renderFaq(p: Record<string, unknown>): string {
+function renderFaq(p: Record<string, unknown>, ctx: RenderCtx): string {
   const title = S(p, 'title')
   const subtitle = S(p, 'subtitle')
+  const bg = sectionBgOf(p, ctx)
   const items = L(p, 'items')
   const list = items
     .map((item) => {
@@ -1806,7 +2354,7 @@ function renderFaq(p: Record<string, unknown>): string {
       return `<details class="blk-faq__item"><summary>${esc(q)}</summary><div class="blk-faq__answer">${esc(a)}</div></details>`
     })
     .join('')
-  return sectionWrap(`${sectionHeading(title, subtitle)}<div class="blk-faq__list">${list}</div>`, false, 'faq')
+  return sectionWrap(`${sectionHeading(title, subtitle)}<div class="blk-faq__list">${list}</div>`, false, 'faq', bg)
 }
 
 // ---------- cta ----------
@@ -1815,6 +2363,7 @@ function renderCta(p: Record<string, unknown>, ctx: RenderCtx): string {
   const subtitle = S(p, 'subtitle')
   const buttonText = S(p, 'buttonText')
   const style = (['default', 'gradient', 'dark'] as const).includes(S(p, 'style') as 'default') ? S(p, 'style') : 'default'
+  const bg = sectionBgOf(p, ctx)
   const targetId = ctaButtonTarget(ctx.schema)
   const targetHref = targetId ? ctx.hrefOf(targetId) : '#'
   return sectionWrap(
@@ -1823,7 +2372,9 @@ function renderCta(p: Record<string, unknown>, ctx: RenderCtx): string {
   ${subtitle ? `<p class="blk-cta__subtitle">${esc(subtitle)}</p>` : ''}
   ${buttonText ? `<div class="blk-cta__actions"><a class="pt-btn ${style === 'default' ? 'pt-btn--primary' : 'pt-btn--on-dark'} pt-btn--lg" href="${esc(targetHref)}">${esc(buttonText)}</a></div>` : ''}
 </div>`,
-    true
+    true,
+    '',
+    bg
   )
 }
 
@@ -1856,9 +2407,10 @@ const GALLERY_GRADIENTS: string[] = [
   'linear-gradient(135deg, var(--pt-accent), color-mix(in srgb, var(--pt-primary) 45%, #0d9488))',
 ]
 
-function renderGallery(p: Record<string, unknown>): string {
+function renderGallery(p: Record<string, unknown>, ctx: RenderCtx): string {
   const title = S(p, 'title')
   const subtitle = S(p, 'subtitle')
+  const bg = sectionBgOf(p, ctx)
   const items = L(p, 'items')
   const cards = items
     .map((item, i) => {
@@ -1873,9 +2425,18 @@ function renderGallery(p: Record<string, unknown>): string {
             ? 'warning'
             : 'primary'
       const letter = t.trim().charAt(0) || '؟'
+      // صورة مرفوعة للعنصر → ملف assets/img-{n} (لا data URL) — وإلا تدرّج رمزي
+      const itemImage = iS(item, 'image')
+      const photoSrc = itemImage.trim() !== '' ? ctx.imgSrc(itemImage) : null
+      const thumbInner = photoSrc
+        ? `<img class="blk-gallery__photo" src="${esc(photoSrc)}" alt="" loading="lazy">`
+        : `<span class="blk-gallery__letter" aria-hidden="true">${esc(letter)}</span>`
+      const thumbAttrs = photoSrc
+        ? ''
+        : ` style="background:${GALLERY_GRADIENTS[i % GALLERY_GRADIENTS.length]}" role="img" aria-label="صورة رمزية لـ ${esc(t)}"`
       return `<article class="blk-gallery__item">
-      <div class="blk-gallery__thumb" style="background:${GALLERY_GRADIENTS[i % GALLERY_GRADIENTS.length]}" role="img" aria-label="صورة رمزية لـ ${esc(t)}">
-        <span class="blk-gallery__letter" aria-hidden="true">${esc(letter)}</span>
+      <div class="blk-gallery__thumb"${thumbAttrs}>
+        ${thumbInner}
         ${badge ? `<span class="blk-gallery__badge">${badgeHtml(badge, tone)}</span>` : ''}
       </div>
       <div class="blk-gallery__body">
@@ -1888,7 +2449,7 @@ function renderGallery(p: Record<string, unknown>): string {
     </article>`
     })
     .join('')
-  return sectionWrap(`${sectionHeading(title, subtitle)}<div class="blk-gallery__grid">${cards}</div>`)
+  return sectionWrap(`${sectionHeading(title, subtitle)}<div class="blk-gallery__grid">${cards}</div>`, false, '', bg)
 }
 
 // ---------- banner ----------
@@ -1897,9 +2458,10 @@ function renderBanner(p: Record<string, unknown>, ctx: RenderCtx): string {
   const subtitle = S(p, 'subtitle')
   const buttonText = S(p, 'buttonText')
   const style = S(p, 'style') === 'dark' ? 'dark' : 'gradient'
+  const bg = sectionBgOf(p, ctx)
   const targetId = bannerButtonTarget(ctx.schema)
   const targetHref = targetId ? ctx.hrefOf(targetId) : '#'
-  return `<section class="blk-section blk-section--tight"><div class="blk-section__inner">
+  return `<section class="blk-section blk-section--tight${bg.cls}"${bg.style}><div class="blk-section__inner">
 <div class="blk-banner blk-banner--${esc(style)}"><div class="blk-banner__inner">
   <div>${title ? `<p class="blk-banner__title">${esc(title)}</p>` : ''}${subtitle ? `<p class="blk-banner__subtitle">${esc(subtitle)}</p>` : ''}</div>
   ${buttonText ? `<a class="pt-btn pt-btn--on-dark" href="${esc(targetHref)}">${esc(buttonText)}</a>` : ''}
@@ -1930,21 +2492,28 @@ function renderList(p: Record<string, unknown>): string {
 }
 
 // ---------- team ----------
-function renderTeam(p: Record<string, unknown>): string {
+function renderTeam(p: Record<string, unknown>, ctx: RenderCtx): string {
   const title = S(p, 'title')
+  const bg = sectionBgOf(p, ctx)
   const items = L(p, 'items')
   const cards = items
     .map((item) => {
       const name = iS(item, 'name')
       const role = iS(item, 'role')
+      // صورة مرفوعة للعضو → أفاتار صوري دائري (ملف assets/img-{n}) — وإلا أفاتار الحروف
+      const itemImage = iS(item, 'image')
+      const photoSrc = itemImage.trim() !== '' ? ctx.imgSrc(itemImage) : null
+      const mark = photoSrc
+        ? `<img class="blk-team__photo" src="${esc(photoSrc)}" alt="" loading="lazy">`
+        : avatarHtml(name, 56)
       return `<article class="blk-team__card">
-      ${avatarHtml(name, 56)}
+      ${mark}
       <p class="blk-team__name">${esc(name)}</p>
       <p class="blk-team__role">${esc(role)}</p>
     </article>`
     })
     .join('')
-  return sectionWrap(`${sectionHeading(title, '')}<div class="blk-team__grid">${cards}</div>`)
+  return sectionWrap(`${sectionHeading(title, '')}<div class="blk-team__grid">${cards}</div>`, false, '', bg)
 }
 
 // ---------- custom-html ----------
@@ -2661,6 +3230,11 @@ function htmlDocument(
     ? `${brand} — ${schema.metadata.description.slice(0, 70)}`
     : `${page.name} | ${brand}`
   const description = truncateText(page.subtitle || schema.metadata.description, 160)
+  // خلفية المشروع الثابتة: صنف على body + طبقة pt-pagebg كأول ابن (دون خلفية → بلا تغيير)
+  const bodyAttr = ctx.pageBg ? ` class="pt-hasbg pt-hasbg--${esc(ctx.pageBg.overlay)}"` : ''
+  const pageBgDiv = ctx.pageBg
+    ? `<div class="pt-pagebg" aria-hidden="true" style="background-image:url('${esc(ctx.pageBg.src)}')"></div>\n`
+    : ''
   return `<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
@@ -2680,8 +3254,8 @@ function htmlDocument(
 ${faviconLink(schema, ctx.logo)}
 <noscript><style>.pt-reveal{opacity:1;transform:none}</style></noscript>
 </head>
-<body>
-<a class="pt-skip" href="#pt-main">تخطَّ إلى المحتوى</a>
+<body${bodyAttr}>
+${pageBgDiv}<a class="pt-skip" href="#pt-main">تخطَّ إلى المحتوى</a>
 ${body}
 <div class="pt-demo-badge" aria-hidden="true">بيانات تجريبية</div>
 <script src="${esc(ctx.rel)}script.js"></script>
@@ -2703,9 +3277,24 @@ function pageHtml(
   rel: string,
   hrefOf: (pageId: string) => string,
   logo: { src: string; mime: string } | null,
-  heroBg: { src: string } | null
+  imgNames: Map<string, string>,
+  pageBg: { file: string | null; overlay: string }
 ): string {
-  const ctx: RenderCtx = { schema, rel, hrefOf, seq: { n: 0 }, logo, heroBg, pageId: page.id }
+  const ctx: RenderCtx = {
+    schema,
+    rel,
+    hrefOf,
+    seq: { n: 0 },
+    logo,
+    pageId: page.id,
+    // مسار نسبي لصورة مجمّعة (assets/img-{n}) من هذه الصفحة — أو null
+    imgSrc: (dataUrl: string) => {
+      const raw = typeof dataUrl === 'string' ? dataUrl : ''
+      const name = imgNames.get(raw) ?? imgNames.get(raw.trim())
+      return name ? `${rel}assets/${name}` : null
+    },
+    pageBg: pageBg.file ? { src: `${rel}assets/${pageBg.file}`, overlay: pageBg.overlay } : null,
+  }
   return htmlDocument(schema, page, shellFor(page, ctx), ctx)
 }
 
@@ -2716,9 +3305,14 @@ function notFoundHtml(
   schema: ProjectSchema,
   rel: string,
   homeHref: string,
-  logo: { src: string; mime: string } | null
+  logo: { src: string; mime: string } | null,
+  pageBg: { file: string | null; overlay: string } = { file: null, overlay: 'medium' }
 ): string {
   const brand = schema.navigation.brand || 'نموذج'
+  const bodyAttr = pageBg.file ? ` class="pt-hasbg pt-hasbg--${esc(pageBg.overlay)}"` : ''
+  const pageBgDiv = pageBg.file
+    ? `<div class="pt-pagebg" aria-hidden="true" style="background-image:url('${esc(rel)}assets/${esc(pageBg.file)})"></div>\n`
+    : ''
   return `<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
@@ -2734,8 +3328,8 @@ function notFoundHtml(
 <link rel="stylesheet" href="${esc(rel)}styles.css">
 ${faviconLink(schema, logo)}
 </head>
-<body>
-<a class="pt-skip" href="#pt-main">تخطَّ إلى المحتوى</a>
+<body${bodyAttr}>
+${pageBgDiv}<a class="pt-skip" href="#pt-main">تخطَّ إلى المحتوى</a>
 <main id="pt-main" class="pt-404">
   <p class="pt-404__code">404</p>
   <h1>الصفحة غير موجودة</h1>
@@ -2752,23 +3346,65 @@ ${faviconLink(schema, logo)}
 // نقطة الدخول — generateStaticSite
 // ============================================================
 
-/** أول كتلة بطل تحمل صورة خلفية صالحة → أصل ثنائي (مثل آلية الشعار) */
-function findHeroImage(schema: ProjectSchema): { buffer: Uint8Array; ext: string; mime: string } | null {
+/** خلفية المشروع من branding.bgImage (قد لا تكون معرّفة في الأنواع القديمة) */
+function brandingBgImage(schema: ProjectSchema): string {
+  const branding = (schema.branding ?? {}) as unknown as Record<string, unknown>
+  return S(branding, 'bgImage')
+}
+
+/** شدة غسل خلفية المشروع (none|strong|medium|soft — الافتراضي medium) */
+function brandingBgOverlay(schema: ProjectSchema): string {
+  const branding = (schema.branding ?? {}) as unknown as Record<string, unknown>
+  const raw = S(branding, 'bgOverlay')
+  return ['none', 'strong', 'medium', 'soft'].includes(raw) ? raw : 'medium'
+}
+
+interface CollectedImage {
+  /** نص data URL كما ورد في المخطط (مفتاح المطابقة) */
+  dataUrl: string
+  /** اسم الملف داخل الحزمة: img-{n}.{ext} */
+  name: string
+  buffer: Uint8Array
+  ext: string
+  mime: string
+}
+
+/**
+ * يجمع كل صور المخطط (خلفية البطل والأقسام + صور عناصر المعرض/الفريق):
+ * أي خاصية bgImage على أي كتلة + أي image داخل عناصر قوائم الخصائص —
+ * إزالة التكرار بالنص الحرفي → assets/img-{n}.{ext} بترتيب الظهور.
+ */
+function collectSchemaImages(schema: ProjectSchema): CollectedImage[] {
+  const byUrl = new Map<string, CollectedImage>()
+  let n = 0
+  const add = (dataUrl: string) => {
+    const raw = typeof dataUrl === 'string' ? dataUrl.trim() : ''
+    if (!raw || byUrl.has(raw)) return
+    const asset = dataUrlToAsset(raw)
+    if (!asset) return
+    n += 1
+    byUrl.set(raw, { dataUrl: raw, name: `img-${n}.${asset.ext}`, buffer: asset.buffer, ext: asset.ext, mime: asset.mime })
+  }
   const pages = Array.isArray(schema?.pages) ? schema.pages : []
   for (const page of pages) {
     for (const block of page.blocks ?? []) {
-      if (block.type !== 'hero') continue
-      const bg = S(block.props ?? {}, 'bgImage')
-      if (!bg.trim()) continue
-      const asset = dataUrlToAsset(bg)
-      if (asset) return asset
+      const props = (block?.props ?? {}) as Record<string, unknown>
+      add(S(props, 'bgImage'))
+      // عناصر القوائم داخل الخصائص (عناصر المعرض/الفريق قد تحمل image)
+      for (const value of Object.values(props)) {
+        if (!Array.isArray(value)) continue
+        for (const item of value) {
+          if (!item || typeof item !== 'object' || Array.isArray(item)) continue
+          add(S(item as Record<string, unknown>, 'image'))
+        }
+      }
     }
   }
-  return null
+  return [...byUrl.values()]
 }
 
 export function generateStaticSite(schema: ProjectSchema): {
-  /** نص الملفات كنص، والشعار/خلفية البطل كـ Uint8Array ثنائي */
+  /** نص الملفات كنص، والشعار/الصور كـ Uint8Array ثنائي */
   files: Record<string, string | Uint8Array>
   landingSlug: string
 } {
@@ -2807,19 +3443,27 @@ export function generateStaticSite(schema: ProjectSchema): {
     return `../${slug}/`
   }
 
-  // ---------- الشعار وخلفية البطل: data URL → ملفات ثنائية في الحزمة ----------
+  // ---------- الشعار + خلفية المشروع + صور الأقسام: data URL → ملفات ثنائية ----------
   const logoAsset = schema.branding?.logo ? dataUrlToAsset(schema.branding.logo) : null
   const rootLogo = logoAsset ? { src: `assets/logo.${logoAsset.ext}`, mime: logoAsset.mime } : null
   const folderLogo = logoAsset ? { src: `../assets/logo.${logoAsset.ext}`, mime: logoAsset.mime } : null
-  const heroAsset = findHeroImage(schema)
-  const rootHeroBg = heroAsset ? { src: `assets/hero-bg.${heroAsset.ext}` } : null
-  const folderHeroBg = heroAsset ? { src: `../assets/hero-bg.${heroAsset.ext}` } : null
+  const brandBgAsset = dataUrlToAsset(brandingBgImage(schema))
+  const brandBgOverlay = brandingBgOverlay(schema)
+  const pageBg = {
+    file: brandBgAsset ? `bg.${brandBgAsset.ext}` : null,
+    overlay: brandBgOverlay,
+  }
+  // خريطة data URL → اسم ملف (assets/img-{n}) — موحّدة لكل الصفحات
+  const collectedImages = collectSchemaImages(schema)
+  const imgNames = new Map<string, string>()
+  for (const img of collectedImages) imgNames.set(img.dataUrl, img.name)
 
   const files: Record<string, string | Uint8Array> = {}
 
   // ---------- الملفات المشتركة ----------
   if (logoAsset) files[`assets/logo.${logoAsset.ext}`] = logoAsset.buffer
-  if (heroAsset) files[`assets/hero-bg.${heroAsset.ext}`] = heroAsset.buffer
+  if (brandBgAsset) files[`assets/${pageBg.file}`] = brandBgAsset.buffer
+  for (const img of collectedImages) files[`assets/${img.name}`] = img.buffer
   files['styles.css'] = buildStylesCss(schema.theme)
   files['script.js'] = buildScriptJs()
   files['netlify.toml'] = buildNetlifyToml()
@@ -2828,14 +3472,14 @@ export function generateStaticSite(schema: ProjectSchema): {
   // ---------- الصفحات ----------
   for (const page of pages) {
     const slug = slugOf.get(page.id) ?? 'page'
-    files[`${slug}/index.html`] = pageHtml(schema, page, '../', hrefFromFolder, folderLogo, folderHeroBg)
+    files[`${slug}/index.html`] = pageHtml(schema, page, '../', hrefFromFolder, folderLogo, imgNames, pageBg)
   }
 
   // ---------- الجذر: الصفحة الرئيسية + 404 ----------
   files['index.html'] = landing
-    ? pageHtml(schema, landing, '', hrefFromRoot, rootLogo, rootHeroBg)
-    : notFoundHtml(schema, '', './', rootLogo)
-  files['404.html'] = notFoundHtml(schema, '', './', rootLogo)
+    ? pageHtml(schema, landing, '', hrefFromRoot, rootLogo, imgNames, pageBg)
+    : notFoundHtml(schema, '', './', rootLogo, pageBg)
+  files['404.html'] = notFoundHtml(schema, '', './', rootLogo, pageBg)
 
   return { files, landingSlug }
 }

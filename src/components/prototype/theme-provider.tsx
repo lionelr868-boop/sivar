@@ -4,6 +4,9 @@
 // نموذج — Prototype Theme Scope (نطاق هوية النموذج الأولي)
 // Task 2-a-cont — يغلّف النموذج بمتغيرات CSS خاصة به (--pt-*)
 // مستقلة تماماً عن هوية المنصة، مع اشتقاق قيم داكنة عند mode=dark.
+// Task 9-a — خلفية المشروع كلّه (صورة + غسلة لون الخلفية) خلف
+// كل المحتوى عبر طبقة z-index سالبة داخل سياق عزل، + حركات
+// الرسوم (pt-draw/pt-fade-in/pt-bar) ومؤشر الكتابة (pt-typing).
 // ============================================================
 import type { ReactElement, CSSProperties, ReactNode } from 'react'
 import type { ProjectTheme } from '@/lib/types'
@@ -96,24 +99,66 @@ export function ptVars(theme: ProjectTheme): CSSProperties {
 
 // ---------- PrototypeThemeScope ----------
 
-// حركة دخول خفيفة للكتل في وضع المعاينة فقط (Task 7-b) + موجة صوت الفيديو (Task 8)
+// حركات النطاق: دخول الكتل + موجة الفيديو (8) + مؤشر الكتابة
+// + رسم الخط تدريجياً وظهور المساحة ونمو الأعمدة (9) —
+// كلها تتعطل عند prefers-reduced-motion.
 const PT_RISE_CSS =
   '@keyframes pt-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}' +
   '.pt-rise{animation:pt-rise .5s cubic-bezier(.22,.61,.36,1) both}' +
-  '@keyframes pt-wave{from{transform:scaleY(.45)}to{transform:scaleY(1)}}'
+  '@keyframes pt-wave{from{transform:scaleY(.45)}to{transform:scaleY(1)}}' +
+  '@keyframes pt-typing{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}' +
+  '@keyframes pt-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}' +
+  '.pt-anim-line{animation:pt-draw 1.1s cubic-bezier(.22,.61,.36,1) both}' +
+  '@keyframes pt-fade-in{from{opacity:0}to{opacity:1}}' +
+  '.pt-anim-area{animation:pt-fade-in .8s ease-out both}' +
+  '@keyframes pt-bar{from{transform:scaleY(0)}to{transform:scaleY(1)}}' +
+  '.pt-anim-bar{animation:pt-bar .5s cubic-bezier(.22,.61,.36,1) both;transform-box:fill-box;transform-origin:bottom}' +
+  '@media (prefers-reduced-motion: reduce){.pt-anim-line,.pt-anim-area,.pt-anim-bar{animation:none}}'
+
+/** شدة غسلة لون الخلفية فوق صورة المشروع (كلما زادت قلّ ظهور الصورة) */
+const BG_WASH_OPACITY: Record<'strong' | 'medium' | 'soft' | 'none', number> = {
+  strong: 0.9,
+  medium: 0.74,
+  soft: 0.55,
+  none: 0,
+}
 
 export function PrototypeThemeScope({
   theme,
   children,
   className,
+  bgImage,
+  bgOverlay = 'medium',
 }: {
   theme: ProjectTheme
   children: ReactNode
   className?: string
+  /** خلفية المشروع كلّه (Task 9) — من schema.branding.bgImage */
+  bgImage?: string
+  /** قوة ظهور الخلفية — medium افتراضياً عند وجود صورة */
+  bgOverlay?: 'none' | 'strong' | 'medium' | 'soft'
 }): ReactElement {
+  const hasBg = typeof bgImage === 'string' && bgImage.trim() !== ''
+  const wash = hasBg ? BG_WASH_OPACITY[bgOverlay ?? 'medium'] : 0
+
+  // مع صورة: النطاق يصبح شفافاً معزولاً والطبقة تحته (z سالب)
+  const style: CSSProperties = hasBg
+    ? { ...ptVars(theme), background: 'transparent', position: 'relative', isolation: 'isolate' }
+    : ptVars(theme)
+
   return (
-    <div dir="rtl" style={ptVars(theme)} className={className}>
+    <div dir="rtl" style={style} className={className}>
       <style dangerouslySetInnerHTML={{ __html: PT_RISE_CSS }} />
+      {hasBg ? (
+        /* طبقة خلفية المشروع: صورة + غسلة لون الخلفية — تغطي كامل ارتفاع المحتوى */
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ zIndex: -1, backgroundImage: `url("${bgImage}")`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+        >
+          <div className="absolute inset-0" style={{ background: 'var(--pt-bg)', opacity: wash }} />
+        </div>
+      ) : null}
       {children}
     </div>
   )

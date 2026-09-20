@@ -3,19 +3,23 @@ import type { ReactElement } from 'react'
 
 // ============================================================
 // نموذج — مكوّن الأرقام: صف بطاقات إحصائية (تسويقي)
+// Task 9-a — خلفية صورة للقسم (bgImage + bgOverlay) بنبرة نص متكيّفة
 // ============================================================
 import { TrendingDown, TrendingUp } from 'lucide-react'
 import type { Block } from '@/lib/types'
-import { L, S, iS, isNegativeChange, SectionHeading, SectionShell } from './shared'
+import { L, S, iS, isNegativeChange, SectionHeading, SectionShell, isImageNoOverlay, sectionImageStyle } from './shared'
 
 export function StatsBlock({ block }: { block: Block }): ReactElement {
   const p = block.props
   const title = S(p, 'title')
   const items = L(p, 'items')
 
+  const { style: sectionStyle, dark } = sectionImageStyle(p)
+  const noOverlay = isImageNoOverlay(p)
+
   return (
-    <SectionShell>
-      <SectionHeading title={title} />
+    <SectionShell style={sectionStyle}>
+      <SectionHeading title={title} dark={dark} textShadow={noOverlay} />
       {items.length > 0 ? (
         <div className="grid grid-cols-2 gap-4 md:gap-6 lg:grid-cols-4">
           {items.map((item, i) => {

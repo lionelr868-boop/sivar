@@ -1,11 +1,12 @@
 'use client'
 
-// لوحة نظام التصميم: الشعار + ألوان/خطوط/زوايا/ظلال + أنماط جاهزة + وضع ليلي
+// لوحة نظام التصميم: الشعار + خلفية المشروع + ألوان/خطوط/زوايا/ظلال + أنماط جاهزة + وضع ليلي
 import { useRef, useState } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { t } from '@/lib/i18n'
 import { type ProjectTheme, type ProjectSchema } from '@/lib/types'
 import { updateThemeInSchema } from '@/lib/project/tools'
+import { IMAGE_MAX_BYTES, processImageFile } from '@/lib/client-image'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
@@ -226,6 +227,159 @@ function LogoSection() {
   )
 }
 
+// ============================================================
+// خلفية المشروع — رفع/استبدال/إزالة + قوة الظهور (Task 9-a)
+// نفس معالجة الصور المشتركة (client-image): ≤5MB + تصغير 1600px
+// ============================================================
+
+type ProjectBgOverlay = NonNullable<ProjectSchema['branding']>['bgOverlay']
+
+const PROJECT_BG_OVERLAYS: { value: Exclude<ProjectBgOverlay, undefined>; label: string }[] = [
+  { value: 'strong', label: t.builder.projectBgOverlayStrong },
+  { value: 'medium', label: t.builder.projectBgOverlayMedium },
+  { value: 'soft', label: t.builder.projectBgOverlaySoft },
+  { value: 'none', label: t.builder.projectBgOverlayNone },
+]
+
+function ProjectBgSection() {
+  const schema = useAppStore((s) => s.schema)
+  const applySchemaFn = useAppStore((s) => s.applySchemaFn)
+  const [processing, setProcessing] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  if (!schema) return null
+  const bgImage = schema.branding?.bgImage
+  const bgImageName = schema.branding?.bgImageName
+  const bgOverlay = schema.branding?.bgOverlay ?? 'medium'
+
+  const handleFile = async (file: File) => {
+    if (file.size > IMAGE_MAX_BYTES) {
+      toast.error(t.builder.projectBgTooLarge)
+      return
+    }
+    setProcessing(true)
+    try {
+      const dataUrl = await processImageFile(file)
+      applySchemaFn((s) => ({
+        ...s,
+        branding: {
+          ...(s.branding ?? {}),
+          bgImage: dataUrl,
+          bgImageName: file.name,
+          bgOverlay: s.branding?.bgOverlay ?? 'medium',
+        },
+      }))
+      toast.success(t.builder.projectBgUploaded)
+    } catch {
+      toast.error(t.builder.projectBgInvalid)
+    } finally {
+      setProcessing(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  const removeBg = () => {
+    applySchemaFn((s) => ({
+      ...s,
+      branding: { ...(s.branding ?? {}), bgImage: undefined, bgImageName: undefined },
+    }))
+  }
+
+  const setOverlay = (value: string) => {
+    const next = value as NonNullable<ProjectSchema['branding']>['bgOverlay']
+    applySchemaFn((s) => ({
+      ...s,
+      branding: { ...(s.branding ?? {}), bgOverlay: next },
+    }))
+  }
+
+  return (
+    <section className="space-y-3 rounded-xl border bg-card p-3" aria-label={t.builder.projectBgSection}>
+      <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t.builder.projectBgSection}</h4>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) void handleFile(file)
+          e.target.value = ''
+        }}
+      />
+
+      {bgImage ? (
+        <div className="space-y-3">
+          <div
+            role="img"
+            aria-label={t.builder.projectBgSection}
+            className="h-28 w-full rounded-lg border bg-cover bg-center bg-muted/40"
+            style={{ backgroundImage: `url("${bgImage}")` }}
+          />
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 flex-1 gap-1.5 text-xs"
+              onClick={() => fileRef.current?.click()}
+              disabled={processing}
+            >
+              {processing ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+              {t.builder.projectBgReplace}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-9 gap-1.5 text-xs text-destructive hover:text-destructive"
+              onClick={removeBg}
+              disabled={processing}
+            >
+              <Trash2 className="size-4" />
+              {t.builder.projectBgRemove}
+            </Button>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">{t.builder.projectBgOverlay}</Label>
+            <Select value={bgOverlay} onValueChange={setOverlay}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROJECT_BG_OVERLAYS.map((o) => (
+                  <SelectItem key={o.value} value={o.value} className="text-xs">
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {bgImageName ? (
+            <p className="truncate text-center text-[11px] text-muted-foreground" title={bgImageName}>
+              {bgImageName}
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 w-full gap-2"
+            onClick={() => fileRef.current?.click()}
+            disabled={processing}
+          >
+            {processing ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+            {t.builder.projectBgUploadBtn}
+          </Button>
+          <p className="text-xs leading-relaxed text-muted-foreground">{t.builder.projectBgHint}</p>
+        </div>
+      )}
+    </section>
+  )
+}
+
 export function ThemePanel() {
   const schema = useAppStore((s) => s.schema)
   const applySchemaFn = useAppStore((s) => s.applySchemaFn)
@@ -250,6 +404,9 @@ export function ThemePanel() {
 
       {/* الشعار */}
       <LogoSection />
+
+      {/* خلفية المشروع كلّه (Task 9) */}
+      <ProjectBgSection />
 
       {/* أنماط جاهزة */}
       <section className="space-y-2">
