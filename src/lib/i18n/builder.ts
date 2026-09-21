@@ -226,4 +226,13 @@ export const builder = {
   projectBgUploaded: 'تم رفع خلفية المشروع',
   projectBgTooLarge: 'حجم الصورة يتجاوز 5 ميغابايت',
   projectBgInvalid: 'تعذّر قراءة الصورة — جرّب ملفاً آخر',
+  // ===== Task 12: ألوان الخطوط + ألوان كل قسم =====
+  fontColorsTitle: 'ألوان الخطوط',
+  fontColorText: 'لون الخط الأساسي',
+  fontColorMuted: 'لون الخط الثانوي (النصوص الخفيفة)',
+  resetDefault: 'إعادة الضبط',
+  sectionBgColor: 'لون خلفية القسم',
+  sectionTextColor: 'لون خط القسم',
+  colorDefaultHint: 'افتراضي (من الهوية)',
+  removeColor: 'إزالة اللون المخصص',
 } as const

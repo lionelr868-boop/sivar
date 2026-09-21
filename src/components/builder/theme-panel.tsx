@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ImagePlus, Loader2, Moon, Palette, Sun, Trash2 } from 'lucide-react'
+import { ImagePlus, Loader2, Moon, Palette, RotateCcw, Sun, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -445,6 +445,23 @@ export function ThemePanel() {
         <ColorRow label={t.builder.borderColor} value={theme.border} onChange={(v) => setTheme({ border: v })} />
       </section>
 
+      {/* ألوان الخطوط (Task 12) — الأساسي + الثانوي مع إعادة الضبط */}
+      <section className="space-y-3 rounded-xl border bg-card p-3" aria-label={t.builder.fontColorsTitle}>
+        <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t.builder.fontColorsTitle}</h4>
+        <FontColorRow
+          label={t.builder.fontColorText}
+          value={theme.text}
+          defaultHex="#1c1726"
+          onChange={(v) => setTheme({ text: v })}
+        />
+        <FontColorRow
+          label={t.builder.fontColorMuted}
+          value={theme.mutedText}
+          defaultHex="#6e6880"
+          onChange={(v) => setTheme({ mutedText: v })}
+        />
+      </section>
+
       {/* الخطوط والأشكال */}
       <section className="space-y-3 rounded-xl border bg-card p-3">
         <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t.builder.typographyGroup}</h4>
@@ -525,6 +542,53 @@ function ColorRow({ label, value, onChange }: { label: string; value: string; on
           dir="ltr"
         />
       </div>
+    </div>
+  )
+}
+
+// ============================================================
+// صف لون خط (Task 12) — منتقي + إدخال hex + زر إعادة الضبط
+// (الافتراضي: #1c1726 للأساسي و#6e6880 للثانوي)
+// ============================================================
+function FontColorRow({
+  label,
+  value,
+  defaultHex,
+  onChange,
+}: {
+  label: string
+  value: string
+  defaultHex: string
+  onChange: (hex: string) => void
+}) {
+  const hex = /^#[0-9a-fA-F]{6}$/.test(value) ? value : defaultHex
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <input
+            type="color"
+            value={hex}
+            onChange={(e) => onChange(e.target.value)}
+            className="size-8 shrink-0 cursor-pointer rounded-md border bg-card p-0.5"
+            aria-label={label}
+          />
+          <Label className="truncate text-xs">{label}</Label>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 shrink-0 gap-1 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+          onClick={() => onChange(defaultHex)}
+          aria-label={`${t.builder.resetDefault} — ${label}`}
+          title={t.builder.resetDefault}
+        >
+          <RotateCcw className="size-3.5" aria-hidden />
+          {t.builder.resetDefault}
+        </Button>
+      </div>
+      <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-8 font-mono text-[11px]" dir="ltr" />
     </div>
   )
 }

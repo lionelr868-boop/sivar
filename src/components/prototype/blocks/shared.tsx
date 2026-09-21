@@ -5,9 +5,12 @@
 // سياق العرض + قُرّاء خصائص آمنين + عناوين الأقسام التسويقية
 // Task 9-a — sectionImageStyle: خلفية صورة موحّدة لأقسام الصفحة
 // (bgImage + bgOverlay بنفس دلالات البطل) + SectionHeading داكن.
+// Task 12 — أدوات ألوان كل قسم: sectionHexColor/hexLuminance/
+// sectionBgGradient (لون خلفية القسم + السطوع + التدرّج المشتق).
 // ============================================================
 import type { CSSProperties, ReactElement, ReactNode } from 'react'
 import type { ProjectSchema } from '@/lib/types'
+import { hexDarken } from '../theme-provider'
 
 /** سياق يُمرَّر لكل مكوّن أثناء العرض */
 export interface BlockCtx {
@@ -120,6 +123,32 @@ export function isImageNoOverlay(p: Record<string, unknown>): boolean {
   const bgImage = S(p, 'bgImage')
   if (!bgImage.trim()) return false
   return S(p, 'bgOverlay', 'dark') === 'none'
+}
+
+// ---------- ألوان كل قسم (Task 12) ----------
+
+/** لون قسم صالح (#rgb أو #rrggbb — بحروف صغيرة) أو '' عند الفراغ/الفساد */
+export function sectionHexColor(v: unknown): string {
+  if (typeof v !== 'string') return ''
+  const t = v.trim().toLowerCase()
+  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/.test(t) ? t : ''
+}
+
+/** السطوع النسبي للون (0..1 — WCAG) لاختيار نبرة النص التلقائية */
+export function hexLuminance(hex: string): number {
+  let h = hex.trim().replace(/^#/, '')
+  if (/^[0-9a-f]{3}$/i.test(h)) h = h.split('').map((c) => c + c).join('')
+  if (!/^[0-9a-f]{6}$/i.test(h)) return 0
+  const lin = [0, 2, 4].map((i) => {
+    const c = parseInt(h.slice(i, i + 2), 16) / 255
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+}
+
+/** تدرّج لطيف مبني على لون القسم (بدل التدرّج/الداكن الافتراضي) */
+export function sectionBgGradient(hex: string): string {
+  return `linear-gradient(180deg, ${hex}, ${hexDarken(hex, 0.14)})`
 }
 
 // ---------- عناصر تخطيط مشتركة ----------

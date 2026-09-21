@@ -280,6 +280,69 @@ function hexDarken(hex: string, ratio: number): string {
   return mixHex(hex, '#000000', ratio)
 }
 
+// ============================================================
+// ألوان كل قسم (Task 12) — أدوات مشتركة
+// ============================================================
+
+/** السطوع النسبي للون (0..1 — WCAG) لاختيار نبرة النص التلقائية */
+function relativeLuminance(hex: string): number {
+  const c = parseHex(hex)
+  if (!c) return 0
+  const lin = c.map((v) => {
+    const s = v / 255
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+}
+
+/** لون قسم صالح (#rgb أو #rrggbb — بحروف صغيرة) أو '' عند الفراغ/الفساد */
+function sectionHex(v: unknown): string {
+  if (typeof v !== 'string') return ''
+  const t = v.trim().toLowerCase()
+  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/.test(t) ? t : ''
+}
+
+/** تدرّج لطيف مبني على لون القسم (بدل التدرّج/الداكن الافتراضي) */
+function sectionBgGradient(hex: string): string {
+  return `linear-gradient(180deg,${hex},${hexDarken(hex, 0.14)})`
+}
+
+/**
+ * نمط غلاف متغيرات ألوان القسم (bgColor/textColor) — نفس منطق
+ * sectionVars في عارض React حرفياً: متغيرات CSS تتوارثها العناصر
+ * الداخلية + خلفية + نص تلقائي ذكي (داكن على الفاتح/أبيض على الداكن).
+ * تُرجع '' عندما لا ألوان مخصّصة (سلوك قديم مطابق بالبايت).
+ */
+function sectionVarsStyle(p: Record<string, unknown>): string {
+  const bg = sectionHex(p.bgColor)
+  const tx = sectionHex(p.textColor)
+  if (!bg && !tx) return ''
+  const decls: string[] = []
+  if (bg) {
+    const bright = relativeLuminance(bg) > 0.55
+    decls.push(`--pt-bg:${bg}`)
+    decls.push(`--pt-surface:${bright ? hexLighten(bg, 0.42) : hexDarken(bg, 0.42)}`)
+    decls.push(`--pt-border:${bright ? hexLighten(bg, 0.18) : hexDarken(bg, 0.18)}`)
+  }
+  let text = tx
+  if (bg && !tx) text = relativeLuminance(bg) > 0.5 ? '#17151f' : '#ffffff'
+  if (text) {
+    decls.push(`--pt-text:${text}`)
+    decls.push(`--pt-muted:${mixHex(text, bg || '#ffffff', 0.38)}`)
+  }
+  decls.push('color:var(--pt-text)')
+  if (bg) decls.push(`background:${bg}`)
+  return decls.join(';')
+}
+
+/** يغلّف HTML الكتلة بغلاف متغيرات ألوان القسم عند وجود bgColor/textColor */
+function wrapSectionVars(html: string, p: Record<string, unknown>): string {
+  if (!html) return html
+  const style = sectionVarsStyle(p)
+  if (!style) return html
+  return `<div class="pt-secvars" style="${style}">${html}</div>`
+}
+
 const SHADOW_CSS: Record<string, string> = {
   none: 'none',
   sm: '0 1px 2px rgba(0,0,0,.08)',
@@ -761,6 +824,15 @@ body.pt-hasbg--soft::after{content:'';position:fixed;inset:0;z-index:-1;backgrou
 .blk-banner__inner{position:relative;z-index:1;max-width:1120px;margin-inline:auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px}
 .blk-banner__title{font-size:17px;font-weight:800}
 .blk-banner__subtitle{margin-top:2px;font-size:13.5px;opacity:.85}
+
+/* ===== ألوان كل قسم (bgColor/textColor) — Task 12 ===== */
+/* القواعد بعد قواعد البطل/الدفعة/الشريط عمداً لتتقدم عليها بالتساوي في الخصوصية */
+.blk-hero--secvar .blk-hero__title{color:var(--pt-text)}
+.blk-hero--secvar .blk-hero__subtitle{color:var(--pt-muted)}
+.blk-cta__card--secvar{color:var(--pt-text)}
+.blk-cta__card--secvar .blk-cta__subtitle{color:var(--pt-muted)}
+.blk-banner--secvar{color:var(--pt-text)}
+.blk-banner--secvar .blk-banner__subtitle{color:var(--pt-muted)}
 
 /* ===== contact / forms ===== */
 .blk-contact__card{max-width:560px;margin-inline:auto;padding:28px}
@@ -1692,14 +1764,28 @@ function applyReveal(html: string, delayMs: number): string {
     classIdx >= 0
       ? `${head.slice(0, classIdx)}class="pt-reveal ${head.slice(classIdx + 7)}`
       : `${head} class="pt-reveal"`
-  const styleAttr = delayMs > 0 ? ` style="transition-delay:${delayMs}ms"` : ''
-  return `${withClass}${styleAttr}${rest}`
+  if (delayMs <= 0) return `${withClass}${rest}`
+  // Task 12-c — دمج التأخير داخل سمة style موجودة (غلاف pt-secvars أو
+  // خلفية صورة القسم) بدل إضافة سمة ثانية مكررة يتجاهلها المتصفح ويصبح
+  // معها الـ HTML غير صالح وتضيع قيمة التأخير.
+  const delayDecl = `transition-delay:${delayMs}ms`
+  const styleIdx = withClass.indexOf('style="')
+  if (styleIdx >= 0) {
+    const open = styleIdx + 'style="'.length
+    const close = withClass.indexOf('"', open)
+    if (close >= 0) {
+      const existing = withClass.slice(open, close)
+      const merged = existing ? `${delayDecl};${existing}` : delayDecl
+      return `${withClass.slice(0, open)}${merged}${withClass.slice(close)}${rest}`
+    }
+  }
+  return `${withClass} style="${delayDecl}"${rest}`
 }
 
 // ============================================================
-// عرض المكوّنات — 28 نوعاً
+// عرض المكوّنات — 28 نوعاً (+ غلاف ألوان القسم من Task 12)
 // ============================================================
-function renderBlock(block: Block, ctx: RenderCtx): string {
+function renderBlockInner(block: Block, ctx: RenderCtx): string {
   const p = block.props ?? {}
   switch (block.type) {
     case 'hero':
@@ -1763,6 +1849,17 @@ function renderBlock(block: Block, ctx: RenderCtx): string {
     default:
       return ''
   }
+}
+
+/**
+ * عرض مكوّن واحد مع غلاف ألوان القسم (Task 12) — نقطة واحدة
+ * يستفيدها كل القشور الثلاث (site/auth/dashboard): متغيرات CSS
+ * تتوارثها عناصر القسم الداخلية تلقائياً — بلا ألوان: كما كان.
+ */
+function renderBlock(block: Block, ctx: RenderCtx): string {
+  const html = renderBlockInner(block, ctx)
+  if (!html) return html
+  return wrapSectionVars(html, block.props ?? {})
 }
 
 // ---------- hero ----------
@@ -2162,7 +2259,13 @@ function renderHero(p: Record<string, unknown>, ctx: RenderCtx): string {
     : 'dark'
   const heroSrc = bgImage.trim() !== '' ? ctx.imgSrc(bgImage) : null
   const hasImage = heroSrc !== null
-  const dark = hasImage ? bgOverlay !== 'light' : background === 'dark' || background === 'gradient'
+
+  // ---- لون خلفية القسم (Task 12) — تدرّج منه + نص تلقائي ذكي ----
+  // (صورة المستخدم المرفوعة تتقدم على اللون — توافق خلفي كامل)
+  const bgColor = sectionHex(p.bgColor)
+  const hasCustomBg = bgColor !== '' && !hasImage
+  const customDark = hasCustomBg && relativeLuminance(bgColor) <= 0.5
+  const dark = hasImage ? bgOverlay !== 'light' : hasCustomBg ? customDark : background === 'dark' || background === 'gradient'
 
   // ---- الأزرار: أهداف ذكية دائماً (نفس عقد عارض React / nav-targets) ----
   const primaryId = heroPrimaryTarget(ctx.schema, primaryButtonPage)
@@ -2204,11 +2307,13 @@ function renderHero(p: Record<string, unknown>, ctx: RenderCtx): string {
     inner = textCol
   }
 
-  // خلفية الصورة: تدرّج الغطاء + الصورة (مسار الملف داخل الحزمة — لا data URL في HTML)
+  // خلفية الصورة: تدرّج الغطاء + الصورة — أو تدرّج لون القسم المخصّص (Task 12)
   const heroStyle = hasImage
     ? ` style="background-image:${HERO_OVERLAY_GRADIENTS[bgOverlay] ? `${HERO_OVERLAY_GRADIENTS[bgOverlay]},` : ''}url('${esc(heroSrc ?? '')}');background-size:cover;background-position:center"`
-    : ''
-  const heroClass = `blk-hero blk-hero--${esc(background)}${hasImage ? ' blk-hero--image blk-hero--image-' + (bgOverlay === 'light' ? 'light' : 'dark') : ''}${hasImage && bgOverlay === 'none' ? ' blk-hero--image-none' : ''}`
+    : hasCustomBg
+      ? ` style="background:${sectionBgGradient(bgColor)}"`
+      : ''
+  const heroClass = `blk-hero blk-hero--${esc(background)}${hasImage ? ' blk-hero--image blk-hero--image-' + (bgOverlay === 'light' ? 'light' : 'dark') : ''}${hasImage && bgOverlay === 'none' ? ' blk-hero--image-none' : ''}${hasCustomBg ? ' blk-hero--secvar' : ''}`
 
   return `<section class="${heroClass}"${heroStyle}><div class="blk-hero__inner${centeredCol ? ' blk-hero--centered' : ''}">${inner}</div></section>`
 }
@@ -2364,13 +2469,28 @@ function renderCta(p: Record<string, unknown>, ctx: RenderCtx): string {
   const buttonText = S(p, 'buttonText')
   const style = (['default', 'gradient', 'dark'] as const).includes(S(p, 'style') as 'default') ? S(p, 'style') : 'default'
   const bg = sectionBgOf(p, ctx)
+  const hasImage = bg.cls !== ''
+
+  // ---- لون خلفية القسم (Task 12) — تدرّج منه + زر حسب سطوعه ----
+  // (صورة المستخدم المرفوعة تتقدم على اللون — توافق خلفي كامل)
+  const bgColor = sectionHex(p.bgColor)
+  const hasCustomBg = bgColor !== '' && !hasImage
+  const customDark = hasCustomBg && relativeLuminance(bgColor) <= 0.5
+  const btnClass = hasCustomBg
+    ? customDark
+      ? 'pt-btn--on-dark'
+      : 'pt-btn--primary'
+    : style === 'default'
+      ? 'pt-btn--primary'
+      : 'pt-btn--on-dark'
+
   const targetId = ctaButtonTarget(ctx.schema)
   const targetHref = targetId ? ctx.hrefOf(targetId) : '#'
   return sectionWrap(
-    `<div class="blk-cta__card blk-cta__card--${esc(style)}">
+    `<div class="blk-cta__card blk-cta__card--${esc(style)}${hasCustomBg ? ' blk-cta__card--secvar' : ''}"${hasCustomBg ? ` style="background:${sectionBgGradient(bgColor)}"` : ''}>
   ${title ? `<h2 class="blk-cta__title">${esc(title)}</h2>` : ''}
   ${subtitle ? `<p class="blk-cta__subtitle">${esc(subtitle)}</p>` : ''}
-  ${buttonText ? `<div class="blk-cta__actions"><a class="pt-btn ${style === 'default' ? 'pt-btn--primary' : 'pt-btn--on-dark'} pt-btn--lg" href="${esc(targetHref)}">${esc(buttonText)}</a></div>` : ''}
+  ${buttonText ? `<div class="blk-cta__actions"><a class="pt-btn ${btnClass} pt-btn--lg" href="${esc(targetHref)}">${esc(buttonText)}</a></div>` : ''}
 </div>`,
     true,
     '',
@@ -2459,12 +2579,21 @@ function renderBanner(p: Record<string, unknown>, ctx: RenderCtx): string {
   const buttonText = S(p, 'buttonText')
   const style = S(p, 'style') === 'dark' ? 'dark' : 'gradient'
   const bg = sectionBgOf(p, ctx)
+  const hasImage = bg.cls !== ''
+
+  // ---- لون خلفية القسم (Task 12) — تدرّج منه + زر حسب سطوعه ----
+  // (صورة المستخدم المرفوعة تتقدم على اللون — توافق خلفي كامل)
+  const bgColor = sectionHex(p.bgColor)
+  const hasCustomBg = bgColor !== '' && !hasImage
+  const customDark = hasCustomBg && relativeLuminance(bgColor) <= 0.5
+  const btnClass = hasCustomBg && !customDark ? 'pt-btn--primary' : 'pt-btn--on-dark'
+
   const targetId = bannerButtonTarget(ctx.schema)
   const targetHref = targetId ? ctx.hrefOf(targetId) : '#'
   return `<section class="blk-section blk-section--tight${bg.cls}"${bg.style}><div class="blk-section__inner">
-<div class="blk-banner blk-banner--${esc(style)}"><div class="blk-banner__inner">
+<div class="blk-banner blk-banner--${esc(style)}${hasCustomBg ? ' blk-banner--secvar' : ''}"${hasCustomBg ? ` style="background:${sectionBgGradient(bgColor)}"` : ''}><div class="blk-banner__inner">
   <div>${title ? `<p class="blk-banner__title">${esc(title)}</p>` : ''}${subtitle ? `<p class="blk-banner__subtitle">${esc(subtitle)}</p>` : ''}</div>
-  ${buttonText ? `<a class="pt-btn pt-btn--on-dark" href="${esc(targetHref)}">${esc(buttonText)}</a>` : ''}
+  ${buttonText ? `<a class="pt-btn ${btnClass}" href="${esc(targetHref)}">${esc(buttonText)}</a>` : ''}
 </div></div>
 </div></section>`
 }

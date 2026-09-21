@@ -1,0 +1,202 @@
+   519→
+   520→---
+   521→
+   522→## Task ID: 8-c — كتل لوحة التحكم الجديدة + حقول الصفحة/الصورة + إثراء القوالب
+   523→
+   524→**Agent:** full-stack-developer (subagent — owns blocks components, registry, properties-panel, templates, i18n tail)
+   525→
+   526→**Files (ملكية صارمة — لم يُلمس ملف خارجها):**
+   527→- `src/components/prototype/blocks/activity-feed-block.tsx` (جديد)
+   528→- `src/components/prototype/blocks/tasks-list-block.tsx` (جديد)
+   529→- `src/components/prototype/blocks/quick-actions-block.tsx` (جديد)
+   530→- `src/lib/registry/blocks.ts` — `src/components/builder/properties-panel.tsx` — `src/lib/project/templates.ts` — `src/lib/i18n/builder.ts` (إلحاق فقط في النهاية) — worklog.
+   531→
+   532→**Work Log:**
+   533→1. **activity-feed** (سجل النشاطات): بطاقة --pt-* بترويسة bold text-sm + قائمة عمودية بحد أقصى 6 عناصر — كل صف: نقطة primary (خط زمني) + PAvatar (حرفا الاسم) + سطر «{user} {action} {target}» (المستخدم font-semibold 13px، الهدف muted) + وقت 11px muted تحت السطر، divide-y بين الصفوف + hover secondary. قُرّاء آمنون S/L/iS. items فارغة → الترويسة فقط.
+   534→2. **tasks-list** (المهام): بطاقة بترويسة (عنوان + subtitle اختياري) + شريط تقدّم h-1.5 (bg secondary، المfüllعرض % بلون primary مع transition-all) + عدّاد «X من Y منجزة» + قائمة مهام: زر checkbox حقيقي (role="checkbox" + aria-checked + focus-visible) حجم size-5 عند done يتحول primary مع أيقونة Check بيضاء strokeWidth 3، label يُخطّ (line-through + muted) عند done + meta 11px. **التبديل محلي (useState يبدأ من props) ويحدّث الشريط والعدّاد لحظياً** — مفعّل دائماً حتى في وضع الباني (عرض توضيحي).
+   535→3. **quick-actions** (إجراءات سريعة): section بعنوان text-sm font-bold mb-3 + شبكة متجاوبة حسب العدد (2 / md:3 / lg:4 أعمدة) من أزرار-بطاقات min-h-[76px]: بلاطة أيقونة size-10 بتدرج `color-mix(primary 14%, accent 18%, transparent)` + ProtoIcon بلون primary + label + سهم ArrowLeft (للأمام RTL) muted يتحرك hover. **النقر → ctx.onNavigate(pageId) فقط إذا كان pageId صفحة حقيقية في ctx.schema.pages ووُجد onNavigate — وإلا زر معطّل (opacity-50 + cursor-not-allowed)**.
+   536→4. **registry/blocks.ts**: نوعا حقل جديدان في FieldDefinition — `'page'` و`'image'` (مع accept?) — + HERO_BG_OPTIONS += «تدرّج ناعم» (gradient-soft) و«شبكية توهج» (mesh) + HERO_OVERLAY_OPTIONS (dark/medium/light/none) + hero: افتراضي bgOverlay='dark' وحقول primaryButtonPage (page) وbgImage (image) وbgOverlay (select) + ICON_FIELD_OPTIONS += plus/file-text/settings/user (لضمان ظهور منتقي الأيقونات لكل قيمة نستعملها) + تعريفات الكتل الثلاث (فئة dashboard، أيقونات bell/check/zap، defaults جزائرية واقعية: أحمد بن علي/سارة بوزيد/محمد قادري/ياسين مراد/ليلى مزيان + مهام اليوم 2 منجزة/3 معلّقة + 4 إجراءات pageId فارغ يملؤه المستخدم من اللوحة). إصلاح خطأ tsc الوحيد المتبقي (Record<BlockType, BlockDefinition> ناقص الكتل الثلاث).
+   537→5. **properties-panel.tsx**: PageField — Select من صفحات المخطط + أول خيار «تلقائي (ذكي)» (حارس `__auto__` لأن Radix لا يقبل قيمة فارغة)، يعرض اسم الصفحة الحالية، بدون schema → null. ImageField — زر رفع outline h-11 (ImagePlus) + إدخال ملف مخفي (png/jpeg/webp) + تحقق ≤5MB (toast imageFieldTooLarge) + **تصغير canvas بحد 1600px** (ملء أبيض خلف الشفافية) + تصدير **JPEG جودة 0.82** + commit dataURL وbgImageName (نفس الباتش عند bgImage) + معاينة h-28 bg-cover + استبدال/إزالة (destructive ghost → undefined) + تلميح + Loader2 أثناء المعالجة. توصيل النوعين في SimpleField (قبل فرع النص الافتراضي) فيعملان حتى داخل عناصر القوائم (pageId في quick-actions). 'bgOverlay' أُضيف إلى APPEARANCE_KEYS.
+   538→6. **templates.ts — إثراء لوحات التحكم للقوالب الـ14 كلها** (buildDashboardBlocks): الترتيب النهائي dashboard-header(0), stats-row(1), chart(2), chart(3), **quick-actions(4), data-table(5), tasks-list(6), activity-feed(7)**. الإجراءات السريعة تُبنى بمعرفات صفحات حقيقية (`${p.id}-${key}`): «إضافة {مفرد كيان أول صفحة جدول}» → أول table، «تقرير الأداء» → اللوحة نفسها، «الإعدادات» → settings، «الملف الشخصي» → profile (كل هدف بشرط توفر specه — خرائط ENTITY_SINGULAR جديدة). المهام: 5 (أولاها «مراجعة أحدث {الكيان}») + سجل النشاطات من p.activity (title→action, subtitle→target, meta→time) مع تدوير 6 أسماء جزائرية، بحد 5.
+   539→7. **i18n/builder.ts** (إلحاق في نهاية الكائن): tasksProgressOf/pageFieldAuto/imageFieldInvalid/imageFieldUploaded فقط — بقية النصوص حرفية عربية في السجل والمكوّنات (نمط الكتل القائمة).
+   540→
+   541→**Verification:**
+   542→- `npx tsc --noEmit`: **صفر أخطاء في src/** (خطأ registry الوحيد المتبقي من 8-a أُصلح). `bun run lint`: 0 أخطاء (تحذير الخطوط القديم وحده). dev.log نظيف (Compiles بلا أخطاء).
+   543→- سكربت bun مؤقت (حُذف): 48/48 فحصاً — saas-suite يحوي الكتل الثلاث بالترتيب المطلوب، pageIds الإجراءات كلها تُحل لصفحات موجودة، 5 مهام (2 منجزة)، نشاطات بصيغة العقد، **والقوالب الـ14 كلها مُثراة** بأهداف صالحة + السجل (الكتل الثلاث + hero bgImage/bgOverlay/primaryButtonPage + 6 خلفيات + نوعا الحقلين). + اختبار SSR مؤقت (renderToString): 12/12 — أفاتار/نقطة زمنية/وقت، role=checkbox + aria-checked + line-through + width:40%، الشبكة 2/3/4، الأزرار مفعّلة عند onNavigate ومعطّلة عند pageId فاسد أو بلا onNavigate.
+   544→- أيقونات: bell/check/zap/plus/file-text/settings/user/package/users/trending-up كلها في icon-map (ProtoIcon) — الأربع الأخيرة أُضيفت أيضاً إلى ICON_FIELD_OPTIONS.
+   545→
+   546→**Stage Summary — مطلوب من الوكيل الرئيسي (وصل جاهزاً للدمج الفوري):**
+   547→- ⚠️ **prototype-renderer.tsx (ملف الرئيسي — لم ألمسه): حالة switch الكتل الثلاث غير موجودة بعد** (قرأت الملف: 26 حالة بلا activity-feed/tasks-list/quick-actions → تسقط في default `''`). المطلوب إضافته: 3 استيرادات + `case 'activity-feed': return <ActivityFeedBlock block={block} ctx={ctx} />` ومثلها للاثنين (المكوّنان الأولان يقبلان ctx اختيارياً وquick-actions يطلبه — توقيع الجميع متوافق مع تمرير ctx دائماً). بدونها تُضاف الكتل من «+ مكوّن» وتحرَّر خصائصها لكنها لا تظهر في العرض.
+   548→- 8-b (generate.ts): لا مرجع للكتل الثلاث بعد — التصدير بانتظاره (نفس الخصائص في 8-spec: items[{user,action,target,time}] / items[{label,done,meta}] / actions[{icon,label,pageId}] — إجراءات pageId الفارغة تُخفى والفاسدة تُخفى/تعطَّل).
+   549→- ملاحظة تصميم واحدة: ملصق «إضافة …» في الإجراءات السريعة يستعمل مفرد كيان **صفحة الجدول الهدف** (لا كيان اللوحة) حتى يتطابق النص مع الوجهة (مثال saas-suite: «إضافة عميل» → صفحة العملاء).
+   550→
+   551→## Task ID: 8-b — Export Generator (subagent)
+   552→
+   553→**Agent:** 8-b (export generator — `src/lib/export/generate.ts` فقط)
+   554→
+   555→**Work Log:**
+   556→- **أزرار عاملة (عقد nav-targets المشترك):** استيراد `heroPrimaryTarget/heroSecondaryTarget/pricingButtonTarget/ctaButtonTarget/bannerButtonTarget/stateActionTarget/dashboardActionTarget` من `src/lib/project/nav-targets` — نفس قواعد عارض React حرفياً: بطل أساسي/ثانوي (الثانوي ← مرساة `#features/#pricing/#testimonials/#faq` أو صفحة)، أزرار كل خطط التسعير، CTA، الشريط الإعلاني، أزرار الحالات (فارغ/خطأ) كروابط `<a>` (dashboard داخل صفحات اللوحات)، وأزرار ترويسة اللوحة كروابط `<a class="pt-btn">` مع أيقونة Plus للأول (تقسيم على الفاصلة العربية أيضاً).
+   557→- **مراسي الأقسام:** `sectionWrap(id?)` — features/pricing/testimonials/faq تحمل `id` + `scroll-margin-top:76px` (smooth-scroll موجود مسبقاً خلف prefers-reduced-motion).
+   558→- **مصادقة:** login **و signup** كلاهما يحمل `data-redirect` إلى لوحة التحكم (findDashboardPage)؛ forgot يبقى برسالة نجاح.
+   559→- **زر العودة للخلف:** `backButtonHtml` عائم ثابت (bottom:20px / inset-inline-start:20px / 44px دائري primary) بسهم SVG يشير يميناً (RTL) + تسمية «عودة» تتمدد عند hover/focus — في كل قشور غير الرئيسية (site/auth/dashboard) بلا 404 ولا الرئيسية؛ `data-home` + معالج script.js (history.back إن كان المُحيل نفس الأصل وإلا الرئيسية). إخفاء شارة البيانات التجريبية الثابتة على تلك الصفحات عبر `.pt-back~.pt-demo-badge` (تتجنب التزاحم؛ الشارة باقية في التذييل/الشريط الجانبي/بطاقة الدخول).
+   560→- **تروستة لوحة التحكم (desktop+mobile):** `.pt-topbar` لاصقة أعلى العمود الرئيسي (تحت صفحة الجوال العلوية): بحث `data-topbar-search` «ابحث في الصفحة...» بأيقونة + جرس بنقطة حمراء وقائمة منسدلة (3 إشعارات جزائرية + «تحديد الكل كمقروء» يعمل) + قائمة مستخدم (أفاتار «م» + demo@namudhaj.dz + الملف الشخصي/الإعدادات/تسجيل الخروج روابط حقيقية تُخفى عند غياب الصفحات) — فتح/إغلاق عبر `[data-menu-toggle]` + إغلاق عند النقر خارجها. + رابط «العودة إلى الموقع» (أيقونة globe) أسفل بطاقة المستخدم في الشريط الجانبي.
+   561→- **الجداول:** بحث الجدول + بحث التروستة مدمجان (AND) في `refreshTable` واحدة + **ترقيم صفحات** خفيف: `[data-pager]` مع `data-page-size="5"` وأزرار سابق/تالي (أسهم RTL: السابق →، التالي ←) وعداد «صفحة X من Y» — يُخفى كلياً حين ≤ 5 صفوف، ويُعاد الضبط عند البحث.
+   562→- **خلفية صورة البطل:** `findHeroImage` (أول بطل بصورة صالحة) → `dataUrlToAsset` → `assets/hero-bg.{ext}` ثنائي داخل الحزمة (مثل الشعار، عبر `RenderCtx.heroBg` الجديد) — الجذر `assets/...` والمجلدات `../assets/...`؛ الأقسمة inline-style: `background-image:{overlay},url(...)` مع أغطية dark/medium/light/none حرفياً من العقد، نص أبيض إلا light، وظل نص عند none. لا data URL في HTML إطلاقاً. + خلفيتا hero الجديدتان `gradient-soft` و`mesh` (نفس قيم عارض React).
+   563→- **تشغيل الفيديو:** الزر يتبدّل فعلياً: مثلث ↔ أيقونة إيقاف (شريطان) + موجة صوت متحركة `pt-wave` (5 أعمدة scaleY keyframes متدرجة التأخير) تحترم prefers-reduced-motion (aria-pressed/aria-label يتحدثان).
+   564→- **الكتل الجديدة (عقود 8-spec حرفياً):** activity-feed (بطاقة + ≤6 عناصر: نقطة primary + أفاتار ملوّن + نص بهدف غامق + وقت + فواصل)، tasks-list (شريط تقدّم متحرك + مربعات `data-task` role=checkbox مخصصة + شطب عند الإنجاز + تحديث فوري للتقدّم والعداد «X من Y منجزة» داخل نفس البطاقة)، quick-actions (شبكة 2→auto-fill 150px من بطاقات روابط بأيقونة SVG بتدرج primary→accent وسهم ‹ — الإجراءات ذات pageId غير الصالح تُهمل كلياً). + خريطة `ICON_SVG` (26 أيقونة بنمط lucide مضمّنة بلا مكتبات).
+   565→- **تحسينات جمالية (مطابقة React):** pt-btn--primary بتوهج `0 4px 14px color-mix(primary 35%)` + hover -1px؛ بلاطة أيقونة features بتدرج + hover بطاقة -2px وحد primary 35%؛ قيم stats بتدرج نصي clipped؛ شهادات: علامة اقتباس ” متدرجة شفافة + حلقة أفاتار + «...» حول النص؛ CTA/Banner: توهج داخلي علوي (radial أبيض 16-18%) خلف المحتوى + تدرجات primary→accent؛ صفحة الدخول: توهجان ضبابيان (primary 14% / accent 10%) + رابط «العودة إلى الرئيسية» أسفل البطاقة + إصلاح التداخل المزدوج لـ blk-auth (min-height:auto للمتداخلة).
+   566→- **README:** صف assets/hero-bg عند وجود الصورة + تحديث وصف script.js (ترقيم/تروستة/مهام/زر عودة).
+   567→
+   568→**QA (سكربت تحقق مؤقت بـ bun على مخطط وهمي كامل — 49/49 ✓):**
+   569→1. index.html: hero أساسي → `signup/`، ثانوي → `#features`، أزرار الخطط وCTA → `signup/` (4 روابط) ✓
+   570→2. كل الصفحات غير الرئيسية فيها `pt-back` مع `data-home` والرئيسية بدونها ✓
+   571→3. dashboard: pt-topbar + بحث التروستة + جرس/قائمة إشعارات وهران + قائمة مستخدم بروابط profile/settings/logout حقيقية ✓
+   572→4. `assets/hero-bg.png` ثنائي داخل الحزمة + `url('assets/hero-bg.png')` في الجذر + `../assets` في المجلد + الأغطية dark/medium ✓
+   573→5. tasks بمربعات data-task حقيقية، quick-actions برابط صالح واحد (غير الصالح مهمل)، activity-feed بثلاثة عناصر ✓
+   574→6. script.js يحوي كل المعالجات (back/topbar/tasks/pager/menus/read-all/play) وصالح نحوياً، styles.css أقواسها متوازنة (501/501) ✓
+   575→7. signup + login يحملان `data-redirect="../dashboard/"`، empty-state زر رابط للوحة ✓
+   576→8. كل الميزات القديمة باقية (reveal/top/skip/SEO/404/netlify.toml/nav toggle/نماذج/مفاتيح) ✓
+   577→- `npx tsc --noEmit`: صفر أخطاء في generate.ts (خطأ registry اختفى — أنجزه 8-c بالتوازي)؛ `bun run lint`: 0 أخطاء (تحذير الخطوط القديم فقط)؛ dev.log نظيف. السكربت المؤقت حُذف بعد التشغيل.
+   578→
+   579→**Stage Summary:**
+   580→التصدير الآن يعكس كل عقود الجولة 8 حرفياً: كل زر في الموقع الثابت يعمل بهدف ذكي مطابق للمعاينة الحية (nav-targets مشترك بلا ازدواج منطق)، كل صفحة غير رئيسية فيها زر عودة خلف عائم RTL + مسارات عودة نصية في الدخول واللوحات، لوحات التحكم اكتسبت تروستة حقيقية (بحث يفلتر الجداول فعلياً + إشعارات + قائمة مستخدم بروابط حقيقية) وجداول مرقّمة، وصورة البطل تُحزم كملف binary وتُحذف خصائصها من HTML، مع الكتل الثلاث الجديدة عاملة بالكامل في JS خالص صالح لـ Netlify مباشرة.
+   581→
+   582→---
+   583→
+   584→## Task ID: 8-d (تكامل وتحقق نهائي — main agent)
+   585→
+   586→**Agent:** main agent
+   587→**Task:** ربط كتل 8-c في العارض + تعليم الوكيل الذكي + إصلاحا خللين في التصدير + تحقق E2E شامل بالمتصفح.
+   588→
+   589→**Work Log:**
+   590→- prototype-renderer.tsx: استيراد + حالات renderBlock للكتل الثلاث الجديدة (activity-feed / tasks-list / quick-actions) بتمرير ctx.
+   591→- agent.ts: موجه النظام يشرح الكتل الجديدة + خصائص hero الموسعة (background الجديدة وbgOverlay مع منع صريح لوضع bgImage) + قواعد الأزرار الذكية + استدلال عربي مباشر: «أضف سجل النشاطات/المهام/إجراءات سريعة».
+   592→- إصلاحان في generate.ts (اكتشفا في E2E):
+   593→  1. `.pt-demo-badge` كان يغطي زر العودة في صفحات الدخول (القشرة متداخلة فأخفق المحدد الأخوي) → أضيف `body:has(.pt-back) .pt-demo-badge{display:none}`.
+   594→  2. بحث الجداول في التصدير: فرع «النتائج ≤ حجم الصفحة» كان يُظهر المتطابق فقط دون إخفاء البقية (سارة → 5 ظاهرة والعداد يقول 1) → الآن `rows.forEach` يخفي غير المتطابق.
+   595→  3. فائض أفقي في لوحات التحكم المصدَّرة على الجوال (390px): `grid-template-columns:1fr` في الميديا كويري يسمح بامتداد المحتوى (pills بـ 870px) → `minmax(0,1fr)`.
+   596→- E2E كامل (agent-browser على المنصة + على موقع مصدَّر يُخدم عبر خادم محلي):
+   597→  - إنشاء مشروع «متجر الأناقة» بنمط الداكن الفاخر → الباني → لوحة التاجر تحوي إجراءات سريعة + مهام (2 من 5) + سجل نشاطات + تروستة (بحث/جرس/مستخدم).
+   598→  - المعاينة: زر البطل الأساسي → إنشاء حساب، النموذج submit → لوحة التاجر، زر «عودة» العائم → الرئيسية، «العودة إلى الموقع» → الرئيسية، بحث التروستة يفلتر الجدول (سارة→1 ثم تفريغ→5)، الجرس (3 إشعارات + تحديد الكل كمقروء يزيل النقطة)، قائمة المستخدم (الملف/الإعدادات/تسجيل الخروج → صفحات حقيقية)، مهام checkbox (2→1 من 5 مع تحديث التقدّم).
+   599→  - رفع صورة خلفية للبطل (16KB→57KB dataURL بعد تصغير canvas) → ظهرت فوراً بالتدرج الداكن فوقها في المحرر (VLM: blobs بنفسجية/قرمزية ونص أبيض مقروء).
+   600→  - الحفظ → التصدير: ZIP يحوي assets/hero-bg.jpg + url('assets/hero-bg.jpg') في الجذر و'../assets/' في المجلدات + التراكب 0.62/0.78 ✓؛ أزرار البطل/التسعير/CTA → signup/ والثانوي → #pricing ✓؛ pt-back في login/dashboard لا في الرئيسية ✓؛ التروستة + data-task + blk-quick/blk-activity ✓؛ روابط ../profile/ و../settings/ و../login/ ✓.
+   601→  - **بعد التحميل: bgImage/bgImageName حُذفا من قاعدة البيانات والحالة صارت downloaded ✓** (والمزامنة المحلية + toast جاهزان في نافذة التصدير).
+   602→  - الموقع المصدَّر (HTTP حقيقي): زر البطل → /signup/، زر العودة → history.back() → /، تسجيل الحساب → /dashboard/ (data-redirect)، بحث التروستة سارة→1 صف ثم تفريغ→5، مهام 2→1 مع تحديث العداد، إجراء سريع → ../products/، كشف الأقسام عند التمرير يعمل (IO).
+   603→  - الجوال 390px: الرئيسية 390=390، اللوحة 390=390 بعد الإصلاح، products/settings/login كلها 390=390؛ لقطة اللوحة (VLM): تروستة بحث+جرس+أفاتار، بطاقات إحصائية، تخطيط نظيف.
+   604→  - توافق خلفي: تصدير مشروع بذري قديم (متجرتي) يعمل بكل الميزات الجديدة.
+   605→- tsc --noEmit: صفر أخطاء src. lint: صفر أخطاء (تحذير الخطوط القديم وحده). dev.log نظيف. حذف مشروع الاختبار وتنظيف الملفات المؤقتة.
+   606→
+   607→**Stage Summary:**
+   608→- الخطوات الثلاث مكتملة ومتحقق منها طرفا-إلى-طرف: (1) كل الأزرار تعمل في المعاينة والتصدير + زر عودة عائم في كل صفحة غير رئيسية + رجوع بمكدس في شريط المعاينة، (2) رفع صورة خلفية البطل مع تراكب قابل للاختيار وحذف من DB بعد التحميل حرفياً، (3) جودة مرفوعة: خلفيتا تدرّج جديدتان، توهجات، تدرّج أرقام وأيقونات، اقتباسات آراء، تروستة لوحة حقيقية (بحث/إشعارات/مستخدم) + 3 كتل غنية (سجل/مهام/إجراءات) مدمجة في كل قوالب المشاريع الجديدة + ترقيم صفحات الجداول المصدَّرة.
+   609→- إصلاحات جودة أثناء التحقق: تغطية زر العودة بالشارة، فلترة الجداول، الفائض الأفقي للجوال.
+   610→
+   611→---
+   612→
+   613→Task ID: 9-a
+   614→Agent: full-stack-developer (React side)
+   615→Task: رسوم البطل الواقعية (7 بطاقات) + 5 خيارات رسم جديدة + خلفيات صور لكل أقسام الصفحة + خلفية مشروع كاملة برفع من لوحة الهوية + ترقية الرسوم البيانية (تدرّج/حركة/تحويم).
+   616→
+   617→Work Log:
+   618→- ملف جديد `src/components/prototype/blocks/hero-visuals.tsx`: سبع بطاقات واقعية بمحتوى العقد حرفياً — لوحة تحكم (تروستة نقاط+app.example.dz+جرس بنقطة، شريط جانبي «لوحتي» بـ4 صفوف والنشط بشريط primary-start، 3 KPI بشارات خضراء، منحنى 260x90 بسبع نقاط 32→82 Catmull-Rom + تدرّج 26%→2% + شبكة + نقاط بيضاء + جانفي/مارس/ماي RTL، قائمة 3 طلبات بشارات، شارة عائمة «طلب جديد من وهران») + هاتف (9:41 + رموز حالة SVG + نوتش + «صباح الخير، سارة» + بطاقة رصيد متدرّجة 248,500 دج + 4 إجراءات + أعمدة «آخر 7 أيام» آخرها accent + معاملتان + تبويب سفلي + home indicator) + تحليلات (منحنى 520x180 بعشر نقاط + توهج drop-shadow + رقائق KPI) + طلبات (5 صفوف بمدن وشارات وملغى danger + تذييل) + محادثات (فقاعتان + مؤشر كتابة pt-typing + شريط إدخال بزر إرسال) + تقويم (ديسمبر 2024 يبدأ الأحد، اليوم 12 primary، نقاط 3/18/25 بثلاثة ألوان، تذييل «3 مواعيد») + رأي عميل (اقتباس 15% + 5 نجوم + «عميل موثّق»). كلها role=img والداخل aria-hidden وكل الألوان var(--pt-*).
+   619→- `hero-block.tsx`: HeroVisualKind += analytics/orders/chat/calendar/testimonial (10 قيم) + اختيار الرسم من hero-visuals + hasSideVisual لكل الأنواع البصرية في المقسّم (الموسّط: هاتف/فيديو يُكوَّم كما كان والجديدة لا تُعرض كـ dashboard).
+   620→- `charts/`: line-chart (تدرّج خط رأسي primary→color-mix 55% أبيض، strokeWidth 3، توهج filter، pathLength=1 + strokeDasharray:1 + صنف pt-draw 1.1s، مساحة pt-fade-in، تحويم: خط تسديد متقطع + نقطة r=6 fill primary + تلميح مقيَّد بالحواف بأرقام ar-DZ مع fallback en-US، touch مدعوم، smoothPath مُصدَّر) — bar-chart (صنف pt-anim-bar بتدرّج 60ms، العمود الأعلى بتدرّج accent، تحويم بتلميح + خفوت البقية 0.55) — donut-chart (حالة تحويم موحّدة: سماكة 20→23 والبقية 0.55، مزامنة صفوف المفتاح مع الشرائح) — chart-frame (بلاطة أيقونة رسم صاعد primary في الترويسة).
+   621→- `theme-provider.tsx`: PT CSS += pt-typing/pt-draw/pt-fade-in/pt-bar + حارس prefers-reduced-motion للثلاثة + PrototypeThemeScope يقبل bgImage/bgOverlay: مع صورة النطاق relative+isolate بخلفية شفافة وطبقة z-index:-1 (صورة cover + غسلة var(--pt-bg) بشفافية .9/.74/.55/0 حسب strong/medium/soft/none) تغطي كامل ارتفاع المحتوى.
+   622→- `shared.tsx`: sectionImageStyle (bgImage+bgOverlay بقيم أغطية البطل حرفياً → {style, dark}) + isImageNoOverlay + SectionHeading(dark,textShadow) + SectionShell(style).
+   623→- الكتل التسع (cta/banner/features/testimonials/stats/steps/gallery/team/faq): تطبيق الخلفية على جذر القسم (الجذر البصري للبطاقة في cta/banner) + انقلاب نبرة النص + ظل نص عند none — بلا صورة: نفس السلوك القديم بالبايت. المعرض: صورة عنصر حقيقية (img cover + hover scale) مكان الرمزية؛ الفريق: صورة دائرية مكان أفاتار الحروف.
+   624→- `types.ts`: ProjectBranding += bgImage?/bgImageName?/bgOverlay? ('none'|'strong'|'medium'|'soft').
+   625→- `registry/blocks.ts`: HERO_VISUAL_OPTIONS = 10 (بترتيب العقد) + حقول bgImage/bgOverlay آخر ترتيب للكتل التسع + حقل image أول itemFields للمعرض والفريق — defaults القائمة لم تُمس.
+   626→- `landing-kit.ts`: store-promo→orders، agency-bold→analytics (split/start/lg)، event-announce→calendar (split/start/lg)، minimal-startup→testimonial (split/start/md)، stats-lead→analytics.
+   627→- `theme-panel.tsx`: قسم «خلفية المشروع» بعد الشعار (رفع ImagePlus/معاينة h-28/استبدال/إزالة/Select قوة الظهور strong→medium→soft→none بتسميات العقد) عبر `src/lib/client-image.ts` الجديد (5MB/1600px/JPEG .82) — properties-panel لم يُمسّ.
+   628→- `prototype-renderer.tsx`: تمرير branding.bgImage/bgOverlay للنطاق + جذور القشور الثلاث (وdiv «لا صفحات») bg-transparent عند وجود صورة — البطاقات والتروستات تحتفظ بألوانها.
+   629→- i18n (إلحاق فقط): 13 مفتاح projectBg* (العقد + تسميات خيارات الأربع).
+   630→
+   631→Stage Summary:
+   632→- تحقق كامل: tsc صفر أخطاء في ملفاتي (الوحيد الظاهر الآن داخل generate.ts لخطأ heroBg/RenderCtx — ملف 9-b قيد التحرير المتوازي، ليست مسؤوليتي ولم ألمسه)؛ lint صفر أخطاء؛ سكربت bun مؤقت 60/60 (حُذف)؛ سكربت SSR مؤقت (حُذف) يثبت إخراج كل الرسوم الجديدة + أصناف الحركات + keyframes + طبقة خلفية المشروع؛ curl / = 200 وdev.log نظيف.
+   633→- عقد مطابق 100%: visual kinds العشرة، الكتل التسع بخلفيات الصور، مفاتيح branding الثلاثة، قيم overlay (قسم: dark/medium/light/none — مشروع: strong/medium/soft/none بشفافيات .9/.74/.55/0).
+   634→- لـ 9-b: انعكاس الرسوم السبعة بنفس المحتوى في HTML + نفس sectionImageStyle + صور عناصر المعرض/الفريق + طبقة خلفية المشروع + توسيع stripTransientImages ليشمل bgImage/bgImageName للكتل التسع وbranding.bgImage/bgImageName بعد التحميل (تبقى في ZIP).
+   635→- لـ 9-c: كل الحالات في renderBlock جاهزة — تحقق بصري فقط (تبديل الرسم الجانبي، رفع خلفية CTA، رفع خلفية المشروع وتبديل قوتها، تحويم الرسوم).
+   636→
+   637→---
+   638→Task ID: 9-b
+   639→Agent: full-stack-developer (export side — interrupted by context timeout, verified & completed by main agent 9-c)
+   640→
+   641→Task: تصدير الجولة 9 — رسوم جانبية حقيقية (analytics/orders/chat/calendar/testimonial + إعادة رسم dashboard/phone)، رسوم بيانية متحركة بتلميحات، صور لكل الأقسام + خلفية مشروع ثابتة (assets/img-{n} + assets/bg)، وتوسيع حذف الصور المؤقتة.
+   642→
+   643→Work Log:
+   644→- generate.ts (2841→3485 سطراً): HERO_VISUAL_MAP بعشرة أنواع (dashboard|phone|video|form|analytics|orders|chat|calendar|testimonial|none) — دوال heroDashboardVisualHtml/heroPhoneVisualHtml أُعيد رسمها بواقعية كاملة (تروستة app.example.dz + جرس بنقطة، شريط جانبي مصغر مع عنصر نشط، بطاقات KPI بأرقام حقيقية 3.4م دج + شارات خضراء، منحنى Catmull-Rom ناعم بتدرّج مساحة، قائمة طلبات بأفاتار وشارات ومبالغ، شريط إشعار عائم «طلب جديد من وهران»؛ هاتف: 9:41 + نوتش + بطاقة رصيد متدرجة 248,500 دج + إجراءات سريعة + أعمدة «آخر 7 أيام» + معاملات + شريط تبويبات) + خمس بطاقات جديدة (تقرير الأداء بمنحنى كبير وتوهج، أحدث الطلبات بمدن جزائرية، محادثة دعم بفقاعة وإشارة كتابة pt-typing، تقويم ديسمبر بحدث اليوم، رأي عميل بنجوم واقتباس) عبر CSS جديد ‎.pt-mock*‎.
+   645→- خط أنابيب الصور: collectBlockImages يمشي على كل الكتل (bgImage للبطل والأقسام + image لعناصر المعرض/الفريق) بإزالة تكرار حرفية → assets/img-{n}.{ext} ثنائي؛ branding.bgImage → assets/bg.{ext}؛ RenderCtx.imgSrc() لمسار نسبي لكل صفحة؛ أُزيلت آلية hero-bg الأحادية القديمة؛ README يوثق img-*/bg/logo.
+   646→- الأقسام بصور: readSectionBg يقرأ bgImage/bgOverlay (dark|medium|light|none) → صنف blk-section--onimage[/-light/-none] + نمط inline بتدرّج الغطاء — بلا صورة: خرج مطابق حرفياً للقديم؛ صور عناصر المعرض/الفريق كملفات.
+   647→- خلفية المشروع: body.pt-hasbg--{strong|medium|soft} + div.pt-pagebg ثابت z-index:-1 + غسلة بلون خلفية السمة (.9/.74/.55/لا شيء) + تحييد خلفيات القشور عند وجودها.
+   648→- الرسوم: lineChartSvg بتدرّج خط عمودي + pathLength=1 + pt-anim-line/pt-area + مناطق تلميح r=14 بـ data-tip؛ barChartSvg بأعمدة pt-anim-bar متدرجة التأخير وأعلى عمود بلون accent؛ donut بحوم تلميحي؛ script.js معالج مفوَّض واحد لـ [data-tip] مع div.pt-tip يتبع المؤشر؛ حماية prefers-reduced-motion تعيد الحالة النهائية.
+   649→- tools.ts: stripTransientImages الآن تنزع bgImage/bgImageName من كل الكتل، image/imageName من عناصر أي مصفوفة، وbgImage/bgImageName/bgOverlay من branding (الشعار يبقى).
+   650→- agent.ts: يوجّه الوكيل للأنواع العشرة للرسم الجانبي + أقسام الصور + خلفية المشروع (رفع المستخدم فقط).
+   651→
+   652→Verification (by 9-c main agent):
+   653→- سكربت مؤقت (.zscripts/qa9.ts — سيُحذف): 40/40 ✓ (ملفات ثنائية، لا data URLs نقطية في HTML، pt-hasbg في الجذر والمجلدات مع ../assets، أقسام onimage بروابط img-1/img-2، صور عناصر المعرض، pt-mock + تقرير الأداء، معالج التلميح + pt-draw/pt-grow + حماية الحركة، التوافق الخلفي لمشروع بلا صور، الأقواس متوازنة، strip ينزع كل الصور ويبقي الشعار).
+   654→- npx tsc --noEmit: صفر أخطاء في src. bun run lint: صفر أخطاء (تحذير الخطوط القديم وحده).
+   655→
+   656→Stage Summary:
+   657→- التصدير يعكس عقد الجولة 9 كاملاً ومتحققاً آلياً؛ كل ميزات الجولات السابقة (أزرار، عودة، تروستة، ترقيم) باقية.
+   658→
+   659→---
+   660→Task ID: 9-c (تكامل وتحقق نهائي — main agent)
+   661→
+   662→Task: تحقق E2E شامل بمتصفح حقيقي من ميزات الجولة 9 (الرسوم الجانبية الواقعية + الخيارات العشرة + المنحنى الجميل المتحرك بتلميح + صور كل الأقسام وخلفية المشروع + الحذف من DB بعد التحميل) وإغلاق الجودة.
+   663→
+   664→Work Log:
+   665→- تابع 9-b (الذي انقطع بمهلة السياق قبل تحققه) عوّضَ تحققه الكامل بالوكيل الرئيسي: سكربت QA مؤقت 40/40 ✓ (أصول ثنائية img-1/img-2/bg، لا data URLs نقطية، pt-hasbg في كل الصفحات، أقسام onimage بتدرّجات، صور عناصر المعرض، pt-mock، معالج التلميح + pt-draw/pt-grow/pt-typing + حماية prefers-reduced-motion، التوافق الخلفي، توازن الأقواس، strip ينزع كل الصور ويبقي الشعار) — حُذف السكربت.
+   666→- tsc --noEmit: صفر أخطاء في src. lint: صفر أخطاء (تحذير الخطوط القديم). dev.log نظيف.
+   667→- E2E على المنصة (agent-browser + دخول تجريبي): إنشاء مشروع «موضة الجزائر» (نمط عرض المتجر) → الباني:
+   668→  - الرسم الجانبي «طلبات المتجر» ظهر افتراضياً من القالب (VLM: واقعية 9/10 — أفاتار وشارات ومبالغ وطوابع زمنية).
+   669→  - قائمة الخيارات العشرة كلها تعمل: تحقق DOM كامل لكل نوع — dashboard (تروستة app.example.dz + لوحتي + تنقل نشط + KPIs 3.4م دج/1,248/5,880 + منحنى جانفي-جويلية + طلبات بأفاتار وشارات + شارة وهران العائمة في DOM)، phone (248,500 دج + صباح الخير سارة + معاملات + تبويبات)، analytics (VLM جمال 8/10)، chat، calendar، testimonial.
+   670→  - رفع صورة لقسم CTA («صورة الخلفية» + منتقي «تعتيم») → خلفية مطبقة فوراً (VLM 9/10، نص أبيض مقروء) — عبر dispatch ملف برمجي بعد أن أخفق upload المباشر مع React.
+   671→  - المعرض: حقل «صورة العنصر» لكل عنصر → رفع صورة منتج → بطاقة بصورة حقيقية.
+   672→  - لوحة التصميم: قسم «خلفية المشروع» + رفع + منتقي «قوة ظهور الخلفية» (تعتيم قوي/متوازن/ظهور واضح/كما هي) — الغسلة تغيّرت فعلياً 0.74→0.55، الطبقة isolate+z-(-1) تعمل، VLM: خلفية بنفسجية داكنة ظاهرة خلف المحتوى (8/10 فخامة).
+   673→  - المعاينة التفاعلية: تلميح الرسم بالأعمدة عند التحويم («جويلية: 2.780.000») يعمل.
+   674→- حفظ → تحميل المشروع: ZIP 125KB يحوي assets/bg.jpg + img-1.jpg (منتج) + img-2.jpg (CTA) + مراجع صحيحة في الجذر والمجلدات (../assets) + blk-section--onimage بتدرّج داكن + pt-hasbg في 12 صفحة + netlify.toml.
+   675→- بعد التحميل: فحص قاعدة البيانات مباشرة — صفر bgImage في كل الكتل، صفر image في عناصر القوائم، branding.bgImage محذوف (الشعار محفوظ)، الحالة downloaded ✓ (الصور تبقى داخل ZIP فقط).
+   676→- الموقع المصدَّر عبر HTTP حقيقي: الصور الثلاث تُحمّل (naturalWidth>0)، تلميح الرسم يعمل («أوت: 3,150,000» مع pt-tip show)، زر البطل → signup/ مع data-redirect، الجوال 390px بلا فائض أفقي (الرئيسية واللوحة)، لا أخطاء console، لوحة مكتب (VLM: شريط جانبي + تروستة + بطاقات أرقام — تبدو منتج SaaS حقيقي).
+   677→- توافق خلفي: تصدير مشروع قديم «حجزتي» (مخطط ما قبل الجولة 9) HTTP 200 (62KB).
+   678→- تنظيف: حذف السكربتات/المستخرجات/الخادم المؤقت 4173، إغلاق المتصفح.
+   679→
+   680→Stage Summary:
+   681→- الجولة 9 مكتملة طرفا-إلى-طرف: (1) رسم لوحة التحكم والهاتف في البطل واقعيان وجميلان + 10 خيارات للرسم الجانبي (5 جديدة: تحليلات/طلبات/محادثات/تقويم/رأي عميل)، (2) المنحنى البياني ناعم متدرّج متحرك بتلميح تحويم في المعاينة والتصدير، (3) صور لكل أقسام صفحة الهبوط + خلفية ثابتة للمشروع كله من لوحة التصميم — تُصدَّر كملفات وتُحذف من DB بعد التحميل حرفياً، (4) مشاريع قالب المتجر/الوكالية/الفعالية/البداية/الأرقام تعرض الرسوم الجديدة افتراضياً.
+   682→- مشروع «موضة الجزائر» التجريبي أُبقي عمداً في حساب المستخدم التجريبي كعرض حي للميزات الجديدة (حالته downloaded وصوره مُنقّاة توثيقاً لسلوك الحذف).
+   683→
+   684→---
+   685→Task ID: 10
+   686→Agent: main agent (Z.ai Code)
+   687→
+   688→Task: إعادة تسمية المنصة من «نموذج» إلى SIVAR + كتابة سطر تطوير ذهبي مضيء أسفل صفحة الهبوط + اعتماد شعار SIVAR المرفوع من المستخدم.
+   689→
+   690→Work Log:
+   691→- فحص الشعار المرفوع (upload/pasted_image_1789942711890.png — 1254×1254 RGBA بخلفية شفافة): شريط «S» معدني ذهبي ثلاثي الأبعاد مع قمم جبلية وكرة ذهبية — مثالي لاسم SIVAR.
+   692→- توليد أصول محسّنة بـ PIL: public/logo-sivar.png (512px) + public/favicon-sivar.png (192px) وحذف logo.svg القديم.
+   693→- إعادة التسمية الشاملة إلى SIVAR: common.brand، auth.welcomeTitle، dashboard.notifWelcomeTitle، export.guideNote، landing.faq1Q، help.a8، برومبتات LLM في agent.ts وanalyze.ts، عنوان/كلمات مفتاحية/أيقونة layout.tsx، تعليقات رؤوس ~189 ملفاً (sed موحّد)، netlify.toml وREADME وscript.js داخل التصدير، تراجعات letterFavicon/404 إلى metadata.name، وكل معرفات namudhaj (كوكي sivar_session، ملح كلمة المرور ::sivar، demo@sivar.dz، slug sivar-project، مفتاح بحث sivar:project-search).
+   694→- BrandMark المركزي في landing-navbar: استبدال أيقونة Layers بشعار SIVAR الحقيقي (next/image، حواف دائرية rounded-[26%]) — ينتشر تلقائياً في: ترويسة الهبوط، قائمة الجوال، تذييل الهبوط، بطاقة الدخول (lg)، الشريط الجانبي للوحة، دليل التصدير؛ وشاشة البداية SplashScreen في page.tsx.
+   695→- سطر التطوير الذهبي المضيء أسفل تذييل صفحة الهبوط: footerDevCredit «المنصة من تطوير: يجي مسعود طالب دكتوراه بجامعة الجزائر 3» بفئة .sivar-credit في globals.css — تدرّج ذهبي (background-clip:text) + توهّج drop-shadow ذهبي ثلاثي الطبقات + لمعة متحركة sivar-credit-shine (5.5s) + نسخة داكنة أفتح + احترام prefers-reduced-motion.
+   696→- ترحيل قاعدة البيانات: تحديث بريد المستخدم التجريبي إلى demo@sivar.dz (بحفظ مشاريعه الخمسة بما فيها عرض «موضة الجزائر») وإعادة تجزئة كلمات مرور كل المستخدمين بالملح الجديد.
+   697→- تحقق آلي: tsc --noEmit صفر أخطاء في src، lint صفر أخطاء (تحذير الخطوط وحده)، dev.log نظيف.
+   698→- تحقق E2E بمتصفح حقيقي: العنوان «SIVAR — حوّل فكرتك...»، الشعار يُحمّل (naturalWidth>0) في كل المواضع، النص الذهبي ظاهر بنصّه الحرفي مع clip:text وdrop-shadow والأنميشن، الفافيكون favicon-sivar.png، الدخول التجريبي بالكوكي الجديد يفتح لوحة بخمسة مشاريع محفوظة، تصدير ZIP جديد يحوي صفر «namudhaj» وSIVAR في netlify.toml/README/script.js وdemo@sivar.dz في القوائم المنسدلة، الجوال 390px بلا فائض أفقي والسطر الذهبي داخل الشاشة (358×52px).
+   699→- تقييم VLM: السطر الذهبي فاتح 8/10 ودافئ 8.5/10 (واضح مضيء فاخر)، تكامل الشعار في الترويسة ممتاز (ذهبي ثلاثي الأبعاد مع كرة وقمم)، تذييل الجوال نظيف بلا كسور.
+   700→
+   701→Stage Summary:
+   702→- المنصة أصبحت SIVAR بالكامل: الواجهة، الوكيل الذكي، التصدير، الكوكي، البريد التجريبي، والفافيكون — مع الشعار الذهبي الحقيقي في كل موضع علامة، وسطر تطوير ذهبي مضيء متحرك أسفل صفحة الهبوط (فاتح/داكن/جوال) باسم «يجي مسعود طالب دكتوراه بجامعة الجزائر 3».
+   703→
+   704→---
+   705→Task ID: 11
+   706→Agent: main agent (Z.ai Code)
+   707→
+   708→Task: تصحيح سطر التطوير أسفل صفحة الهبوط — «يحي» بدل «يجي» + «في جامعة الجزائر 3» — ونزع الإضاءة/التوهّج من الخط الذهبي ليظهر نظيفاً واضحاً.
+   709→
+   710→Work Log:
+   711→- تحديث footerDevCredit في landing.ts إلى «المنصة من تطوير يحي مسعود طالب دكتوراه في جامعة الجزائر 3» (تصحيح الاسم + الصياغة).
+   712→- إعادة كتابة .sivar-credit في globals.css: نزع كل التوهّج (drop-shadows الثلاثية) ولمعة الأنميشن sivar-credit-shine وقاعدة prefers-reduced-motion المرتبطة بها — بقي تدرّج ذهبي صافٍ فقط (فاتح: 8a6508→dfb754، داكن: e3bd52→ffe9a8) بخط 800.
+   713→- تحقق E2E بمتصفح حقيقي: النص الحرفي الجديد ظاهر، filter:none وanimation:none وclip:text سليمة، الوضع الداكن والجوال 390px (بلا فائض أفقي، داخل الشاشة).
+   714→- VLM أكّد في الفاتح والداكن: النص يقرأ حرفياً «يحي مسعود… في جامعة الجزائر 3»، تدرّج ذهبي نظيف بلا أي هالة/إضاءة، مقروء تماماً.
+   715→- lint: صفر أخطاء (تحذير الخطوط وحده). dev.log نظيف.
+   716→
+   717→Stage Summary:
+   718→- سطر التطوير أصبح: «المنصة من تطوير يحي مسعود طالب دكتوراه في جامعة الجزائر 3» بخط ذهبي متدرّج صافٍ بلا توهّج ولا أنميشن — واضح ومقروء في الوضع الفاتح والداكن والجوال.
+
+[showing lines 519-718 of 719; use offset=719 with limit to continue reading]

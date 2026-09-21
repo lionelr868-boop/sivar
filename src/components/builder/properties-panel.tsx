@@ -14,13 +14,13 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ImagePlus, Loader2, MousePointerClick, MoveDown, MoveUp, Trash2 } from 'lucide-react'
+import { ImagePlus, Loader2, MousePointerClick, MoveDown, MoveUp, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 const LAYOUT_KEYS = new Set([
   'layout', 'columns', 'align', 'background', 'variant', 'position', 'pageSize', 'chartType', 'dataKey', 'mode', 'radius', 'shadow', 'fontFamily',
 ])
-const APPEARANCE_KEYS = new Set(['color', 'bg', 'background2', 'border', 'style', 'theme', 'bgOverlay'])
+const APPEARANCE_KEYS = new Set(['color', 'bg', 'background2', 'border', 'style', 'theme', 'bgOverlay', 'bgColor', 'textColor'])
 
 function fieldGroup(field: FieldDefinition): 'content' | 'layout' | 'appearance' {
   if (LAYOUT_KEYS.has(field.key)) return 'layout'
@@ -243,6 +243,8 @@ function SimpleField({
   }
 
   if (field.type === 'color') {
+    // Task 12 — حقل لون اختياري (لون خلفية/خط القسم): فارغ = وراثة هوية المشروع
+    if (field.optional) return <OptionalColorField field={field} value={value} onCommit={onCommit} />
     const hex = typeof draft === 'string' && /^#[0-9a-fA-F]{6}$/.test(draft) ? draft : '#7c3aed'
     return (
       <div className="space-y-1.5">
@@ -321,6 +323,111 @@ function SimpleField({
         }}
         className="h-9 text-xs"
       />
+    </div>
+  )
+}
+
+// ============================================================
+// حقل لون اختياري (Task 12) — «لون خلفية/خط القسم»
+// قيمة فارغة تعني: وراثة هوية المشروع — مع زر إزالة يُرجع
+// القيمة إلى '' (افتراضي) بعد التعيين.
+// ============================================================
+function OptionalColorField({
+  field,
+  value,
+  onCommit,
+}: {
+  field: { key: string; label: string }
+  value: unknown
+  onCommit: (patch: Record<string, unknown>) => void
+}) {
+  const [draft, setDraft] = useState(() => (typeof value === 'string' ? value : ''))
+  const [lastValue, setLastValue] = useState<unknown>(value)
+
+  // مزامنة عند تغيّر القيمة الخارجية (نمط التعديل أثناء العرض — بدون effect)
+  if (value !== lastValue) {
+    setLastValue(value)
+    setDraft(typeof value === 'string' ? value : '')
+  }
+
+  const raw = typeof draft === 'string' ? draft.trim() : ''
+  const hasValue = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw)
+
+  const commit = () => {
+    const cleaned = draft.trim()
+    const current = typeof value === 'string' ? value : ''
+    if (cleaned === current) return
+    onCommit({ [field.key]: cleaned })
+  }
+
+  const remove = () => {
+    setDraft('')
+    onCommit({ [field.key]: '' })
+  }
+
+  if (!hasValue) {
+    // الحالة الافتراضية: حبيكة بحدود متقطّعة + إدخال بعنصر «افتراضي (من الهوية)»
+    return (
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-xs">{field.label}</Label>
+          <span className="shrink-0 rounded-full border border-dashed px-2 py-0.5 text-[10px] leading-4 text-muted-foreground">
+            {t.builder.colorDefaultHint}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            value="#7c3aed"
+            onChange={(e) => {
+              setDraft(e.target.value)
+              onCommit({ [field.key]: e.target.value })
+            }}
+            className="size-9 shrink-0 cursor-pointer rounded-md border bg-card p-1"
+            aria-label={field.label}
+          />
+          <Input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            placeholder={t.builder.colorDefaultHint}
+            className="h-9 font-mono text-xs"
+            dir="ltr"
+          />
+        </div>
+      </div>
+    )
+  }
+
+  // قيمة مخصّصة موجودة — مع زر X للإزالة (يعود إلى الافتراضي)
+  const hex = /^#[0-9a-fA-F]{6}$/.test(raw) ? raw : /^#[0-9a-fA-F]{3}$/.test(raw) ? raw : '#7c3aed'
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{field.label}</Label>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={hex}
+          onChange={(e) => {
+            setDraft(e.target.value)
+            onCommit({ [field.key]: e.target.value })
+          }}
+          className="size-9 shrink-0 cursor-pointer rounded-md border bg-card p-1"
+          aria-label={field.label}
+        />
+        <Input value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit} className="h-9 font-mono text-xs" dir="ltr" />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-9 shrink-0 text-muted-foreground hover:text-destructive"
+          onClick={remove}
+          aria-label={t.builder.removeColor}
+          title={t.builder.removeColor}
+        >
+          <X className="size-4" />
+        </Button>
+      </div>
     </div>
   )
 }

@@ -6,11 +6,13 @@ import type { ReactElement, CSSProperties } from 'react'
 // Task 9-a — خلفية صورة للبطاقة (bgImage + bgOverlay) بنبرة نص
 // متكيّفة: أبيض مع التعتيم الداكن/المتوسط أو بلا تعتيم (مع ظل
 // نص)، داكن مع الغلالة الفاتحة — بلا صورة: السلوك القديم حرفياً.
+// Task 12 — لون خلفية القسم (bgColor): تدرّج لطيف منه بدل
+// التدرّج/الداكن الافتراضي + نص يتبع var(--pt-text) (تلقائي ذكي).
 // ============================================================
 import type { Block } from '@/lib/types'
 import { PButton } from '../ui/p-button'
 import { ctaButtonTarget } from '@/lib/project/nav-targets'
-import { S, isImageNoOverlay, sectionImageStyle, type BlockCtx } from './shared'
+import { S, hexLuminance, isImageNoOverlay, sectionBgGradient, sectionHexColor, sectionImageStyle, type BlockCtx } from './shared'
 
 type CtaStyle = 'default' | 'gradient' | 'dark'
 
@@ -30,25 +32,33 @@ export function CtaBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): React
   const { style: imageStyle, dark: imageDark } = sectionImageStyle(p)
   const hasImage = imageStyle != null
   const noOverlay = isImageNoOverlay(p)
-  const textDark = hasImage ? imageDark : isDark || isGradient
+
+  // ---- لون خلفية القسم (Task 12) — تدرّج منه + نص تلقائي ذكي ----
+  // (صورة المستخدم المرفوعة تتقدم على اللون — توافق خلفي كامل)
+  const bgColor = sectionHexColor(p.bgColor)
+  const hasCustomBg = bgColor !== '' && !hasImage
+  const customDark = hasCustomBg && hexLuminance(bgColor) <= 0.5
+  const textDark = hasImage ? imageDark : hasCustomBg ? customDark : isDark || isGradient
 
   const buttonTarget = ctaButtonTarget(ctx.schema)
   const ctaGo = () => {
     if (ctx.onNavigate && buttonTarget) ctx.onNavigate(buttonTarget)
   }
 
-  // خلفية البطاقة: صورة → أنماط الألوان الأصلية
+  // خلفية البطاقة: صورة → لون مخصّص (Task 12) → أنماط الألوان الأصلية
   const cardStyle: CSSProperties = hasImage
     ? { ...imageStyle, boxShadow: 'var(--pt-shadow)' }
-    : {
-        background: isGradient
-          ? 'linear-gradient(135deg, var(--pt-primary), var(--pt-accent))'
-          : isDark
-            ? '#16121f'
-            : 'var(--pt-secondary)',
-        border: style === 'default' ? '1px solid var(--pt-border)' : 'none',
-        boxShadow: 'var(--pt-shadow)',
-      }
+    : hasCustomBg
+      ? { background: sectionBgGradient(bgColor), boxShadow: 'var(--pt-shadow)' }
+      : {
+          background: isGradient
+            ? 'linear-gradient(135deg, var(--pt-primary), var(--pt-accent))'
+            : isDark
+              ? '#16121f'
+              : 'var(--pt-secondary)',
+          border: style === 'default' ? '1px solid var(--pt-border)' : 'none',
+          boxShadow: 'var(--pt-shadow)',
+        }
 
   const headingShadow = noOverlay ? { textShadow: '0 2px 12px rgba(0,0,0,.45)' } : undefined
 
@@ -68,13 +78,13 @@ export function CtaBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): React
           <div className="relative">
           {title ? (
             <h2 className="text-2xl font-bold leading-tight md:text-4xl">
-              <span style={headingShadow} className={textDark ? 'text-white' : 'text-[var(--pt-text)]'}>
+              <span style={headingShadow} className={!textDark || hasCustomBg ? 'text-[var(--pt-text)]' : 'text-white'}>
                 {title}
               </span>
             </h2>
           ) : null}
           {subtitle ? (
-            <p className={`mx-auto mt-3 max-w-xl text-sm leading-relaxed md:text-base ${textDark ? 'text-white/80' : 'text-[var(--pt-muted)]'}`}>
+            <p className={`mx-auto mt-3 max-w-xl text-sm leading-relaxed md:text-base ${!textDark || hasCustomBg ? 'text-[var(--pt-muted)]' : 'text-white/80'}`}>
               {subtitle}
             </p>
           ) : null}
@@ -82,7 +92,11 @@ export function CtaBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): React
             <PButton
               size="lg"
               variant={textDark ? 'secondary' : 'primary'}
-              className={`mt-7 ${textDark ? 'border-white/25 bg-white text-[#16121f] hover:bg-white/90' : ''}`}
+              className={`mt-7 ${textDark ? 'border-white/25 bg-white hover:bg-white/90' : ''}`}
+              // Task 12-c — لون الخط inline حصماً للتتالي: صنف text-[var(--pt-text)]
+              // في متغير الثانوي يسبق text-[#…] في CSS فيجعل النص أبيض-على-أبيض
+              // مع bgColor داكن (secvars يضبط --pt-text أبيض). الأسلوب المضمّن يغلب دائماً.
+              style={textDark ? { color: '#16121f' } : undefined}
               onClick={ctaGo}
             >
               {buttonText}

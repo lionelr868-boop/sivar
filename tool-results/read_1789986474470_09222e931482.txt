@@ -1,0 +1,1032 @@
+     1→// ============================================================
+     2→// SIVAR — Block Registry (سجل المكوّنات)
+     3→// Task 2-a — تعريف كل BlockType: التسمية، الفئة، الأيقونة،
+     4→// القيم الافتراضية (مطابقة لعقد الخصائص المثبّت في worklog)،
+     5→// وحقول التحرير الخاصة بمحرر الخصائص.
+     6→// ============================================================
+     7→import type { BlockType } from '@/lib/types'
+     8→import { ENTITY_KEYS } from '@/lib/content/mock-data'
+     9→import { CHART_KEYS } from '@/lib/content/mock-data'
+    10→
+    11→// ---------- types (مطابقة للعقد المثبّت) ----------
+    12→export type FieldDefinition =
+    13→  | {
+    14→      key: string
+    15→      label: string
+    16→      type: 'text' | 'textarea' | 'number' | 'color' | 'switch' | 'select' | 'code'
+    17→      options?: { value: string; label: string }[]
+    18→    }
+    19→  | { key: string; label: string; type: 'page' }
+    20→  | { key: string; label: string; type: 'image'; accept?: string }
+    21→  | { key: string; label: string; type: 'list'; itemFields: FieldDefinition[]; itemLabel?: string }
+    22→
+    23→export interface BlockDefinition {
+    24→  type: BlockType
+    25→  label: string
+    26→  category: 'marketing' | 'dashboard' | 'auth' | 'states'
+    27→  description: string
+    28→  /** lucide icon name */
+    29→  icon: string
+    30→  /** قيم افتراضية بمفاتيح مطابقة تماماً لعقد خصائص المكوّنات */
+    31→  defaults: () => Record<string, unknown>
+    32→  /** حقول التحرير (مجموعة سهلة للاستعمال في المحرر) */
+    33→  fields: FieldDefinition[]
+    34→}
+    35→
+    36→// ---------- خيارات جاهزة (مستعملة في حقول select) ----------
+    37→const LAYOUT_OPTIONS = [
+    38→  { value: 'split', label: 'مُقسَّم (نص + رسم)' },
+    39→  { value: 'centered', label: 'موسّط' },
+    40→]
+    41→const HERO_BG_OPTIONS = [
+    42→  { value: 'default', label: 'عادي' },
+    43→  { value: 'muted', label: 'خفيف ملوّن' },
+    44→  { value: 'dark', label: 'داكن' },
+    45→  { value: 'gradient', label: 'تدرّج لوني' },
+    46→  { value: 'gradient-soft', label: 'تدرّج ناعم' },
+    47→  { value: 'mesh', label: 'شبكية توهج' },
+    48→]
+    49→const HERO_OVERLAY_OPTIONS = [
+    50→  { value: 'dark', label: 'تعتيم داكن (نص أبيض)' },
+    51→  { value: 'medium', label: 'تعتيم متوسط (نص أبيض)' },
+    52→  { value: 'light', label: 'غلالة فاتحة (نص داكن)' },
+    53→  { value: 'none', label: 'بدون تعتيم' },
+    54→]
+    55→const HERO_VISUAL_OPTIONS = [
+    56→  { value: 'dashboard', label: 'رسم لوحة تحكم' },
+    57→  { value: 'phone', label: 'هاتف تطبيق' },
+    58→  { value: 'video', label: 'بطاقة فيديو' },
+    59→  { value: 'form', label: 'نموذج بريد (جمع تسجيلات)' },
+    60→  { value: 'analytics', label: 'بطاقة تحليلات' },
+    61→  { value: 'orders', label: 'طلبات المتجر' },
+    62→  { value: 'chat', label: 'المحادثات' },
+    63→  { value: 'calendar', label: 'التقويم' },
+    64→  { value: 'testimonial', label: 'رأي عميل' },
+    65→  { value: 'none', label: 'بدون رسم' },
+    66→]
+    67→const HERO_TITLE_SIZE_OPTIONS = [
+    68→  { value: 'md', label: 'عادي' },
+    69→  { value: 'lg', label: 'كبير' },
+    70→  { value: 'xl', label: 'ضخم' },
+    71→]
+    72→const ALIGN_OPTIONS = [
+    73→  { value: 'start', label: 'بداية السطر' },
+    74→  { value: 'center', label: 'وسط' },
+    75→]
+    76→const COLUMNS_OPTIONS = [
+    77→  { value: '2', label: 'عمودان' },
+    78→  { value: '3', label: '3 أعمدة' },
+    79→  { value: '4', label: '4 أعمدة' },
+    80→]
+    81→const CTA_STYLE_OPTIONS = [
+    82→  { value: 'default', label: 'عادي' },
+    83→  { value: 'gradient', label: 'تدرّج' },
+    84→  { value: 'dark', label: 'داكن' },
+    85→]
+    86→const GALLERY_VARIANT_OPTIONS = [
+    87→  { value: 'products', label: 'منتجات' },
+    88→  { value: 'services', label: 'خدمات' },
+    89→  { value: 'properties', label: 'عقارات' },
+    90→  { value: 'menu', label: 'قائمة طعام' },
+    91→  { value: 'courses', label: 'دورات' },
+    92→]
+    93→const AUTH_VARIANT_OPTIONS = [
+    94→  { value: 'login', label: 'تسجيل الدخول' },
+    95→  { value: 'signup', label: 'إنشاء حساب' },
+    96→  { value: 'forgot', label: 'نسيت كلمة المرور' },
+    97→]
+    98→const CHART_TYPE_OPTIONS = [
+    99→  { value: 'bar', label: 'أعمدة' },
+   100→  { value: 'line', label: 'خطّي' },
+   101→  { value: 'donut', label: 'دائري' },
+   102→]
+   103→const CHART_KEY_OPTIONS = CHART_KEYS.map((k) => ({
+   104→  value: k,
+   105→  label: { revenueMonthly: 'الإيرادات الشهرية', ordersWeekly: 'الطلبات الأسبوعية', salesByCategory: 'المبيعات حسب الفئة', usersGrowth: 'نمو المستخدمين' }[k] ?? k,
+   106→}))
+   107→const ENTITY_OPTIONS = ENTITY_KEYS.map((k) => ({ value: k, label: k }))
+   108→const FIELD_TYPE_OPTIONS = [
+   109→  { value: 'text', label: 'نص' },
+   110→  { value: 'email', label: 'بريد إلكتروني' },
+   111→  { value: 'password', label: 'كلمة مرور' },
+   112→  { value: 'number', label: 'رقم' },
+   113→  { value: 'select', label: 'قائمة اختيار' },
+   114→  { value: 'textarea', label: 'نص طويل' },
+   115→  { value: 'checkbox', label: 'مربع تأكيد' },
+   116→]
+   117→const SETTING_FIELD_TYPE_OPTIONS = [
+   118→  { value: 'text', label: 'نص' },
+   119→  { value: 'switch', label: 'مفتاح تشغيل' },
+   120→  { value: 'select', label: 'قائمة اختيار' },
+   121→  { value: 'password', label: 'كلمة مرور' },
+   122→]
+   123→
+   124→/** خيارات أيقونات (مجموعة فرعية من icon-map) لاختيار بصري سريع */
+   125→export const ICON_FIELD_OPTIONS: { value: string; label: string }[] = [
+   126→  { value: 'sparkles', label: 'بريق' },
+   127→  { value: 'zap', label: 'ومضة' },
+   128→  { value: 'shield', label: 'درع حماية' },
+   129→  { value: 'globe', label: 'كرة أرضية' },
+   130→  { value: 'star', label: 'نجمة' },
+   131→  { value: 'heart', label: 'قلب' },
+   132→  { value: 'check', label: 'علامة صح' },
+   133→  { value: 'clock', label: 'ساعة' },
+   134→  { value: 'trending-up', label: 'نمو صاعد' },
+   135→  { value: 'users', label: 'مستخدمون' },
+   136→  { value: 'package', label: 'طرد' },
+   137→  { value: 'credit-card', label: 'بطاقة' },
+   138→  { value: 'wallet', label: 'محفظة' },
+   139→  { value: 'bell', label: 'جرس إشعارات' },
+   140→  { value: 'target', label: 'هدف' },
+   141→  { value: 'award', label: 'جائزة' },
+   142→  { value: 'smartphone', label: 'هاتف' },
+   143→  { value: 'briefcase', label: 'حقيبة عمل' },
+   144→  { value: 'calendar', label: 'تقويم' },
+   145→  { value: 'search', label: 'بحث' },
+   146→  { value: 'plus', label: 'إضافة' },
+   147→  { value: 'file-text', label: 'ملف' },
+   148→  { value: 'settings', label: 'إعدادات' },
+   149→  { value: 'user', label: 'مستخدم' },
+   150→]
+   151→
+   152→// ============================================================
+   153→// BLOCK_REGISTRY
+   154→// ============================================================
+   155→export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
+   156→  // ---------------- marketing ----------------
+   157→  hero: {
+   158→    type: 'hero',
+   159→    label: 'البطل',
+   160→    category: 'marketing',
+   161→    description: 'القسم الرئيسي في أعلى الصفحة مع العنوان والأزرار',
+   162→    icon: 'zap',
+   163→    defaults: () => ({
+   164→      title: 'حوّل فكرتك إلى واقع رقمي',
+   165→      subtitle: 'منصة عربية تساعدك على إطلاق مشروعك بسرعة، بأدوات بسيطة ونتائج احترافية تناسب السوق الجزائري.',
+   166→      primaryButton: 'ابدأ الآن مجاناً',
+   167→      primaryButtonPage: '',
+   168→      secondaryButton: 'تعرّف على المميزات',
+   169→      layout: 'split',
+   170→      background: 'default',
+   171→      bgOverlay: 'dark',
+   172→      align: 'start',
+   173→      visual: 'dashboard',
+   174→      titleSize: 'md',
+   175→      eyebrow: '',
+   176→      emailPlaceholder: '',
+   177→      emailButton: '',
+   178→    }),
+   179→    fields: [
+   180→      { key: 'eyebrow', label: 'شعار صغير (Eyebrow)', type: 'text' },
+   181→      { key: 'title', label: 'العنوان', type: 'text' },
+   182→      { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
+   183→      { key: 'primaryButton', label: 'نص الزر الأساسي', type: 'text' },
+   184→      { key: 'primaryButtonPage', label: 'هدف الزر الأساسي (اختياري — تلقائي ذكي)', type: 'page' },
+   185→      { key: 'secondaryButton', label: 'نص الزر الثانوي', type: 'text' },
+   186→      { key: 'layout', label: 'التخطيط', type: 'select', options: LAYOUT_OPTIONS },
+   187→      { key: 'visual', label: 'الرسم الجانبي', type: 'select', options: HERO_VISUAL_OPTIONS },
+   188→      { key: 'titleSize', label: 'حجم العنوان', type: 'select', options: HERO_TITLE_SIZE_OPTIONS },
+   189→      { key: 'background', label: 'الخلفية', type: 'select', options: HERO_BG_OPTIONS },
+   190→      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+   191→      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+   192→      { key: 'align', label: 'محاذاة النص', type: 'select', options: ALIGN_OPTIONS },
+   193→      { key: 'emailPlaceholder', label: 'حقل البريد — النص التوضيحي', type: 'text' },
+   194→      { key: 'emailButton', label: 'حقل البريد — نص الزر', type: 'text' },
+   195→    ],
+   196→  },
+   197→
+   198→  features: {
+   199→    type: 'features',
+   200→    label: 'المميزات',
+   201→    category: 'marketing',
+   202→    description: 'شبكة بطاقات تعرض مميزات المنتج أو الخدمة',
+   203→    icon: 'layers',
+   204→    defaults: () => ({
+   205→      title: 'لماذا تختار منصتنا؟',
+   206→      subtitle: 'كل ما تحتاجه لإدارة مشروعك في مكان واحد',
+   207→      columns: 3,
+   208→      items: [
+   209→        { icon: 'zap', title: 'سرعة في الإنجاز', description: 'أنجز مهامك في وقت أقل بفضل أدوات مبنية للعمل اليومي.' },
+   210→        { icon: 'shield', title: 'أمان البيانات', description: 'بياناتك محمية بتشفير كامل ونسخ احتياطي يومي.' },
+   211→        { icon: 'globe', title: 'عربية أولاً', description: 'واجهة عربية كاملة من اليمين إلى اليسار صُممت للمستخدم الجزائري.' },
+   212→        { icon: 'trending-up', title: 'تحليلات ذكية', description: 'تقارير فورية تساعدك على اتخاذ قرارات أفضل.' },
+   213→        { icon: 'users', title: 'عمل جماعي', description: 'ادعُ فريقك واعملوا معاً في نفس المساحة.' },
+   214→        { icon: 'smartphone', title: 'يعمل على الهاتف', description: 'تجربة سلسة على كل الشاشات أينما كنت.' },
+   215→      ],
+   216→    }),
+   217→    fields: [
+   218→      { key: 'title', label: 'العنوان', type: 'text' },
+   219→      { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
+   220→      { key: 'columns', label: 'عدد الأعمدة', type: 'select', options: COLUMNS_OPTIONS },
+   221→      {
+   222→        key: 'items',
+   223→        label: 'المميزات',
+   224→        type: 'list',
+   225→        itemLabel: 'ميزة',
+   226→        itemFields: [
+   227→          { key: 'icon', label: 'الأيقونة', type: 'select', options: ICON_FIELD_OPTIONS },
+   228→          { key: 'title', label: 'العنوان', type: 'text' },
+   229→          { key: 'description', label: 'الوصف', type: 'textarea' },
+   230→        ],
+   231→      },
+   232→      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+   233→      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+   234→    ],
+   235→  },
+   236→
+   237→  stats: {
+   238→    type: 'stats',
+   239→    label: 'الأرقام',
+   240→    category: 'marketing',
+   241→    description: 'صف أرقام نجاح مشروعك في شريط واحد',
+   242→    icon: 'trending-up',
+   243→    defaults: () => ({
+   244→      title: '',
+   245→      items: [
+   246→        { label: 'عميل سعيد', value: '2,400+', change: '+18%' },
+   247→        { label: 'مشروع منجز', value: '860', change: '+12%' },
+   248→        { label: 'سنوات خبرة', value: '12', change: '' },
+   249→        { label: 'معدل الرضا', value: '98%', change: '+2%' },
+   250→      ],
+   251→    }),
+   252→    fields: [
+   253→      { key: 'title', label: 'العنوان (اختياري)', type: 'text' },
+   254→      {
+   255→        key: 'items',
+   256→        label: 'الأرقام',
+   257→        type: 'list',
+   258→        itemLabel: 'رقم',
+   259→        itemFields: [
+   260→          { key: 'label', label: 'التسمية', type: 'text' },
+   261→          { key: 'value', label: 'القيمة', type: 'text' },
+   262→          { key: 'change', label: 'التغيّر (مثل +12%)', type: 'text' },
+   263→        ],
+   264→      },
+   265→      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+   266→      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+   267→    ],
+   268→  },
+   269→
+   270→  steps: {
+   271→    type: 'steps',
+   272→    label: 'خطوات العمل',
+   273→    category: 'marketing',
+   274→    description: 'خطوات مرقّمة توضح كيف يعمل المنتج',
+   275→    icon: 'list',
+   276→    defaults: () => ({
+   277→      title: 'كيف يعمل؟',
+   278→      subtitle: 'ثلاث خطوات فقط تفصلك عن البداية',
+   279→      steps: [
+   280→        { title: 'أنشئ حسابك', description: 'سجّل خلال دقيقة ببريدك الإلكتروني فقط، بدون تعقيد.' },
+   281→        { title: 'أضف بياناتك', description: 'خصّص صفحاتك ومحتواك بما يناسب مشروعك.' },
+   282→        { title: 'انطلق نحو النجاح', description: 'شارك رابطك مع عملائك وابدأ استقبال الطلبات.' },
+   283→      ],
+   284→    }),
+   285→    fields: [
+   286→      { key: 'title', label: 'العنوان', type: 'text' },
+   287→      { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
+   288→      {
+   289→        key: 'steps',
+   290→        label: 'الخطوات',
+   291→        type: 'list',
+   292→        itemLabel: 'خطوة',
+   293→        itemFields: [
+   294→          { key: 'title', label: 'عنوان الخطوة', type: 'text' },
+   295→          { key: 'description', label: 'الوصف', type: 'textarea' },
+   296→        ],
+   297→      },
+   298→      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+   299→      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+   300→    ],
+   301→  },
+   302→
+   303→  pricing: {
+   304→    type: 'pricing',
+   305→    label: 'التسعير',
+   306→    category: 'marketing',
+   307→    description: 'خطط الأسعار مع المميزات وزر اشتراك',
+   308→    icon: 'credit-card',
+   309→    defaults: () => ({
+   310→      title: 'خطط تناسب الجميع',
+   311→      subtitle: 'ابدأ مجاناً وارتقِ عندما ينمو مشروعك',
+   312→      currency: 'دج',
+   313→      plans: [
+   314→        {
+   315→          name: 'المجانية',
+   316→          price: 0,
+   317→          period: 'شهرياً',
+   318→          features: 'مشروع واحد\n5 صفحات\nدعم عبر البريد\nشعار المنصة',
+   319→          highlighted: false,
+   320→          buttonText: 'ابدأ مجاناً',
+   321→        },
+   322→        {
+   323→          name: 'الأساسية',
+   324→          price: 2900,
+   325→          period: 'شهرياً',
+   326→          features: '3 مشاريع\n15 صفحة\nنطاق مخصص\nدعم بأولوية\nبدون شعار المنصة',
+   327→          highlighted: true,
+   328→          buttonText: 'اشترك الآن',
+   329→        },
+   330→        {
+   331→          name: 'الاحترافية',
+   332→          price: 4900,
+   333→          period: 'شهرياً',
+   334→          features: 'مشاريع غير محدودة\nصفحات غير محدودة\nتحليلات متقدمة\nدعم 24/7\nمدير حساب مخصص',
+   335→          highlighted: false,
+   336→          buttonText: 'اشترك الآن',
+   337→        },
+   338→      ],
+   339→    }),
+   340→    fields: [
+   341→      { key: 'title', label: 'العنوان', type: 'text' },
+   342→      { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
+   343→      {
+   344→        key: 'plans',
+   345→        label: 'الخطط',
+   346→        type: 'list',
+   347→        itemLabel: 'خطة',
+   348→        itemFields: [
+   349→          { key: 'name', label: 'اسم الخطة', type: 'text' },
+   350→          { key: 'price', label: 'السعر (دج)', type: 'number' },
+   351→          { key: 'period', label: 'الفترة', type: 'text' },
+   352→          { key: 'features', label: 'المميزات (سطر لكل ميزة)', type: 'textarea' },
+   353→          { key: 'highlighted', label: 'خطة مميّزة', type: 'switch' },
+   354→          { key: 'buttonText', label: 'نص الزر', type: 'text' },
+   355→        ],
+   356→      },
+   357→    ],
+   358→  },
+   359→
+   360→  testimonials: {
+   361→    type: 'testimonials',
+   362→    label: 'آراء العملاء',
+   363→    category: 'marketing',
+   364→    description: 'شهادات عملاء مع تقييم بالنجوم',
+   365→    icon: 'message',
+   366→    defaults: () => ({
+   367→      title: 'ماذا يقول عملاؤنا؟',
+   368→      items: [
+   369→        { name: 'أحمد بن علي', role: 'مدير تقنية — شركة ناشئة', text: 'وفّرت علينا المنصة أسابيع من العمل. الواجهة بسيطة والنتائج احترافية.', rating: 5 },
+   370→        { name: 'سارة بوزيد', role: 'مؤسِّسة متجر إلكتروني', text: 'أول مرة أتعامل مع أداة عربية بهذا المستوى. تجربة ممتازة من البداية للنهاية.', rating: 5 },
+   371→        { name: 'ياسين مراد', role: 'صاحب وكالة تسويق', text: 'استعملها كل فريقي يومياً. الدعم سريع والميزات في تطور مستمر.', rating: 4 },
+   372→      ],
+   373→    }),
+   374→    fields: [
+   375→      { key: 'title', label: 'العنوان', type: 'text' },
+   376→      {
+   377→        key: 'items',
+   378→        label: 'الآراء',
+   379→        type: 'list',
+   380→        itemLabel: 'رأي',
+   381→        itemFields: [
+   382→          { key: 'name', label: 'الاسم', type: 'text' },
+   383→          { key: 'role', label: 'الصفة', type: 'text' },
+   384→          { key: 'text', label: 'الرأي', type: 'textarea' },
+   385→          { key: 'rating', label: 'التقييم (1-5)', type: 'number' },
+   386→        ],
+   387→      },
+   388→      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+   389→      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+   390→    ],
+   391→  },
+   392→
+   393→  faq: {
+   394→    type: 'faq',
+   395→    label: 'الأسئلة الشائعة',
+   396→    category: 'marketing',
+   397→    description: 'قائمة أسئلة وأجوبة قابلة للفتح والإغلاق',
+   398→    icon: 'help-circle',
+   399→    defaults: () => ({
+   400→      title: 'الأسئلة الشائعة',
+   401→      subtitle: 'كل ما تحتاج معرفته قبل البدء',
+   402→      items: [
+   403→        { q: 'هل أحتاج خبرة تقنية للاستعمال؟', a: 'لا إطلاقاً. المنصة مصممة لغير التقنيين، كل شيء يتم بالنقر والتعديل المباشر.' },
+   404→        { q: 'هل يمكنني إلغاء اشتراكي في أي وقت؟', a: 'نعم، يمكنك الإلغاء متى شئت من صفحة الإعدادات بدون أي رسوم إضافية.' },
+   405→        { q: 'كيف يتم الدفع؟', a: 'نقبل بطاقات الذهبية والبطاقات البنكية الجزائرية، مع إمكانية الدفع عند الاستلام لبعض الخطط.' },
+   406→        { q: 'هل بياناتي آمنة؟', a: 'بياناتك مخزّنة بتشفير كامل مع نسخ احتياطي يومي، ولا نشاركها مع أي طرف ثالث.' },
+   407→      ],
+   408→    }),
+   409→    fields: [
+   410→      { key: 'title', label: 'العنوان', type: 'text' },
+   411→      { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
+   412→      {
+   413→        key: 'items',
+   414→        label: 'الأسئلة',
+   415→        type: 'list',
+   416→        itemLabel: 'سؤال',
+   417→        itemFields: [
+   418→          { key: 'q', label: 'السؤال', type: 'text' },
+   419→          { key: 'a', label: 'الجواب', type: 'textarea' },
+   420→        ],
+   421→      },
+   422→      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+   423→      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+   424→    ],
+   425→  },
+   426→
+   427→  cta: {
+   428→    type: 'cta',
+   429→    label: 'دعوة للإجراء',
+   430→    category: 'marketing',
+   431→    description: 'شريط جذاب يدفع الزائر لاتخاذ إجراء',
+   432→    icon: 'target',
+   433→    defaults: () => ({
+   434→      title: 'جاهز للانطلاق؟',
+   435→      subtitle: 'أنشئ حسابك المجاني اليوم وابدأ ببناء مشروعك خلال دقائق.',
+   436→      buttonText: 'إنشاء حساب مجاني',
+   437→      style: 'gradient',
+   438→    }),
+   439→    fields: [
+   440→      { key: 'title', label: 'العنوان', type: 'text' },
+   441→      { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
+   442→      { key: 'buttonText', label: 'نص الزر', type: 'text' },
+   443→      { key: 'style', label: 'النمط', type: 'select', options: CTA_STYLE_OPTIONS },
+   444→      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+   445→      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+   446→    ],
+   447→  },
+   448→
+   449→  'contact-form': {
+   450→    type: 'contact-form',
+   451→    label: 'نموذج التواصل',
+   452→    category: 'marketing',
+   453→    description: 'نموذج رسالة تواصل مع حالة نجاح',
+   454→    icon: 'mail',
+   455→    defaults: () => ({
+   456→      title: 'تواصل معنا',
+   457→      subtitle: 'يسعدنا سماع رأيك — نجيب عادة خلال 24 ساعة.',
+   458→      buttonText: 'إرسال الرسالة',
+   459→      successText: 'تم إرسال رسالتك بنجاح، سنعاود التواصل معك قريباً.',
+   460→    }),
+   461→    fields: [
+   462→      { key: 'title', label: 'العنوان', type: 'text' },
+   463→      { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
+   464→      { key: 'buttonText', label: 'نص زر الإرسال', type: 'text' },
+   465→      { key: 'successText', label: 'رسالة النجاح', type: 'textarea' },
+   466→    ],
+   467→  },
+   468→
+   469→  gallery: {
+   470→    type: 'gallery',
+   471→    label: 'المعرض',
+   472→    category: 'marketing',
+   473→    description: 'شبكة عناصر مع صور رمزية وأسعار وشارات',
+   474→    icon: 'image',
+   475→    defaults: () => ({
+   476→      title: 'منتجاتنا المنتقاة',
+   477→      subtitle: 'جودة مضمونة وتوصيل لكل الولايات',
+   478→      variant: 'products',
+   479→      items: [
+   480→        { title: 'سماعة بلوتوث JBL', description: 'صوت نقي وبطارية تدوم 20 ساعة', price: 8900, badge: 'الأكثر مبيعاً' },
+   481→        { title: 'ساعة ذكية Amazfit', description: 'تتبع صحي كامل ومقاومة للماء', price: 24800, badge: 'جديد' },
+   482→        { title: 'حقيبة ظهر جلدية', description: 'جلد طبيعي بخياطة جزائرية', price: 6200, badge: '' },
+   483→        { title: 'مكينة قهوة Delonghi', description: 'إسبريسو منزلي بطعم المقاهي', price: 32500, badge: 'تخفيض' },
+   484→        { title: 'عطر رجالي Dior', description: 'عبوة 100 مل تدوم طويلاً', price: 15000, badge: '' },
+   485→        { title: 'لوحة مفاتيح ميكانيكية', description: 'أزرار حمراء هادئة للكتابة الطويلة', price: 11300, badge: '' },
+   486→      ],
+   487→    }),
+   488→    fields: [
+   489→      { key: 'title', label: 'العنوان', type: 'text' },
+   490→      { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
+   491→      { key: 'variant', label: 'نوع المعرض', type: 'select', options: GALLERY_VARIANT_OPTIONS },
+   492→      {
+   493→        key: 'items',
+   494→        label: 'العناصر',
+   495→        type: 'list',
+   496→        itemLabel: 'عنصر',
+   497→        itemFields: [
+   498→          { key: 'image', label: 'صورة العنصر', type: 'image' },
+   499→          { key: 'title', label: 'العنوان', type: 'text' },
+   500→          { key: 'description', label: 'الوصف', type: 'textarea' },
+   501→          { key: 'price', label: 'السعر (دج)', type: 'number' },
+   502→          { key: 'badge', label: 'الشارة', type: 'text' },
+   503→        ],
+   504→      },
+   505→      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+   506→      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+   507→    ],
+   508→  },
+   509→
+   510→  banner: {
+   511→    type: 'banner',
+   512→    label: 'الشريط الإعلاني',
+   513→    category: 'marketing',
+   514→    description: 'شريط ضيق لإعلان عرض أو حدث',
+   515→    icon: 'megaphone',
+   516→    defaults: () => ({
+   517→      title: 'توصيل مجاني لكل الولايات',
+   518→      subtitle: 'للطلبات التي تتجاوز 5,000 دج — لفترة محدودة',
+   519→      buttonText: 'تسوّق الآن',
+   520→      style: 'gradient',
+   521→    }),
+   522→    fields: [
+   523→      { key: 'title', label: 'العنوان', type: 'text' },
+   524→      { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
+   525→      { key: 'buttonText', label: 'نص الزر', type: 'text' },
+   526→      { key: 'style', label: 'النمط', type: 'select', options: [{ value: 'gradient', label: 'تدرّج' }, { value: 'dark', label: 'داكن' }] },
+   527→      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+   528→      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+   529→    ],
+   530→  },
+   531→
+   532→  list: {
+   533→    type: 'list',
+   534→    label: 'قائمة عناصر',
+   535→    category: 'marketing',
+   536→    description: 'قائمة صفوف بعنوان ووصف ومعلومة جانبية',
+   537→    icon: 'list',
+   538→    defaults: () => ({
+   539→      title: 'آخر التحديثات',
+   540→      items: [
+   541→        { title: 'إطلاق لوحة التحكم الجديدة', subtitle: 'تصميم أسرع وتجربة استخدام أبسط', meta: 'هذا الأسبوع' },
+   542→        { title: 'دعم الدفع الإلكتروني', subtitle: 'بوابات دفع محلية جديدة متاحة الآن', meta: 'قبل أسبوعين' },
+   543→        { title: 'تطبيق الهاتف قريباً', subtitle: 'نسخة iOS و Android في الطريق', meta: 'قريباً' },
+   544→        { title: 'تحسين الأداء', subtitle: 'سرعة تحميل أعلى بنسبة 40%', meta: 'هذا الشهر' },
+   545→        { title: 'قوالب جديدة', subtitle: '10 قوالب جاهزة لمختلف القطاعات', meta: 'هذا الشهر' },
+   546→      ],
+   547→    }),
+   548→    fields: [
+   549→      { key: 'title', label: 'العنوان', type: 'text' },
+   550→      {
+   551→        key: 'items',
+   552→        label: 'العناصر',
+   553→        type: 'list',
+   554→        itemLabel: 'عنصر',
+   555→        itemFields: [
+   556→          { key: 'title', label: 'العنوان', type: 'text' },
+   557→          { key: 'subtitle', label: 'الوصف', type: 'textarea' },
+   558→          { key: 'meta', label: 'معلومة جانبية', type: 'text' },
+   559→        ],
+   560→      },
+   561→    ],
+   562→  },
+   563→
+   564→  team: {
+   565→    type: 'team',
+   566→    label: 'الفريق',
+   567→    category: 'marketing',
+   568→    description: 'بطاقات أعضاء الفريق',
+   569→    icon: 'users',
+   570→    defaults: () => ({
+   571→      title: 'فريقنا',
+   572→      items: [
+   573→        { name: 'سارة بوزيد', role: 'مديرة التصميم' },
+   574→        { name: 'أحمد بن علي', role: 'مدير التقنية' },
+   575→        { name: 'ليلى مزيان', role: 'مسؤولة التسويق' },
+   576→        { name: 'عمر تواتي', role: 'مدير العمليات' },
+   577→      ],
+   578→    }),
+   579→    fields: [
+   580→      { key: 'title', label: 'العنوان', type: 'text' },
+   581→      {
+   582→        key: 'items',
+   583→        label: 'الأعضاء',
+   584→        type: 'list',
+   585→        itemLabel: 'عضو',
+   586→        itemFields: [
+   587→          { key: 'image', label: 'صورة العضو', type: 'image' },
+   588→          { key: 'name', label: 'الاسم', type: 'text' },
+   589→          { key: 'role', label: 'الدور', type: 'text' },
+   590→        ],
+   591→      },
+   592→      { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
+   593→      { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+   594→    ],
+   595→  },
+   596→
+   597→  // ---------------- auth ----------------
+   598→  'auth-card': {
+   599→    type: 'auth-card',
+   600→    label: 'بطاقة الدخول',
+   601→    category: 'auth',
+   602→    description: 'نموذج تسجيل دخول أو إنشاء حساب أو استعادة كلمة المرور',
+   603→    icon: 'lock',
+   604→    defaults: () => ({
+   605→      variant: 'login',
+   606→      title: 'تسجيل الدخول',
+   607→      subtitle: 'أدخل بياناتك للوصول إلى حسابك',
+   608→      buttonText: 'دخول',
+   609→      demoHint: 'بيانات تجريبية — أدخل أي بريد',
+   610→    }),
+   611→    fields: [
+   612→      { key: 'variant', label: 'النوع', type: 'select', options: AUTH_VARIANT_OPTIONS },
+   613→      { key: 'title', label: 'العنوان', type: 'text' },
+   614→      { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
+   615→      { key: 'buttonText', label: 'نص الزر', type: 'text' },
+   616→      { key: 'demoHint', label: 'تلميح تجريبي', type: 'text' },
+   617→    ],
+   618→  },
+   619→
+   620→  // ---------------- dashboard ----------------
+   621→  'dashboard-header': {
+   622→    type: 'dashboard-header',
+   623→    label: 'ترويسة اللوحة',
+   624→    category: 'dashboard',
+   625→    description: 'عنوان الصفحة الداخلية مع أزرار إجراءات',
+   626→    icon: 'layout-dashboard',
+   627→    defaults: () => ({
+   628→      title: 'لوحة التحكم',
+   629→      subtitle: 'نظرة عامة على أداء مشروعك',
+   630→      actions: 'إضافة عنصر,تصدير التقرير',
+   631→    }),
+   632→    fields: [
+   633→      { key: 'title', label: 'العنوان', type: 'text' },
+   634→      { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
+   635→      { key: 'actions', label: 'الأزرار (مفصولة بفواصل)', type: 'textarea' },
+   636→    ],
+   637→  },
+   638→
+   639→  'stats-row': {
+   640→    type: 'stats-row',
+   641→    label: 'بطاقات الإحصائيات',
+   642→    category: 'dashboard',
+   643→    description: 'صف بطاقات أرقام مع أيقونات وتغيّر',
+   644→    icon: 'chart',
+   645→    defaults: () => ({
+   646→      items: [
+   647→        { label: 'الإيرادات الشهرية', value: '3,420,000 دج', change: '+12.5%', icon: 'trending-up' },
+   648→        { label: 'الطلبات', value: '1,248', change: '+8.2%', icon: 'shopping-cart' },
+   649→        { label: 'العملاء النشطون', value: '5,880', change: '+4.6%', icon: 'users' },
+   650→        { label: 'متوسط التقييم', value: '4.8 / 5', change: '+0.2', icon: 'star' },
+   651→      ],
+   652→    }),
+   653→    fields: [
+   654→      {
+   655→        key: 'items',
+   656→        label: 'البطاقات',
+   657→        type: 'list',
+   658→        itemLabel: 'بطاقة',
+   659→        itemFields: [
+   660→          { key: 'label', label: 'التسمية', type: 'text' },
+   661→          { key: 'value', label: 'القيمة', type: 'text' },
+   662→          { key: 'change', label: 'التغيّر', type: 'text' },
+   663→          { key: 'icon', label: 'الأيقونة', type: 'select', options: ICON_FIELD_OPTIONS },
+   664→        ],
+   665→      },
+   666→    ],
+   667→  },
+   668→
+   669→  chart: {
+   670→    type: 'chart',
+   671→    label: 'رسم بياني',
+   672→    category: 'dashboard',
+   673→    description: 'رسم أعمدة أو خطي أو دائري من البيانات التجريبية',
+   674→    icon: 'chart',
+   675→    defaults: () => ({
+   676→      title: 'الإيرادات الشهرية',
+   677→      chartType: 'bar',
+   678→      dataKey: 'revenueMonthly',
+   679→    }),
+   680→    fields: [
+   681→      { key: 'title', label: 'العنوان', type: 'text' },
+   682→      { key: 'chartType', label: 'نوع الرسم', type: 'select', options: CHART_TYPE_OPTIONS },
+   683→      { key: 'dataKey', label: 'مصدر البيانات', type: 'select', options: CHART_KEY_OPTIONS },
+   684→    ],
+   685→  },
+   686→
+   687→  'data-table': {
+   688→    type: 'data-table',
+   689→    label: 'جدول البيانات',
+   690→    category: 'dashboard',
+   691→    description: 'جدول حقيقي من البيانات التجريبية مع بحث وترقيم صفحات',
+   692→    icon: 'table',
+   693→    defaults: () => ({
+   694→      entity: 'customers',
+   695→      title: 'أحدث العملاء',
+   696→      pageSize: 5,
+   697→    }),
+   698→    fields: [
+   699→      { key: 'entity', label: 'مصدر البيانات', type: 'select', options: ENTITY_OPTIONS },
+   700→      { key: 'title', label: 'عنوان الجدول', type: 'text' },
+   701→      { key: 'pageSize', label: 'عدد الصفوف في الصفحة', type: 'number' },
+   702→    ],
+   703→  },
+   704→
+   705→  'form-fields': {
+   706→    type: 'form-fields',
+   707→    label: 'نموذج حقول',
+   708→    category: 'dashboard',
+   709→    description: 'نموذج ديناميكي بحقول متعددة وحالة نجاح',
+   710→    icon: 'file-text',
+   711→    defaults: () => ({
+   712→      title: 'إضافة عنصر جديد',
+   713→      subtitle: 'املأ الحقول التالية ثم اضغط إرسال',
+   714→      fields: [
+   715→        { label: 'الاسم الكامل', type: 'text', required: true, placeholder: 'مثال: أحمد بن علي' },
+   716→        { label: 'البريد الإلكتروني', type: 'email', required: true, placeholder: 'name@gmail.com' },
+   717→        { label: 'المدينة', type: 'select', required: true, placeholder: '', options: ['الجزائر', 'وهران', 'قسنطينة', 'سطيف', 'عنابة', 'البليدة'] },
+   718→        { label: 'ملاحظات', type: 'textarea', required: false, placeholder: 'أي تفاصيل إضافية...' },
+   719→      ],
+   720→      submitText: 'إرسال',
+   721→      successText: 'تم إرسال بياناتك بنجاح. شكراً لك!',
+   722→    }),
+   723→    fields: [
+   724→      { key: 'title', label: 'العنوان', type: 'text' },
+   725→      { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
+   726→      {
+   727→        key: 'fields',
+   728→        label: 'الحقول',
+   729→        type: 'list',
+   730→        itemLabel: 'حقل',
+   731→        itemFields: [
+   732→          { key: 'label', label: 'تسمية الحقل', type: 'text' },
+   733→          { key: 'type', label: 'نوع الحقل', type: 'select', options: FIELD_TYPE_OPTIONS },
+   734→          { key: 'required', label: 'مطلوب', type: 'switch' },
+   735→          { key: 'placeholder', label: 'نص placeholder', type: 'text' },
+   736→        ],
+   737→      },
+   738→      { key: 'submitText', label: 'نص زر الإرسال', type: 'text' },
+   739→      { key: 'successText', label: 'رسالة النجاح', type: 'textarea' },
+   740→    ],
+   741→  },
+   742→
+   743→  'settings-form': {
+   744→    type: 'settings-form',
+   745→    label: 'نموذج الإعدادات',
+   746→    category: 'dashboard',
+   747→    description: 'أقسام إعدادات مع حقول نصية ومفاتيح وقوائم',
+   748→    icon: 'settings',
+   749→    defaults: () => ({
+   750→      title: 'الإعدادات',
+   751→      sections: [
+   752→        {
+   753→          title: 'معلومات المشروع',
+   754→          fields: [
+   755→            { label: 'اسم المشروع', type: 'text', value: 'مشروعي', hint: 'سيظهر في القائمة الرئيسية' },
+   756→            { label: 'الوصف المختصر', type: 'text', value: 'منصة تجريبية جزائرية', hint: '' },
+   757→            { label: 'العملة', type: 'select', value: 'دج', hint: '', options: ['دج', '$', '€'] },
+   758→          ],
+   759→        },
+   760→        {
+   761→          title: 'الإشعارات',
+   762→          fields: [
+   763→            { label: 'إشعارات البريد', type: 'switch', value: 'true', hint: 'تلقِّ إشعاراً عند كل طلب جديد' },
+   764→            { label: 'إشعارات الهاتف', type: 'switch', value: 'false', hint: '' },
+   765→            { label: 'التقرير الأسبوعي', type: 'switch', value: 'true', hint: 'يُرسل كل صباح الاثنين' },
+   766→          ],
+   767→        },
+   768→        {
+   769→          title: 'الأمان',
+   770→          fields: [
+   771→            { label: 'كلمة المرور الحالية', type: 'password', value: '', hint: '6 أحرف على الأقل' },
+   772→            { label: 'المصادقة الثنائية', type: 'switch', value: 'false', hint: 'طبقة حماية إضافية لحسابك' },
+   773→          ],
+   774→        },
+   775→      ],
+   776→    }),
+   777→    fields: [
+   778→      { key: 'title', label: 'العنوان', type: 'text' },
+   779→      {
+   780→        key: 'sections',
+   781→        label: 'الأقسام',
+   782→        type: 'list',
+   783→        itemLabel: 'قسم',
+   784→        itemFields: [
+   785→          { key: 'title', label: 'عنوان القسم', type: 'text' },
+   786→          {
+   787→            key: 'fields',
+   788→            label: 'حقول القسم',
+   789→            type: 'list',
+   790→            itemLabel: 'حقل',
+   791→            itemFields: [
+   792→              { key: 'label', label: 'تسمية الحقل', type: 'text' },
+   793→              { key: 'type', label: 'النوع', type: 'select', options: SETTING_FIELD_TYPE_OPTIONS },
+   794→              { key: 'value', label: 'القيمة', type: 'text' },
+   795→              { key: 'hint', label: 'التلميح', type: 'text' },
+   796→            ],
+   797→          },
+   798→        ],
+   799→      },
+   800→    ],
+   801→  },
+   802→
+   803→  'profile-card': {
+   804→    type: 'profile-card',
+   805→    label: 'الملف الشخصي',
+   806→    category: 'dashboard',
+   807→    description: 'بطاقة مستخدم مع معلومات التواصل والنبذة',
+   808→    icon: 'user',
+   809→    defaults: () => ({
+   810→      name: 'أمينة حساني',
+   811→      role: 'مديرة الحساب',
+   812→      email: 'amina.hassani@gmail.com',
+   813→      phone: '+213 555 12 34 56',
+   814→      bio: 'مهتمة ببناء التجارب الرقمية العربية ومتابعة آخر مستجدات ريادة الأعمال في الجزائر.',
+   815→    }),
+   816→    fields: [
+   817→      { key: 'name', label: 'الاسم', type: 'text' },
+   818→      { key: 'role', label: 'الصفة', type: 'text' },
+   819→      { key: 'email', label: 'البريد الإلكتروني', type: 'text' },
+   820→      { key: 'phone', label: 'الهاتف', type: 'text' },
+   821→      { key: 'bio', label: 'النبذة', type: 'textarea' },
+   822→    ],
+   823→  },
+   824→
+   825→  calendar: {
+   826→    type: 'calendar',
+   827→    label: 'التقويم',
+   828→    category: 'dashboard',
+   829→    description: 'تقويم شهري مع أحداث على الأيام',
+   830→    icon: 'calendar',
+   831→    defaults: () => ({
+   832→      title: 'مواعيد ديسمبر',
+   833→      month: 'ديسمبر 2024',
+   834→      events: [
+   835→        { day: 3, label: 'اجتماع الفريق' },
+   836→        { day: 12, label: 'موعد عميل' },
+   837→        { day: 18, label: 'إطلاق ميزة جديدة' },
+   838→        { day: 25, label: 'مراجعة شهرية' },
+   839→      ],
+   840→    }),
+   841→    fields: [
+   842→      { key: 'title', label: 'العنوان', type: 'text' },
+   843→      { key: 'month', label: 'الشهر (مثل: ديسمبر 2024)', type: 'text' },
+   844→      {
+   845→        key: 'events',
+   846→        label: 'الأحداث',
+   847→        type: 'list',
+   848→        itemLabel: 'حدث',
+   849→        itemFields: [
+   850→          { key: 'day', label: 'اليوم (رقم)', type: 'number' },
+   851→          { key: 'label', label: 'الوصف', type: 'text' },
+   852→        ],
+   853→      },
+   854→    ],
+   855→  },
+   856→
+   857→  // ---------------- dashboard: كتل الجولة 8 ----------------
+   858→  'activity-feed': {
+   859→    type: 'activity-feed',
+   860→    label: 'سجل النشاطات',
+   861→    category: 'dashboard',
+   862→    description: 'خط زمني لآخر عمليات المستخدمين مع صور رمزية وأوقات',
+   863→    icon: 'bell',
+   864→    defaults: () => ({
+   865→      title: 'آخر النشاطات',
+   866→      items: [
+   867→        { user: 'أحمد بن علي', action: 'أضاف منتجاً جديداً', target: 'حقيبة جلدية فاخرة', time: 'قبل 5 دقائق' },
+   868→        { user: 'سارة بوزيد', action: 'أكملت طلباً', target: '#1024', time: 'قبل 18 دقيقة' },
+   869→        { user: 'محمد قادري', action: 'حدّث مخزون', target: 'فرع وهران', time: 'قبل ساعة' },
+   870→        { user: 'ياسين مراد', action: 'أرسل تقريراً', target: 'مبيعات الأسبوع', time: 'أمس' },
+   871→        { user: 'ليلى مزيان', action: 'ردّت على رسالة زبون', target: '', time: 'أمس' },
+   872→      ],
+   873→    }),
+   874→    fields: [
+   875→      { key: 'title', label: 'العنوان', type: 'text' },
+   876→      {
+   877→        key: 'items',
+   878→        label: 'النشاطات',
+   879→        type: 'list',
+   880→        itemLabel: 'نشاط',
+   881→        itemFields: [
+   882→          { key: 'user', label: 'المستخدم', type: 'text' },
+   883→          { key: 'action', label: 'الإجراء', type: 'text' },
+   884→          { key: 'target', label: 'الهدف', type: 'text' },
+   885→          { key: 'time', label: 'الوقت', type: 'text' },
+   886→        ],
+   887→      },
+   888→    ],
+   889→  },
+   890→
+   891→  'tasks-list': {
+   892→    type: 'tasks-list',
+   893→    label: 'المهام',
+   894→    category: 'dashboard',
+   895→    description: 'قائمة مهام بمربعات اختيار عاملة وشريط تقدّم حي',
+   896→    icon: 'check',
+   897→    defaults: () => ({
+   898→      title: 'مهام اليوم',
+   899→      subtitle: '',
+   900→      items: [
+   901→        { label: 'مراجعة الطلب #1024', done: true, meta: 'اليوم 14:00' },
+   902→        { label: 'تحديث أسعار قائمة رمضان', done: true, meta: 'اليوم 16:30' },
+   903→        { label: 'الاتصال بالمورد في سطيف', done: false, meta: 'غداً 09:00' },
+   904→        { label: 'إعداد تقرير الأسبوع', done: false, meta: 'الخميس' },
+   905→        { label: 'موافقة طلبات الانضمام', done: false, meta: '' },
+   906→      ],
+   907→    }),
+   908→    fields: [
+   909→      { key: 'title', label: 'العنوان', type: 'text' },
+   910→      { key: 'subtitle', label: 'العنوان الفرعي', type: 'text' },
+   911→      {
+   912→        key: 'items',
+   913→        label: 'المهام',
+   914→        type: 'list',
+   915→        itemLabel: 'مهمة',
+   916→        itemFields: [
+   917→          { key: 'label', label: 'المهمة', type: 'text' },
+   918→          { key: 'done', label: 'منجزة', type: 'switch' },
+   919→          { key: 'meta', label: 'معلومة إضافية', type: 'text' },
+   920→        ],
+   921→      },
+   922→    ],
+   923→  },
+   924→
+   925→  'quick-actions': {
+   926→    type: 'quick-actions',
+   927→    label: 'إجراءات سريعة',
+   928→    category: 'dashboard',
+   929→    description: 'أزرار تنقل سريعة إلى صفحات المشروع بأيقونات ملوّنة',
+   930→    icon: 'zap',
+   931→    defaults: () => ({
+   932→      title: 'إجراءات سريعة',
+   933→      actions: [
+   934→        { icon: 'package', label: 'إضافة منتج', pageId: '' },
+   935→        { icon: 'users', label: 'إدارة العملاء', pageId: '' },
+   936→        { icon: 'trending-up', label: 'تقرير الأداء', pageId: '' },
+   937→        { icon: 'file-text', label: 'الفواتير', pageId: '' },
+   938→      ],
+   939→    }),
+   940→    fields: [
+   941→      { key: 'title', label: 'العنوان', type: 'text' },
+   942→      {
+   943→        key: 'actions',
+   944→        label: 'الإجراءات',
+   945→        type: 'list',
+   946→        itemLabel: 'إجراء',
+   947→        itemFields: [
+   948→          { key: 'icon', label: 'الأيقونة', type: 'select', options: ICON_FIELD_OPTIONS },
+   949→          { key: 'label', label: 'التسمية', type: 'text' },
+   950→          { key: 'pageId', label: 'الصفحة الهدف', type: 'page' },
+   951→        ],
+   952→      },
+   953→    ],
+   954→  },
+   955→
+   956→  // ---------------- states ----------------
+   957→  'empty-state': {
+   958→    type: 'empty-state',
+   959→    label: 'حالة فارغة',
+   960→    category: 'states',
+   961→    description: 'رسالة عدم وجود بيانات مع زر إجراء',
+   962→    icon: 'package',
+   963→    defaults: () => ({
+   964→      title: 'لا توجد بيانات بعد',
+   965→      subtitle: 'ستظهر العناصر هنا بمجرد إضافتها.',
+   966→      actionText: 'إضافة أول عنصر',
+   967→    }),
+   968→    fields: [
+   969→      { key: 'title', label: 'العنوان', type: 'text' },
+   970→      { key: 'subtitle', label: 'الوصف', type: 'textarea' },
+   971→      { key: 'actionText', label: 'نص زر الإجراء', type: 'text' },
+   972→    ],
+   973→  },
+   974→
+   975→  'loading-state': {
+   976→    type: 'loading-state',
+   977→    label: 'حالة التحميل',
+   978→    category: 'states',
+   979→    description: 'مؤشر تحميل مع هياكل جاهزة',
+   980→    icon: 'refresh',
+   981→    defaults: () => ({
+   982→      label: 'جارٍ تحميل البيانات...',
+   983→    }),
+   984→    fields: [{ key: 'label', label: 'النص', type: 'text' }],
+   985→  },
+   986→
+   987→  'error-state': {
+   988→    type: 'error-state',
+   989→    label: 'حالة الخطأ',
+   990→    category: 'states',
+   991→    description: 'رسالة خطأ مع زر إعادة المحاولة',
+   992→    icon: 'alert',
+   993→    defaults: () => ({
+   994→      title: 'حدث خطأ ما',
+   995→      subtitle: 'تعذّر تحميل البيانات، حاول مرة أخرى.',
+   996→      actionText: 'إعادة المحاولة',
+   997→    }),
+   998→    fields: [
+   999→      { key: 'title', label: 'العنوان', type: 'text' },
+  1000→      { key: 'subtitle', label: 'الوصف', type: 'textarea' },
+  1001→      { key: 'actionText', label: 'نص زر الإجراء', type: 'text' },
+  1002→    ],
+  1003→  },
+  1004→
+  1005→  // ---------------- custom ----------------
+  1006→  'custom-html': {
+  1007→    type: 'custom-html',
+  1008→    label: 'HTML مخصص',
+  1009→    category: 'marketing',
+  1010→    description: 'كود HTML خاص تتحكم به بالكامل — يُعرض داخل إطار آمن',
+  1011→    icon: 'code',
+  1012→    defaults: () => ({
+  1013→      name: 'قسم HTML مخصص',
+  1014→      html: `<div style="max-width:640px;margin:0 auto;padding:40px 20px;border-radius:16px;background:linear-gradient(135deg,#7c3aed,#db2777);color:#fff;text-align:center;font-family:inherit">
+  1015→  <h2 style="margin:0 0 12px;font-size:26px">قسم HTML من تصميمك</h2>
+  1016→  <p style="margin:0;opacity:.9">استبدل هذا الكود بتصميمك الخاص — صفحات هبوط، بطاقات، أو لوحات تحكم.</p>
+  1017→</div>`,
+  1018→      height: 560,
+  1019→    }),
+  1020→    fields: [
+  1021→      { key: 'name', label: 'اسم القسم', type: 'text' },
+  1022→      { key: 'height', label: 'ارتفاع الإطار (بكسل)', type: 'number' },
+  1023→      { key: 'html', label: 'كود HTML', type: 'code' },
+  1024→    ],
+  1025→  },
+  1026→}
+  1027→
+  1028→/** يُرجع تعريف مكوّن معروف أو undefined */
+  1029→export function getBlockDefinition(type: BlockType): BlockDefinition | undefined {
+  1030→  return BLOCK_REGISTRY[type]
+  1031→}
+  1032→

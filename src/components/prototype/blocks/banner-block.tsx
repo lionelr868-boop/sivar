@@ -6,12 +6,14 @@ import type { ReactElement, CSSProperties } from 'react'
 // Task 8-a — الزر ينقل إلى التسعير/الدخول/الرئيسية
 // Task 9-a — خلفية صورة للشريط (bgImage + bgOverlay) — مع صورة
 // يصبح النص أبيضاً إلا مع الغلالة الفاتحة؛ بلا صورة كما كان.
+// Task 12 — لون خلفية القسم (bgColor): تدرّج لطيف منه بدل
+// التدرّج/الداكن الافتراضي + نص يتبع var(--pt-text) (تلقائي ذكي).
 // ============================================================
 import type { Block } from '@/lib/types'
 import { Megaphone } from 'lucide-react'
 import { PButton } from '../ui/p-button'
 import { bannerButtonTarget } from '@/lib/project/nav-targets'
-import { S, isImageNoOverlay, sectionImageStyle, type BlockCtx } from './shared'
+import { S, hexLuminance, isImageNoOverlay, sectionBgGradient, sectionHexColor, sectionImageStyle, type BlockCtx } from './shared'
 
 export function BannerBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): ReactElement {
   const p = block.props
@@ -24,8 +26,14 @@ export function BannerBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): Re
   const { style: imageStyle, dark: imageDark } = sectionImageStyle(p)
   const hasImage = imageStyle != null
   const noOverlay = isImageNoOverlay(p)
-  // الشريط نصّه أبيض دائماً في الأنماط الأصلية؛ مع صورة فاتحة يصبح داكناً
-  const textDark = hasImage ? imageDark : true
+
+  // ---- لون خلفية القسم (Task 12) — تدرّج منه + نص تلقائي ذكي ----
+  // (صورة المستخدم المرفوعة تتقدم على اللون — توافق خلفي كامل)
+  const bgColor = sectionHexColor(p.bgColor)
+  const hasCustomBg = bgColor !== '' && !hasImage
+  const customDark = hasCustomBg && hexLuminance(bgColor) <= 0.5
+  // الشريط نصّه أبيض دائماً في الأنماط الأصلية؛ مع لون مخصّص فاتح/صورة فاتحة يصبح داكناً
+  const textDark = hasImage ? imageDark : hasCustomBg ? customDark : true
 
   const buttonTarget = bannerButtonTarget(ctx.schema)
   const bannerGo = () => {
@@ -34,11 +42,13 @@ export function BannerBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): Re
 
   const barStyle: CSSProperties = hasImage
     ? { ...imageStyle, boxShadow: 'var(--pt-shadow)' }
-    : {
-        background:
-          style === 'dark' ? '#16121f' : 'linear-gradient(120deg, var(--pt-primary), var(--pt-accent))',
-        boxShadow: 'var(--pt-shadow)',
-      }
+    : hasCustomBg
+      ? { background: sectionBgGradient(bgColor), boxShadow: 'var(--pt-shadow)' }
+      : {
+          background:
+            style === 'dark' ? '#16121f' : 'linear-gradient(120deg, var(--pt-primary), var(--pt-accent))',
+          boxShadow: 'var(--pt-shadow)',
+        }
 
   const headingShadow = noOverlay ? { textShadow: '0 2px 12px rgba(0,0,0,.45)' } : undefined
 
@@ -59,25 +69,33 @@ export function BannerBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): Re
           />
           <span
             aria-hidden
-            className="relative flex size-11 shrink-0 items-center justify-center rounded-full text-white"
-            style={{ background: 'rgba(255,255,255,.15)' }}
+            className={`relative flex size-11 shrink-0 items-center justify-center rounded-full ${hasCustomBg ? '' : 'text-white'}`}
+            style={
+              hasCustomBg
+                ? { background: 'color-mix(in srgb, var(--pt-text) 14%, transparent)', color: 'var(--pt-text)' }
+                : { background: 'rgba(255,255,255,.15)' }
+            }
           >
             <Megaphone className="size-5" />
           </span>
           <div className="relative min-w-0 flex-1 text-center sm:text-start">
             {title ? (
-              <h3 style={headingShadow} className={`text-base font-bold md:text-lg ${textDark ? 'text-white' : 'text-[var(--pt-text)]'}`}>
+              <h3 style={headingShadow} className={`text-base font-bold md:text-lg ${!textDark || hasCustomBg ? 'text-[var(--pt-text)]' : 'text-white'}`}>
                 {title}
               </h3>
             ) : null}
             {subtitle ? (
-              <p className={`mt-0.5 text-xs md:text-sm ${textDark ? 'text-white/80' : 'text-[var(--pt-muted)]'}`}>{subtitle}</p>
+              <p className={`mt-0.5 text-xs md:text-sm ${!textDark || hasCustomBg ? 'text-[var(--pt-muted)]' : 'text-white/80'}`}>{subtitle}</p>
             ) : null}
           </div>
           {buttonText ? (
             <PButton
               size="sm"
-              className={`relative shrink-0 ${textDark ? 'border-white/25 bg-white text-[#16121f] hover:bg-white/90' : ''}`}
+              className={`relative shrink-0 ${textDark ? 'border-white/25 bg-white hover:bg-white/90' : ''}`}
+              // Task 12-c — نفس إصلاح CTA: text-[var(--pt-primary-fg)] من المتغير
+              // الأساسي يسبق text-[#…] في تتالي CSS فيبيّض النص فوق الزر الأبيض —
+              // الأسلوب المضمّن يضمن نصاً داكناً مقروءاً مهما كانت --pt-*.
+              style={textDark ? { color: '#16121f' } : undefined}
               onClick={bannerGo}
             >
               {buttonText}

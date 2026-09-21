@@ -53,7 +53,57 @@ const THEME_COLOR_KEYS = [
   'primary', 'primaryForeground', 'secondary', 'accent', 'background', 'surface', 'text',
   'mutedText', 'border',
 ]
-const COLOR_NAMES_BY_LENGTH = Object.keys(COLOR_NAME_TO_HEX).sort((a, b) => b.length - a.length)
+
+// ============================================================
+// ألوان عربية إضافية (Task 12) — صيغ مؤنثة/متصرفة/مركّبة ليست في
+// الخريطة العامة (سوداء/بيضاء/خضراء داكنة...) لأنشطة مثل
+// «اجعل خلفية قسم دعوة الإجراء سوداء» و«خلفية بيضاء بنص داكن».
+// ============================================================
+const EXTRA_COLOR_NAMES: Record<string, string> = {
+  'أبيض': '#ffffff',
+  'ابيض': '#ffffff',
+  'سوداء': '#111827',
+  'بيضاء': '#ffffff',
+  'حمراء': '#dc2626',
+  'خضراء': '#059669',
+  'خضراء داكنة': '#065f46',
+  'زرقاء': '#2563eb',
+  'زرقاء داكنة': '#1e3a8a',
+  'زرقاء فاتحة': '#38bdf8',
+  'صفراء': '#eab308',
+  'رمادية': '#4b5563',
+  'بنية': '#92400e',
+  'ذهبية': '#d97706',
+  'بنفسجية': '#7c3aed',
+  'تركوازية': '#0d9488',
+  'برتقالية': '#ea580c',
+  'وردية': '#db2777',
+}
+const ALL_COLOR_NAMES: Record<string, string> = { ...COLOR_NAME_TO_HEX, ...EXTRA_COLOR_NAMES }
+const ALL_COLOR_NAMES_BY_LENGTH = Object.keys(ALL_COLOR_NAMES).sort((a, b) => b.length - a.length)
+
+/** مزيج لونين محلي — ratio = وزن اللون الثاني (0..1) */
+function mixHexLocal(a: string, b: string, ratio: number): string {
+  const parse = (hex: string): [number, number, number] | null => {
+    const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim())
+    if (!m) return null
+    let h = m[1]
+    if (h.length === 3) h = h.split('').map((c) => c + c).join('')
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
+  }
+  const ca = parse(a)
+  const cb = parse(b)
+  if (!ca || !cb) return a
+  const t = Math.max(0, Math.min(1, ratio))
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)))
+  const mixed = [0, 1, 2].map((i) => clamp(ca[i] + (cb[i] - ca[i]) * t))
+  return `#${mixed.map((v) => v.toString(16).padStart(2, '0')).join('')}`
+}
+
+/** لون النص الثانوي مشتقاً من لون الخط الأساسي — مزج نحو الأبيض 0.35 (فاتح) / الأسود 0.25 (داكن) */
+function deriveMuted(hex: string, mode: string): string {
+  return mode === 'dark' ? mixHexLocal(hex, '#000000', 0.25) : mixHexLocal(hex, '#ffffff', 0.35)
+}
 
 // ============================================================
 // استدعاء الـ LLM (مع مهلة)
@@ -153,7 +203,7 @@ const AGENT_SYSTEM_PROMPT = [
   '6. update_content: {"pageId":"...","blockId":"...","content":{...نصوص معدلة مثل title/subtitle...}}',
   '7. delete_block: {"pageId":"...","blockId":"..."}',
   '8. move_block: {"pageId":"...","blockId":"...","position":رقم}',
-  '9. update_theme: {"theme":{"primary":"#hex","secondary":"#hex","accent":"#hex","radius":12,"shadow":"sm|md|lg","fontFamily":"IBM Plex Sans Arabic|Tajawal|Cairo"}}',
+  '9. update_theme: {"theme":{"primary":"#hex","secondary":"#hex","accent":"#hex","text":"#hex — لون الخط الأساسي في كل الموقع","mutedText":"#hex — لون النصوص الثانوية (الخفيفة)","radius":12,"shadow":"sm|md|lg","fontFamily":"IBM Plex Sans Arabic|Tajawal|Cairo"}}',
   '10. update_navigation: {"brand":"اسم العلامة","items":[{"label":"...","pageId":"..."}]}',
   '11. update_dashboard_nav: {"items":[{"label":"...","pageId":"...","icon":"sparkles"}]}',
   '12. rename_project: {"name":"الاسم الجديد"}',
@@ -162,6 +212,8 @@ const AGENT_SYSTEM_PROMPT = [
   '',
   'أدوات إضافية عند إنشاء صفحات الهبوط:',
   '- في create_page من نوع landing يمكنك إضافة "landingVariant":"معرف النمط" من قائمة الأنماط أعلاه لبنائها بنمط محدد.',
+  '- يمكنك تغيير ألوان الخطوط عبر update_theme بالمفتاحين text (لون الخط الأساسي في كل الموقع) وmutedText (لون النصوص الثانوية) — وليس فقط الألوان الأساسية.',
+  '- ألوان كل قسم على حدة: مكوّنات أقسام صفحة الهبوط (hero|features|stats|steps|pricing|testimonials|faq|cta|banner|gallery|team|contact-form) تقبل في props المفتاحين bgColor (لون خلفية القسم) وtextColor (لون خط القسم) بصيغة hex، والقسم بدون textColor يختار لون نصه تلقائياً حسب سطوع خلفيته (داكن على الفاتح وأبيض على الداكن). مثال: {"tool":"update_block","args":{"pageId":"معرف الصفحة","blockId":"معرف كتلة دعوة للإجراء","props":{"bgColor":"#111827"}}} يجعل خلفية القسم سوداء بنص أبيض تلقائي.',
   '- مكوّن البطل (hero) يدعم: background من (default|muted|gradient-soft|mesh|dark|gradient) وخصائص eyebrow (شارة فوق العنوان) و visual من (dashboard|phone|video|form|analytics|orders|chat|calendar|testimonial|none) — analytics بطاقة تقرير أداء، orders أحدث الطلبات، chat محادثة دعم، calendar تقويم، testimonial رأي عميل — و bgOverlay عند رفع المستخدم صورة خلفية (dark|medium|light|none) — لا تضع bgImage بنفسك أبداً (الصور يرفعها المستخدم فقط).',
   '- أقسام صفحة الهبوط (cta|banner|features|testimonials|stats|steps|gallery|team|faq) تدعم bgImage/bgOverlay (dark|medium|light|none) كخلفية صورة للقسم — يرفعها المستخدم فقط من لوحة الخصائص ولا تضع data URLs بنفسك أبداً؛ وbranding.bgImage خلفية ثابتة لكل صفحات المشروع (رفع المستخدم فقط) مع bgOverlay من (none|strong|medium|soft).',
   '- مكوّنات لوحة التحكم الغنية: activity-feed (سجل نشاطات: items[user,action,target,time]) و tasks-list (مهام بمربعات اختيار: items[label,done,meta]) و quick-actions (إجراءات سريعة تنقل لصفحات: actions[icon,label,pageId]) — استعملها لإثراء اللوحات.',
@@ -473,11 +525,53 @@ function findPageByIntent(schema: ProjectSchema, text: string): ProjectPage | nu
 }
 
 function detectColor(message: string): string | null {
-  for (const name of COLOR_NAMES_BY_LENGTH) {
-    if (message.includes(name)) return COLOR_NAME_TO_HEX[name]
+  for (const name of ALL_COLOR_NAMES_BY_LENGTH) {
+    if (message.includes(name)) return ALL_COLOR_NAMES[name]
   }
   return null
 }
+
+/** كل الألوان المذكورة في النص بترتيب مواضعها — لطلبات مثل «خلفية سوداء ونص أبيض» */
+function detectAllColors(message: string): Array<{ hex: string; at: number }> {
+  const hits: Array<{ hex: string; at: number; end: number }> = []
+  for (const name of ALL_COLOR_NAMES_BY_LENGTH) {
+    let from = 0
+    for (;;) {
+      const at = message.indexOf(name, from)
+      if (at < 0) break
+      hits.push({ hex: ALL_COLOR_NAMES[name], at, end: at + name.length })
+      from = at + name.length
+    }
+  }
+  // الترتيب بالمواضع مع تخطّي الأسماء داخل اسم أطول (أزرق داخل أزرق داكن)
+  hits.sort((a, b) => a.at - b.at)
+  const out: Array<{ hex: string; at: number }> = []
+  let lastEnd = -1
+  for (const hit of hits) {
+    if (hit.at < lastEnd) continue
+    out.push({ hex: hit.hex, at: hit.at })
+    lastEnd = Math.max(lastEnd, hit.end)
+  }
+  return out
+}
+
+// ============================================================
+// أقسام صفحة الهبوط بالعربية → أنواع كتل (Task 12)
+// ============================================================
+const SECTION_KEYWORDS: Array<{ type: BlockType; words: RegExp }> = [
+  { type: 'cta', words: /دعوة.{0,14}إجراء|الدعوة|\bcta\b/ },
+  { type: 'banner', words: /الشريط\s*الإعلاني|الشريط\s*الإعلانية|شريط\s*إعلاني|الإعلان|الإعلانات|إعلان|\bbanner\b/ },
+  { type: 'hero', words: /البطل|بطل|الهيرو|\bhero\b/ },
+  { type: 'features', words: /المزايا|المميزات|مميزات|مزايا|\bfeatures\b/ },
+  { type: 'stats', words: /الإحصائيات|إحصائيات|الأرقام|أرقام|\bstats\b/ },
+  { type: 'steps', words: /الخطوات|خطوات|\bsteps\b/ },
+  { type: 'pricing', words: /التسعير|الأسعار|أسعار|الباقات|باقات|\bpricing\b/ },
+  { type: 'testimonials', words: /الشهادات|شهادات|آراء|الآراء|التقييمات|\btestimonials\b/ },
+  { type: 'faq', words: /الأسئلة|أسئلة|الأسئلة\s*الشائعة|\bfaq\b/ },
+  { type: 'gallery', words: /المعرض|معرض|\bgallery\b/ },
+  { type: 'team', words: /الفريق|فريق|\bteam\b/ },
+  { type: 'contact-form', words: /التواصل|نموذج\s*التواصل|تواصل\s*معنا|\bcontact\b/ },
+]
 
 /** استخراج نمط صفحة الهبوط من نص المستخدم — بالاسم أو المعرف أو الكلمات المفتاحية */
 function detectLandingVariant(message: string): string {
@@ -583,6 +677,86 @@ function heuristicRun(schema: ProjectSchema, message: string): AgentRunResult {
       explanation: 'لا توجد صفحة هبوط في المشروع لتغيير نمطها — أضف أولاً صفحة هبوط جديدة.',
       actions: [],
       fallback: true,
+    }
+  }
+
+  // ---------- ألوان كل قسم (Task 12): خلفية/خط قسم بعينه ----------
+  // (قبل فرع تغيير اللون العام — قسم مذكور + لون = تحديد أدق)
+  const sectionKeyword = SECTION_KEYWORDS.find(({ words }) => words.test(text))
+  if (sectionKeyword && !/أضف|اضف|أنشئ|انشئ/.test(text)) {
+    const colors = detectAllColors(text)
+    if (colors.length > 0) {
+      const sectionType = sectionKeyword.type
+      const label = BLOCK_REGISTRY[sectionType]?.label ?? sectionType
+      const landing = schema.pages.find((p) => p.type === 'landing')
+      const fontWord = /خط|كتابة|نص|نصوص/.test(text)
+      // نيّة الخلفية: «خلفية» صراحةً أو «لون» بلا ذكر خط/نص
+      const bgIntent = /خلفية/.test(text) || (/لون|اللون|ألوان|الوان/.test(text) && !fontWord)
+
+      if (bgIntent) {
+        if (!landing) {
+          return {
+            explanation: 'لا توجد صفحة هبوط في المشروع لتطبيق لون القسم — أضف أولاً صفحة هبوط.',
+            actions: [],
+            fallback: true,
+          }
+        }
+        const block = landing.blocks.find((b) => b.type === sectionType)
+        if (!block) {
+          return {
+            explanation: `لم أجد قسم «${label}» في صفحة «${landing.name}» — أضفه أولاً ثم اطلب تغيير لونه.`,
+            actions: [],
+            fallback: true,
+          }
+        }
+        const props: Record<string, unknown> = { bgColor: colors[0].hex }
+        const alsoText = fontWord && colors.length > 1
+        if (alsoText) props.textColor = colors[1].hex
+        return {
+          explanation: `غيّرت خلفية قسم «${label}» في صفحة «${landing.name}» إلى اللون المطلوب${
+            alsoText ? ' مع لون خط مطابق.' : ' — سيُختار لون النص تلقائياً حسب سطوعها (داكن على الفاتح وأبيض على الداكن).'
+          }`,
+          actions: [{ tool: 'update_block', args: { pageId: landing.id, blockId: block.id, props } }],
+          fallback: true,
+        }
+      }
+
+      if (fontWord) {
+        if (!landing) {
+          return {
+            explanation: 'لا توجد صفحة هبوط في المشروع لتطبيق لون خط القسم — أضف أولاً صفحة هبوط.',
+            actions: [],
+            fallback: true,
+          }
+        }
+        const block = landing.blocks.find((b) => b.type === sectionType)
+        if (!block) {
+          return {
+            explanation: `لم أجد قسم «${label}» في صفحة «${landing.name}» — أضفه أولاً ثم اطلب تغيير لون خطه.`,
+            actions: [],
+            fallback: true,
+          }
+        }
+        return {
+          explanation: `غيّرت لون خط قسم «${label}» في صفحة «${landing.name}» — يمكنك معاينة النتيجة فوراً.`,
+          actions: [{ tool: 'update_block', args: { pageId: landing.id, blockId: block.id, props: { textColor: colors[0].hex } } }],
+          fallback: true,
+        }
+      }
+    }
+  }
+
+  // ---------- لون الخط العام (Task 12): theme.text + mutedText مشتق ----------
+  if (/لون|اللون/.test(text) && /خط|كتابة|نص|نصوص/.test(text)) {
+    const hex = detectColor(text)
+    if (hex) {
+      const muted = deriveMuted(hex, schema.theme.mode)
+      return {
+        explanation:
+          'غيّرت لون الخط الأساسي في كل الموقع واشتقت لون النصوص الثانوية منه تلقائياً — يمكنك معاينة النتيجة فوراً.',
+        actions: [{ tool: 'update_theme', args: { patch: { text: hex, mutedText: muted } } }],
+        fallback: true,
+      }
     }
   }
 

@@ -13,7 +13,7 @@ import type { Block } from '@/lib/types'
 import { PButton } from '../ui/p-button'
 import { PAvatar } from '../ui/p-avatar'
 import { heroPrimaryTarget, heroSecondaryTarget } from '@/lib/project/nav-targets'
-import { B, S, scrollToAnchor, type BlockCtx } from './shared'
+import { B, S, hexLuminance, sectionBgGradient, sectionHexColor, scrollToAnchor, type BlockCtx } from './shared'
 import {
   AnalyticsVisual,
   CalendarVisual,
@@ -258,8 +258,15 @@ export function HeroBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): Reac
   const overlayRaw = S(p, 'bgOverlay', 'dark') as HeroOverlay
   const bgOverlay = OVERLAYS.includes(overlayRaw) ? overlayRaw : 'dark'
   const hasImage = bgImage.trim() !== ''
-  // مع صورة: النص أبيض إلا مع الغطاء الفاتح
-  const dark = hasImage ? bgOverlay !== 'light' : bgClasses(background).dark
+
+  // ---- لون خلفية القسم (Task 12) — تدرّج منه + نص تلقائي ذكي ----
+  // (صورة المستخدم المرفوعة تتقدّم على اللون — توافق خلفي كامل)
+  const bgColor = sectionHexColor(p.bgColor)
+  const hasCustomBg = bgColor !== '' && !hasImage
+  const customDark = hasCustomBg && hexLuminance(bgColor) <= 0.5
+
+  // مع صورة: النص أبيض إلا مع الغطاء الفاتح — ومع لون مخصّص: حسب سطوعه
+  const dark = hasImage ? bgOverlay !== 'light' : hasCustomBg ? customDark : bgClasses(background).dark
 
   // ---- خصائص 7-b ----
   const eyebrow = S(p, 'eyebrow')
@@ -316,7 +323,7 @@ export function HeroBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): Reac
         {title ? (
           <h1
             className={`${TITLE_SIZE_CLASSES[titleSize]} font-extrabold leading-[1.2] ${
-              dark ? 'text-white' : 'text-[var(--pt-text)]'
+              !dark || hasCustomBg ? 'text-[var(--pt-text)]' : 'text-white'
             }`}
             style={hasImage && bgOverlay === 'none' ? { textShadow: '0 2px 12px rgba(0,0,0,.45)' } : undefined}
           >
@@ -324,7 +331,7 @@ export function HeroBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): Reac
           </h1>
         ) : null}
         {subtitle ? (
-          <p className={`mt-4 text-base leading-relaxed md:text-lg ${dark ? 'text-white/80' : 'text-[var(--pt-muted)]'}`}>
+          <p className={`mt-4 text-base leading-relaxed md:text-lg ${!dark || hasCustomBg ? 'text-[var(--pt-muted)]' : 'text-white/80'}`}>
             {subtitle}
           </p>
         ) : null}
@@ -386,7 +393,7 @@ export function HeroBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): Reac
       <div className="mt-12 md:mt-16">{visualNode}</div>
     ) : null
 
-  // ---- خلفية القسم: صورة أو نمط لوني ----
+  // ---- خلفية القسم: صورة أو لون مخصّص (Task 12) أو نمط لوني ----
   const sectionStyle: CSSProperties = hasImage
     ? {
         backgroundImage: `${overlayStyle(bgOverlay) ? `${overlayStyle(bgOverlay)}, ` : ''}url("${bgImage}")`,
@@ -394,7 +401,9 @@ export function HeroBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): Reac
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
       }
-    : (bgStyle ?? {})
+    : hasCustomBg
+      ? { background: sectionBgGradient(bgColor) }
+      : (bgStyle ?? {})
 
   return (
     <section style={sectionStyle} className="px-4 py-16 md:px-8 md:py-24">

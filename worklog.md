@@ -716,3 +716,106 @@ Work Log:
 
 Stage Summary:
 - سطر التطوير أصبح: «المنصة من تطوير يحي مسعود طالب دكتوراه في جامعة الجزائر 3» بخط ذهبي متدرّج صافٍ بلا توهّج ولا أنميشن — واضح ومقروء في الوضع الفاتح والداكن والجوال.
+
+---
+Task ID: 12-a
+Agent: full-stack-developer
+Task: ألوان الخطوط العامة (theme.text/mutedText في اللوحة والوكيل) + ألوان كل قسم من أقسام صفحة الهبوط (bgColor/textColor اختيارية) في العارض والتصدير مع نص تلقائي ذكي يحل مشكلة وضوح قسم الإعلانات.
+
+Work Log:
+- قراءة worklog.md (جولات 7-11) والمواصفة الكاملة agent-ctx/12-spec.md ثم كل ملف قبل تعديله (generate.ts عبر أقسامه، prototype-renderer.tsx، agent.ts كاملين).
+- i18n/builder.ts: +8 مفاتيح فقط (fontColorsTitle…removeColor) — صفر عربية hardcoded في المكونات.
+- registry/blocks.ts: optional?: boolean لحقل color + حقلا bgColor/textColor (اختياريان) لكل الكتل التسويقية الـ12 (hero/features/stats/steps/pricing/testimonials/faq/cta/contact-form/gallery/banner/team) — تسميات مباشرة كالنمط السائد في الملف.
+- properties-panel.tsx: bgColor/textColor في مجموعة «المظهر» + OptionalColorField (حبيكة «افتراضي (من الهوية)» بحدود متقطعة عند الفراغ + زر X «إزالة اللون المخصص» يلتزم ''، مع منتقي وإدخال hex).
+- theme-panel.tsx: قسم «ألوان الخطوط» جديد بعد الألوان — fontColorText (إعادة ضبط #1c1726) وfontColorMuted (#6e6880) عبر updateThemeInSchema الموجود (بلا تكرار لأي منطق سمة).
+- blocks/shared.tsx: مساعدات مشتركة sectionHexColor/hexLuminance (WCAG)/sectionBgGradient.
+- prototype-renderer.tsx: sectionVars(bgColor,textColor) + غلاف div واحد داخل renderBlock() (الswitch نُقل إلى renderBlockInner) يستفيده مسارات BlockList الثلاثة: bgColor → background + --pt-bg + --pt-surface/--pt-border مشتقان (0.42/0.18 حسب السطوع 0.55)؛ textColor → --pt-text + --pt-muted=mix(نص، خلفية||أبيض، 0.38)؛ **نص تلقائي ذكي**: bgColor بلا textColor → سطوع > 0.5 نص #17151f وإلا #ffffff — بلا ألوان: null (التوافق الخلفي بالبايت).
+- hero/cta/banner (العارض): عند bgColor صالح وبلا صورة — الخلفية تدرّج linear-gradient(180deg, اللون, hexDarken 0.14) بدل الافتراضي + العنوان/النص يتبعان var(--pt-text)/var(--pt-muted) + dark/الزر مشتقان من سطوع اللون (الشريط: دائرة الأيقونة color-mix من نص القسم).
+- generate.ts (التصدير): relativeLuminance + sectionHex + sectionBgGradient + sectionVarsStyle/wrapSectionVars — renderBlock الجديدة تغلّف كل كتلة ذات ألوان بـ <div class="pt-secvars" style="--pt-text:…;--pt-muted:…;--pt-bg:…;--pt-surface:…;--pt-border:…;color;background"> في نقطة واحدة تستفيدها القشور الثلاث؛ hero/cta/banner: صنف blk-hero--secvar/blk-cta__card--secvar/blk-banner--secvar + تدرّج inline من bgColor + زر حسب السطوع؛ 6 قواعد CSS secvar بعد قواعد البطل/الدفعة/الشريط عمداً؛ جذر :root{--pt-text:theme.text} لم يُمس.
+- agent.ts: برومبت LLM — أداة 9 توثّق text/mutedText + سطرا ألوان الخطوط وألوان الأقسام مع مثال update_block بـ bgColor؛ الاستدلال — EXTRA_COLOR_NAMES (سوداء/بيضاء/خضراء داكنة/أبيض...) في ALL_COLOR_NAMES + detectAllColors (ألوان بترتيب المواضع بلا تداخل أسماء) + mixHexLocal/deriveMuted (أبيض 0.35 فاتح / أسود 0.25 داكن) + SECTION_KEYWORDS (12 قسماً) + فرعان قبل فرع اللون العام: خلفية/لون قسم → update_block {bgColor (+textColor عند لون ثانٍ مع ذكر نص)}، ولون خط عام → update_theme {text, mutedText مشتق}، مع حارس أفعال الإضافة (أضف/أنشئ) كي لا تُبتلع طلبات الإضافة.
+- قرارات موثّقة: أسبقية صورة القسم (جولة 9) على bgColor؛ bgIntent يفهم «لون قسم» بلا «خلفية» كخلفية؛ --pt-border بنفس اتجاه السطح بنسبة أخف 0.18؛ sectionVars بلا معامل theme (معادلات المواصفة لا تحتاجه).
+
+Stage Summary:
+- الميزتان تعملان طرفاً-إلى-طرف: لوحة التصميم تحرر ألوان الخطوط (أساسي/ثانوي + إعادة ضبط) وتنعكس فوراً في المعاينة والتصدير (جذر CSS موجود أصلاً)، وكل قسم تسويقي يقبل لون خلفية/خط اختياريين من لوحة الخصائص أو من الوكيل الذكي (LLM أو الاستدلال) — مع نص تلقائي ذكي يجعل قسم دعوة الإجراء/الشريط واضحين دائماً (أبيض على الداكن وداكن على الفاتح).
+- أمثلة إلزامية مثبتة: «اجعل خلفية قسم دعوة الإجراء سوداء» → cta.bgColor=#111827، «اجعل خلفية الشريط الإعلاني خضراء داكنة» → banner.bgColor=#065f46، «غيّر لون الخط إلى الأزرق» → update_theme text=#2563eb + mutedText مشتق.
+- التوافق الخلفي محفوظ: مشاريع بلا bgColor/textColor تُعرض وتُصدَّر كما هي حرفياً (كل شيء اختياري)، صور الأقسام وخلفية المشروع والرسوم وZIP وحذف الصور بعد التحميل لم تُمس (bgColor/textColor نصيان لا يstripهما منطق الصور فيبقيان في DB عن قصد).
+- تحقق: tsc صفر أخطاء في src/، lint صفر أخطاء (تحذير الخطوط القديم وحده)، dev.log نظيف (GET / وagent وexport تجمّع كلها بلا أخطاء)، تحقق bun مباشر للتصدير والإجراءات ومنطق الاستدلال (سجل كامل في agent-ctx/12-a-full-stack-developer.md).
+
+---
+Task ID: 12-b
+Agent: general-purpose (E2E verifier)
+Task: تحقق E2E بمتصفح حقيقي من ميزات الجولة 12
+
+Work Log:
+- دخول كامل عبر الواجهة: فتح / → «تسجيل الدخول» → «تجربة سريعة بدون تسجيل» → لوحة المستخدم التجريبي بستة مشاريع (PASS) — r12-01/02.png.
+- فتح «موضة الجزائر» في الباني وانتظار تحميله (PASS) — r12-03.png.
+- لوحة «التصميم»: قسم «ألوان الخطوط» موجود («لون الخط الأساسي» + «لون الخط الثانوي» + زرا «إعادة الضبط»). تعيين الأساسي #b91c1c عبر native setter + أحداث input/change (منتقي اللون لا يقبل fill مباشراً مع React) → تغيير فوري في المعاينة: H1 = rgb(185,28,28) والمشتق بقي كما هو (PASS) — r12-04/05.png. الثانوي #9a86b8 → rgb(154,134,184) فوري، و«إعادة الضبط — الثانوي» أعاده #6e6880 في اللوحة والمعاينة rgb(110,104,128) (PASS).
+- كتلة CTA («دعوة للإجراء») في «الخصائص» → «المظهر»: «لون خلفية القسم» تبدأ فارغة (حبيكة «افتراضي (من الهوية)»). تعيين #065f46 → بطاقة CTA صارت linear-gradient(rgb(6,95,70), rgb(5,82,60)) والعنوان أبيض تلقائياً rgb(255,255,255) والثانوي rgb(160,194,185) — إصلاح «البانر غير الواضح» مثبت بالأنماط المحسوبة (PASS) — r12-06.png.
+- زر X «إزالة اللون المخصص»: عاد تدرّج rose الافتراضي 135deg و نص أبيض وحبيكتا «افتراضي (من الهوية)» (PASS) — r12-07.png.
+- البطل كذلك: bgColor #065f46 → تدرّج أخضر مخصص + H1 أبيض تلقائي + الزر الأساسي rose مقروء، ثم X أعاده لخلفيته الافتراضية (PASS — بلا حفظ).
+- المساعد الذكي: «اجعل خلفية قسم دعوة الإجراء سوداء» → رد: «قمت بتغيير خلفية قسم دعوة الإجراء (cta) إلى الأسود (#111827)» والمعاينة linear-gradient(#111827,#0f1522) (PASS)؛ «غيّر لون الخط إلى الأزرق» → H1/H2 = rgb(59,130,246) = #3b82f6 والمشتق #6b7280 ولوحة التصميم عكست القيمتين (PASS) — r12-08/09.png (POST /agent 200×2 في dev.log، ثانيتان لكل أمر).
+- التصدير (curl بالكوكي sivar_session → /api/projects/cmuabygx80023ixmm2oftk17p/export، HTTP 200، ZIP 61KB): index.html و home/index.html يحويان <div class="pt-reveal pt-secvars" style="--pt-bg:#111827;--pt-surface:#0a0e17;--pt-border:#0e1420;--pt-text:#ffffff;--pt-muted:#a5a7ad;color:var(--pt-text);background:#111827">؛ بطاقة CTA blk-cta__card--secvar بخلفية linear-gradient(180deg,#111827,#0f1522) بدل تدرّج rose الافتراضي؛ جذر styles.css: --pt-text:#3b82f6 و--pt-muted:#6b7280 (PASS).
+- استجابة 390×844: documentElement.scrollWidth = clientWidth = 390 ولحاوية المعاينة كذلك — لا فائض أفقي (PASS) — r12-10.png.
+- agent-browser errors: فارغ (صفر أخطاء صفحة)؛ console: رسائل HMR/DevTools التطويرية فقط؛ dev.log نظيف خلال الجلسة (كل الطلبات 200؛ الخطأ الوحيد EADDRINUSE قديم لمحاولة تشغيل خادم ثانٍ على 3000 قبل جلستي).
+- خللان مكتشفان (موثقان بدقة — لم يُلمس أي مصدر):
+  1) المعاينة فقط: زر بطاقة CTA عند bgColor داكن = bg-white مع نص أبيض غير مرئي — صنف text-[#16121f] في src/components/prototype/blocks/cta-block.tsx (سطر ~95) يخسر تتالي Tailwind لصالح text-[var(--pt-text)] من variant الثانوي في src/components/prototype/ui/p-button.tsx، وغلاف secvars يضبط --pt-text:#ffffff. المتوقع rgb(22,18,31)، الفعلي rgb(255,255,255) على أبيض. (التصدير غير متأثر: pt-btn--on-dark شفاف بنص أبيض مقروء.)
+  2) src/lib/export/generate.ts: وسم pt-secvars يحمل سمتَي style مكررتين (متغيرات secvars ثم transition-delay:120ms) — HTML غير صالح؛ المتصفح يُبقي الأولى فيضيع تأخير الظهور فقط (تجميلي، الألوان تعمل).
+- حالة المشروع: حُفظ عمداً (خط أزرق #3b82f6 + CTA أسود #111827) كعرض حي للجولة 12؛ تجربتا البطل/الثانوي اللاحقة غير محفوظتين فقاعدة البيانات مطابقة للتصدير المتحقق منه.
+
+Stage Summary:
+- ألوان الخطوط في لوحة التصميم + عكس فوري + إعادة الضبط: PASS.
+- لون خلفية القسم على CTA/البطل + نص أبيض تلقائي (إصلاح وضوح البانر): PASS.
+- زر X «إزالة اللون المخصص»: PASS.
+- أمر الوكيل 1 (خلفية CTA سوداء #111827): PASS.
+- أمر الوكيل 2 (لون الخط أزرق #3b82f6 + مشتق): PASS.
+- التصدير بألوان (pt-secvars + تدرّج مخصص بدل الافتراضي + --pt-text جذر): PASS.
+- الاستجابة 390px بلا فائض أفقي: PASS. الكونسول/dev.log نظيفان: PASS.
+- ملاحظتان للجولات القادمة: نص زر CTA أبيض-على-أبيض في المعاينة مع bgColor داكن (يستحق إصلاحاً)، وسمة style مكررة في غلاف secvars المُصدَّر (تجميلي).
+
+---
+Task ID: 12-c
+Agent: full-stack-developer
+Task: إصلاح خللين اكتشفهما تحقق E2E للجولة 12: (1) نص زر بطاقة CTA أبيض-على-أبيض في المعاينة عند bgColor داكن، (2) سمتا style مكررتان في HTML المُصدَّر من غلاف secvars+reveal.
+
+Work Log:
+- قراءة worklog (12-a/12-b) والمواصفة وكل ملف قبل تعديله: cta-block, banner-block, hero-block, p-button, shared, prototype-renderer, generate.ts (applyReveal/wrapSectionVars/sectionVarsStyle/siteShell/renderCta/renderBanner/sectionWrap).
+- تحديد السبب الجذري بالإزاحات من CSS المُجمَّع: `text-[#16121f]` (بايت 93081) يسبقه `text-[var(--pt-primary-fg)]` (93263) و`text-[var(--pt-text)]` (93338) فيتلقّى الزر الأبيض نصاً من var(--pt-*)، بينما `bg-white` (74807) يغلب خلفيات var (60xxx) — و`text-white` (97979) يغلب الجميع (البطل سليم لذلك).
+- اكتشاف أن banner-block يحمل النمط المطابق حرفياً: زر الشريط الأبيض بمتغير primary افتراضي → نصه كان var(--pt-primary-fg)=#ffffff على أبيض **في الحالة الافتراضية أصلاً** (كل المشاريع) — أُصلح مع CTA.
+- cta-block.tsx + banner-block.tsx: حذف صنف text-[#16121f] الخاسر وتمرير `style={{ color: '#16121f' }}` للزر الأبيض عند textDark (inline يغلب التتالي دائماً) — bg-white/hover كما هما. تعليق تفسيري عربي في كل موضع.
+- hero-block.tsx: فُحص ولم يُمس (text-white يفوز التتالي على bg-white/10 شفاف — لا نص غير مرئي ممكن). مسح كل blocks: لا صراع bg-white+var آخر يمكن أن يخفي نصاً (الباقي زخرفي أو تبديل شرطي كامل).
+- generate.ts — applyReveal فقط: عند delay>0 يدمج `transition-delay:…ms;` في مقدمة سمة style موجودة في رأس الوسم الأول (غلاف pt-secvars أو خلفية صورة القسم) بدل إضافة سمة ثانية؛ بلا style موجودة يضيف سمة كما كان؛ delay=0 بلا سمة. يشفي أيضاً أقسام صور الجولة 9 التي كانت تُصدَّر بسمتين عند delay>0.
+- التصدير لم يُمس غير applyReveal: زرّا CTA/Banner المُصدَّران (pt-btn--on-dark) وبطاقة blk-cta__card--secvar بتدرّجها كما هما حرفياً.
+
+Verification:
+- tsc --noEmit: صفر أخطاء في src/ (أخطاء examples/+skills/ الموجودة أصلاً فقط). lint: صفر أخطاء (تحذير الخطوط وحده).
+- متصفح حقيقي (دخول تجريبي → «موضة الجزائر»): غلاف secvars --pt-text:#ffffff وخلفية rgb(17,24,39) قائمة، وزر CTA «إنشاء حساب مجاني» computed color = rgb(22,18,31) على rgb(255,255,255) — tool-results/r12-fix-cta.png (+تحقق بكسلي للتسمية الداكنة).
+- «متجرتي»: زر الشريط «تسوّق الآن» أبيض بنص rgb(22,18,31) inline — tool-results/r12-fix-banner.png؛ زر البطل الأخضر primary لم يتغير.
+- التصدير (curl بالكوكي → ZIP 61KB): صفر وسوم بسمتَي style؛ الغلاف المدمج `<div class="pt-reveal pt-secvars" style="transition-delay:120ms;--pt-bg:#111827;…;background:#111827">` سمة واحدة تجمع المتغيرات والتأخير؛ أغلفة 60ms/120ms الأخرى سليمة.
+- dev.log نظيف (كل الطلبات 200)، agent-browser errors فارغ.
+
+Stage Summary:
+- زر CTA/الشريط الأبيض في المعاينة مقروء دائماً (نص داكن #16121f inline) مهما كانت --pt-text/--pt-primary-fg — إصلاح يتالي Tailwind جذري وليس ترقيعاً.
+- HTML المُصدَّر صالح: لا سمة style مكررة، وتأخير الظهور محفوظ داخل سمة secvars نفسها (وأقسام الصور شُفيت ضمناً).
+- لا انحدارات: images/wash/export ZIP/strip-after-download/الأنماط الأصلية كلها كما في الجولات 7-12.
+
+
+---
+Task ID: 12-d
+Agent: main agent (Z.ai Code) — إغلاق الجولة
+
+Task: إغلاق جودة الجولة 12 (ألوان الخطوط + ألوان الأقسام) بعد التنفيذ (12-a) والتحقق (12-b) وإصلاح خللين (12-c).
+
+Work Log:
+- مسح ذهبي كامل بمتصفح حقيقي (agent-browser، 1440×900): فتح / → «تسجيل الدخول» → «تجربة سريعة بدون تسجيل» → لوحة المستخدم التجريبي → فتح مشروع «موضة الجزائر» في الباني (تحمّل كامل بالصفحات الثماني ومكوناتها).
+- (a) الباني والمعاينة: غلاف القسم div.pt-secvars يحمل ‎--pt-bg:#111827‎ وخلفية rgb(17,24,39) وبطاقة CTA بتدرّج linear-gradient(#111827,#0f1522)؛ زر «إنشاء حساب مجاني» أبيض rgb(255,255,255) بتسمية داكنة rgb(22,18,31) inline — إصلاح 12-c قائم والنص مقروء بوضوح — r12-final-01/02.png.
+- (b) لوحة «التصميم»: قسم «ألوان الخطوط» حاضر بلون الخط الأساسي #3b82f6 والثانوي #6b7280 مع زرَي «إعادة الضبط»؛ عناوين المعاينة زرقاء: 16 عنواناً rgb(59,130,246) وH1 كذلك، وعنوان CTA أبيض تلقائي على الأسود — r12-final-03.png.
+- (c) وضع «معاينة» التفاعلي (طبقة fixed inset-0): H1 أزرق rgb(59,130,246)، CTA أسود بعنوان أبيض وزر أبيض بتسمية داكنة؛ نقر زر CTA داخل المعاينة تنقّل فعلياً إلى صفحة «إنشاء حساب» بعنوان أزرق — التفاعلية مؤكدة — ثم «خروج من المعاينة» — r12-final-04/05.png.
+- (d) العودة لهبوط المنصة عبر قائمة المستخدم («حسابي» → «تسجيل الخروج» → حوار «هل تريد تسجيل الخروج؟» → «تسجيل الخروج»): حالة زائر سليمة؛ سطر التطوير «المنصة من تطوير يحي مسعود طالب دكتوراه في جامعة الجزائر 3» بالنص الحرفي مع filter:none وanimation:none وتدرّج ذهبي صافٍ بـ clip:text (بلا توهّج)؛ شعار SIVAR محمّل في الشريط (naturalWidth>0) — r12-final-06/07.png.
+- بوابات الجودة: npx tsc --noEmit صفر أخطاء في src/ (أخطاء examples/+skills/ الموجودة أصلاً فقط)؛ bun run lint صفر أخطاء (تحذير الخطوط القديم وحده)؛ ذيل dev.log نظيف — كل الطلبات 200 بما فيها POST /api/auth/logout، لا أخطاء؛ agent-browser errors فارغ والكونسول بلا أخطاء.
+- التنظيف: فحص جذر المشروع — لا ملفات tmp-*.ts ولا ZIP خارج tool-results (r10-export2.zip موضعه الصحيح)، وسكربت الجولة 9 المؤقت محذوف أصلاً (.zscripts فيها سكربتات البنية وdev.pid للخادم العامل — لم تُمس)، والوحيد tsconfig.tsbuildinfo (ذاكرة tsc المتجاهَلة في gitignore، تتجدد آلياً) — لا شيء يستحق الحذف؛ db/ وupload/ وagent-ctx/ وtool-results/ وworklog.md لم تُمس.
+- لم يُعدَّل أي ملف مصدر في هذه المهمة (فحص وتوثيق فقط).
+
+Stage Summary:
+- الجولة 12 مغلقة بنجاح كاملاً: ألوان الخطوط (لوحة التصميم + الوكيل الذكي + التصدير) وألوان كل قسم مع نص تلقائي مقروء بالسطوع تعمل طرفا-إلى-طرف، وإصلاحا 12-c (تسمية زر CTA/الشريط الأبيض + سمة style المكررة) قائمان في المسح النهائي.
+- المسح الذهبي (a-d) ناجح بالكامل، البوابات الثلاث خضراء، الجذر نظيف بلا مخلفات — لا انحدارات على جولات 7-11 (الشعار، السطر الذهبي النظيف، الأزرار، الصور، التصدير).
+- مشروع «موضة الجزائر» التجريبي أُبقي كعرض حي للجولة 12 (خط أزرق #3b82f6 + CTA أسود #111827 محفوظان).

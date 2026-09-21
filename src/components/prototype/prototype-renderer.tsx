@@ -5,13 +5,16 @@
 // Task 8-a — زر عودة عائم في كل صفحة غير الرئيسية +
 // تروستة لوحة تحكم حقيقية (بحث + إشعارات + قائمة مستخدم) +
 // بحث مدمج يفلتر جداول الصفحة + رابط العودة في الشريط الجانبي.
+// Task 12 — ألوان كل قسم (bgColor/textColor): غلاف متغيرات CSS
+// واحد داخل renderBlock يستفيده كل مسارات BlockList الثلاثة،
+// مع نص تلقائي ذكي (داكن على الفاتح / أبيض على الداكن).
 // ============================================================
-import { type ReactElement, useState } from 'react'
+import { type CSSProperties, type ReactElement, useState } from 'react'
 import type { Block, ProjectPage, ProjectSchema } from '@/lib/types'
 import { BLOCK_REGISTRY } from '@/lib/registry/blocks'
 import { ArrowRight, Bell, Globe, LogOut, Menu, Search, Settings, User, X } from 'lucide-react'
 import { ProtoIcon } from './icon-map'
-import { PrototypeThemeScope } from './theme-provider'
+import { hexDarken, hexLighten, PrototypeThemeScope } from './theme-provider'
 import { PAvatar } from './ui/p-avatar'
 import { PBadge } from './ui/p-badge'
 import { PButton } from './ui/p-button'
@@ -45,11 +48,67 @@ import { TasksListBlock } from './blocks/tasks-list-block'
 import { TeamBlock } from './blocks/team-block'
 import { TestimonialsBlock } from './blocks/testimonials-block'
 import type { BlockCtx } from './blocks/shared'
+import { hexLuminance, sectionHexColor } from './blocks/shared'
+
+// ============================================================
+// ألوان كل قسم (Task 12) — sectionVars
+// ============================================================
+
+/** مزج لونين محلياً — ratio = وزن اللون الثاني (0..1) */
+function ptMix(a: string, b: string, ratio: number): string {
+  const expand = (hex: string): [number, number, number] | null => {
+    const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim())
+    if (!m) return null
+    let h = m[1]
+    if (h.length === 3) h = h.split('').map((c) => c + c).join('')
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
+  }
+  const ca = expand(a)
+  const cb = expand(b)
+  if (!ca || !cb) return a
+  const t = Math.max(0, Math.min(1, ratio))
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)))
+  const mixed = [0, 1, 2].map((i) => clamp(ca[i] + (cb[i] - ca[i]) * t))
+  return `#${mixed.map((v) => v.toString(16).padStart(2, '0')).join('')}`
+}
+
+/**
+ * متغيرات CSS لألوان قسم واحد (bgColor/textColor اختياريان):
+ * - bgColor: خلفية + --pt-bg + --pt-surface/--pt-border مشتقان حسب السطوع.
+ * - textColor: --pt-text + --pt-muted ممزوج نحو الخلفية 0.38.
+ * - نص تلقائي ذكي: مع bgColor بلا textColor → نص داكن على الخلفية
+ *   الفاتحة (سطوع > 0.5) وأبيض على الداكنة (+ ثانوي مشتق).
+ * تُرجع null عندما لا ألوان مخصّصة (سلوك قديم مطابق بالبايت).
+ */
+export function sectionVars(bgColor: unknown, textColor: unknown): CSSProperties | null {
+  const bg = sectionHexColor(bgColor)
+  const tx = sectionHexColor(textColor)
+  if (!bg && !tx) return null
+
+  const vars: Record<string, string> = {}
+  if (bg) {
+    const bright = hexLuminance(bg) > 0.55
+    vars['--pt-bg'] = bg
+    vars['--pt-surface'] = bright ? hexLighten(bg, 0.42) : hexDarken(bg, 0.42)
+    vars['--pt-border'] = bright ? hexLighten(bg, 0.18) : hexDarken(bg, 0.18)
+    vars.background = bg
+  }
+
+  let text = tx
+  if (bg && !tx) text = hexLuminance(bg) > 0.5 ? '#17151f' : '#ffffff'
+  if (text) {
+    vars['--pt-text'] = text
+    vars['--pt-muted'] = ptMix(text, bg || '#ffffff', 0.38)
+  }
+  vars.color = 'var(--pt-text)'
+
+  return vars as CSSProperties
+}
 
 // ============================================================
 // عرض مكوّن واحد حسب نوعه
 // ============================================================
-function renderBlock(block: Block, ctx: BlockCtx): ReactElement {
+function renderBlockInner(block: Block, ctx: BlockCtx): ReactElement {
   switch (block.type) {
     case 'hero':
       return <HeroBlock block={block} ctx={ctx} />
@@ -112,6 +171,22 @@ function renderBlock(block: Block, ctx: BlockCtx): ReactElement {
     default:
       return <></>
   }
+}
+
+/**
+ * عرض مكوّن واحد مع غلاف ألوان القسم (Task 12) — نقطة واحدة
+ * يستفيدها كل مسارات BlockList الثلاثة (تفاعلي/عادي/تحرير):
+ * متغيرات CSS تتوارثها عناصر القسم الداخلية تلقائياً.
+ */
+function renderBlock(block: Block, ctx: BlockCtx): ReactElement {
+  const content = renderBlockInner(block, ctx)
+  const vars = sectionVars(block.props?.bgColor, block.props?.textColor)
+  if (!vars) return content
+  return (
+    <div className="pt-secvars" style={vars}>
+      {content}
+    </div>
+  )
 }
 
 /** قائمة المكوّنات مع أغلفة وضع التحرير (outline) عند توفّر onBlockSelect */

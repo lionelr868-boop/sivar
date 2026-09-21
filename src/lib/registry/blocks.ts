@@ -15,6 +15,8 @@ export type FieldDefinition =
       label: string
       type: 'text' | 'textarea' | 'number' | 'color' | 'switch' | 'select' | 'code'
       options?: { value: string; label: string }[]
+      /** Task 12 — حقل لون اختياري: قيمة فارغة = وراثة هوية المشروع */
+      optional?: boolean
     }
   | { key: string; label: string; type: 'page' }
   | { key: string; label: string; type: 'image'; accept?: string }
@@ -192,6 +194,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       { key: 'align', label: 'محاذاة النص', type: 'select', options: ALIGN_OPTIONS },
       { key: 'emailPlaceholder', label: 'حقل البريد — النص التوضيحي', type: 'text' },
       { key: 'emailButton', label: 'حقل البريد — نص الزر', type: 'text' },
+      { key: 'bgColor', label: 'لون خلفية القسم', type: 'color', optional: true },
+      { key: 'textColor', label: 'لون خط القسم', type: 'color', optional: true },
     ],
   },
 
@@ -231,6 +235,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       },
       { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
       { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+      { key: 'bgColor', label: 'لون خلفية القسم', type: 'color', optional: true },
+      { key: 'textColor', label: 'لون خط القسم', type: 'color', optional: true },
     ],
   },
 
@@ -264,6 +270,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       },
       { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
       { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+      { key: 'bgColor', label: 'لون خلفية القسم', type: 'color', optional: true },
+      { key: 'textColor', label: 'لون خط القسم', type: 'color', optional: true },
     ],
   },
 
@@ -297,6 +305,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       },
       { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
       { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+      { key: 'bgColor', label: 'لون خلفية القسم', type: 'color', optional: true },
+      { key: 'textColor', label: 'لون خط القسم', type: 'color', optional: true },
     ],
   },
 
@@ -354,6 +364,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
           { key: 'buttonText', label: 'نص الزر', type: 'text' },
         ],
       },
+      { key: 'bgColor', label: 'لون خلفية القسم', type: 'color', optional: true },
+      { key: 'textColor', label: 'لون خط القسم', type: 'color', optional: true },
     ],
   },
 
@@ -387,6 +399,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       },
       { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
       { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+      { key: 'bgColor', label: 'لون خلفية القسم', type: 'color', optional: true },
+      { key: 'textColor', label: 'لون خط القسم', type: 'color', optional: true },
     ],
   },
 
@@ -421,6 +435,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       },
       { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
       { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+      { key: 'bgColor', label: 'لون خلفية القسم', type: 'color', optional: true },
+      { key: 'textColor', label: 'لون خط القسم', type: 'color', optional: true },
     ],
   },
 
@@ -443,6 +459,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       { key: 'style', label: 'النمط', type: 'select', options: CTA_STYLE_OPTIONS },
       { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
       { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+      { key: 'bgColor', label: 'لون خلفية القسم', type: 'color', optional: true },
+      { key: 'textColor', label: 'لون خط القسم', type: 'color', optional: true },
     ],
   },
 
@@ -463,6 +481,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       { key: 'subtitle', label: 'العنوان الفرعي', type: 'textarea' },
       { key: 'buttonText', label: 'نص زر الإرسال', type: 'text' },
       { key: 'successText', label: 'رسالة النجاح', type: 'textarea' },
+      { key: 'bgColor', label: 'لون خلفية القسم', type: 'color', optional: true },
+      { key: 'textColor', label: 'لون خط القسم', type: 'color', optional: true },
     ],
   },
 
@@ -504,6 +524,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       },
       { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
       { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+      { key: 'bgColor', label: 'لون خلفية القسم', type: 'color', optional: true },
+      { key: 'textColor', label: 'لون خط القسم', type: 'color', optional: true },
     ],
   },
 
@@ -526,6 +548,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       { key: 'style', label: 'النمط', type: 'select', options: [{ value: 'gradient', label: 'تدرّج' }, { value: 'dark', label: 'داكن' }] },
       { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
       { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+      { key: 'bgColor', label: 'لون خلفية القسم', type: 'color', optional: true },
+      { key: 'textColor', label: 'لون خط القسم', type: 'color', optional: true },
     ],
   },
 
@@ -591,6 +615,8 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockDefinition> = {
       },
       { key: 'bgImage', label: 'صورة الخلفية', type: 'image' },
       { key: 'bgOverlay', label: 'تعتيم فوق الصورة', type: 'select', options: HERO_OVERLAY_OPTIONS },
+      { key: 'bgColor', label: 'لون خلفية القسم', type: 'color', optional: true },
+      { key: 'textColor', label: 'لون خط القسم', type: 'color', optional: true },
     ],
   },
 
