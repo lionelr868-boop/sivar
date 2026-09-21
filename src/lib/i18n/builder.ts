@@ -185,6 +185,8 @@ export const builder = {
   fileSizeKb: 'ك.ب',
   // toasts (توحيد الرسائل)
   pageAddedToast: 'تمت إضافة «{name}»',
+  // (الجولة 13) صفحات منطقة لوحة التحكم تُدرج تلقائياً في الشريط الجانبي
+  pageAddedSidebarToast: 'تمت إضافة «{name}» وأدرجناها في الشريط الجانبي للوحة التحكم',
   blockAddedToast: 'تمت إضافة «{name}»',
   // ===== Task 7-c: الشعار =====
   logoSection: 'الشعار',

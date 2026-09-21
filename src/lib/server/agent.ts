@@ -17,6 +17,7 @@ import { COLOR_NAME_TO_HEX } from '@/lib/types'
 import { BLOCK_REGISTRY } from '@/lib/registry/blocks'
 import { ENTITY_KEYS, defaultEntityFor } from '@/lib/content/mock-data'
 import { LANDING_VARIANTS } from '@/lib/project/landing-kit'
+import { dashboardNavIconFor, isDashboardAreaPage } from '@/lib/project/tools'
 
 // ============================================================
 // أنواع
@@ -53,6 +54,15 @@ const THEME_COLOR_KEYS = [
   'primary', 'primaryForeground', 'secondary', 'accent', 'background', 'surface', 'text',
   'mutedText', 'border',
 ]
+
+// (الجولة 13) أسماء الأيقونات المقبولة لعناصر الشريط الجانبي للوحة التحكم
+// (تطابق خريطة أيقونات النموذج في العارض والتصدير — لا خلط بأسماء غير قابلة للعرض)
+const NAV_ICON_WHITELIST: ReadonlySet<string> = new Set([
+  'layout-dashboard', 'users', 'user', 'settings', 'shopping-cart', 'shopping-bag', 'package',
+  'calendar', 'calendar-days', 'file-text', 'briefcase', 'clipboard-list', 'graduation-cap',
+  'building', 'utensils', 'credit-card', 'wallet', 'sparkles', 'chart-bar', 'inbox', 'bell',
+  'table', 'list', 'home', 'star', 'zap', 'shield', 'globe', 'heart', 'check', 'target',
+])
 
 // ============================================================
 // ألوان عربية إضافية (Task 12) — صيغ مؤنثة/متصرفة/مركّبة ليست في
@@ -205,13 +215,15 @@ const AGENT_SYSTEM_PROMPT = [
   '8. move_block: {"pageId":"...","blockId":"...","position":رقم}',
   '9. update_theme: {"theme":{"primary":"#hex","secondary":"#hex","accent":"#hex","text":"#hex — لون الخط الأساسي في كل الموقع","mutedText":"#hex — لون النصوص الثانوية (الخفيفة)","radius":12,"shadow":"sm|md|lg","fontFamily":"IBM Plex Sans Arabic|Tajawal|Cairo"}}',
   '10. update_navigation: {"brand":"اسم العلامة","items":[{"label":"...","pageId":"..."}]}',
-  '11. update_dashboard_nav: {"items":[{"label":"...","pageId":"...","icon":"sparkles"}]}',
+  '11. update_dashboard_nav: {"items":[{"label":"...","pageId":"...","icon":"users"}]} — ⚠ يستبدل القائمة كاملة: أدرج فيها كل العناصر القائمة بعناوينها وأيقوناتها كما هي (انسخها من السياق بدقة) حتى لا يختلط العناصر أو تضيع. استعمله فقط لإعادة الترتيب أو الإزالة أو تعديل عنوان/أيقونة عنصر.',
   '12. rename_project: {"name":"الاسم الجديد"}',
   '13. generate_mock_data: {"entity":"مفتاح كيان اختياري — بدون قيمة يُحدّث كل الكيانات"}',
   '14. change_landing_variant: {"variant":"معرف نمط من أنماط صفحات الهبوط أدناه","pageId":"معرّف صفحة هبوط اختياري — الافتراضي أول صفحة هبوط"} — يعيد بناء أقسام صفحة الهبوط بالنمط المختار. الأنماط: ' + LANDING_VARIANTS_PROMPT,
   '',
-  'أدوات إضافية عند إنشاء صفحات الهبوط:',
+  'أدوات إضافية عند إنشاء الصفحات:',
   '- في create_page من نوع landing يمكنك إضافة "landingVariant":"معرف النمط" من قائمة الأنماط أعلاه لبنائها بنمط محدد.',
+  '- (مهم) الصفحات من أنواع منطقة لوحة التحكم (dashboard|table|form|settings|profile) تُدرج تلقائياً في الشريط الجانبي للوحة التحكم بعنوان مطابق لاسم الصفحة وأيقونة مناسبة لنوعها — فلا تستدعِ update_dashboard_nav لإضافة صفحة أنشأتها للتو.',
+  '- عند طلب إضافة صفحة أو عنصر إلى لوحة التحكم (مثل: «أضف أعضاء الفريق للوحة التحكم») أنشئ صفحة من نوع table مع entity المناسب من availableEntityKeys — مثال: {"name":"أعضاء الفريق","type":"table","entity":"teamMembers"}.',
   '- يمكنك تغيير ألوان الخطوط عبر update_theme بالمفتاحين text (لون الخط الأساسي في كل الموقع) وmutedText (لون النصوص الثانوية) — وليس فقط الألوان الأساسية.',
   '- ألوان كل قسم على حدة: مكوّنات أقسام صفحة الهبوط (hero|features|stats|steps|pricing|testimonials|faq|cta|banner|gallery|team|contact-form) تقبل في props المفتاحين bgColor (لون خلفية القسم) وtextColor (لون خط القسم) بصيغة hex، والقسم بدون textColor يختار لون نصه تلقائياً حسب سطوع خلفيته (داكن على الفاتح وأبيض على الداكن). مثال: {"tool":"update_block","args":{"pageId":"معرف الصفحة","blockId":"معرف كتلة دعوة للإجراء","props":{"bgColor":"#111827"}}} يجعل خلفية القسم سوداء بنص أبيض تلقائي.',
   '- مكوّن البطل (hero) يدعم: background من (default|muted|gradient-soft|mesh|dark|gradient) وخصائص eyebrow (شارة فوق العنوان) و visual من (dashboard|phone|video|form|analytics|orders|chat|calendar|testimonial|none) — analytics بطاقة تقرير أداء، orders أحدث الطلبات، chat محادثة دعم، calendar تقويم، testimonial رأي عميل — و bgOverlay عند رفع المستخدم صورة خلفية (dark|medium|light|none) — لا تضع bgImage بنفسك أبداً (الصور يرفعها المستخدم فقط).',
@@ -227,6 +239,7 @@ const AGENT_SYSTEM_PROMPT = [
   '- الألوان بصيغة hex مثل #059669.',
   '- استعمل pageId الموجودة في السياق، لا تخترع معرّفات.',
   '- لإضافة مكوّن استعمل blockType من availableBlockTypes فقط، وخصائص props مطابقة لأنواع المكوّن (عنوان/نص/عناصر).',
+  '- عند إنشاء صفحة تنتمي للوحة التحكم (table|form|dashboard|settings|profile) اذكر في explanation أنها أُدرجت تلقائياً في الشريط الجانبي للوحة التحكم.',
   '',
   'أعد JSON فقط دون أي نص خارجه، بالصيغة:',
   '{"explanation":"شرح عربي موجز لما فعلته","actions":[{"tool":"اسم الأداة","args":{...}}]}',
@@ -287,6 +300,38 @@ function sanitizeNavItems(
       (typeof item.pageId === 'string' && schema.pages.find((p) => p.id === item.pageId)?.id) ??
       resolvePageRef(schema, item, ['pageName', 'page', 'name'])
     if (label && pageId) items.push({ label, pageId })
+  }
+  return items
+}
+
+/**
+ * (الجولة 13) تعقيم عناصر الشريط الجانبي للوحة التحكم بدقة تامة:
+ * - pageId صالح وموجود، ولا تكرار لنفس الصفحة.
+ * - الأيقونة: المعطاة إن كانت من الأسماء المقبولة، وإلا أيقونة العنصر القائم لنفس الصفحة،
+ *   وإلا الأيقونة المشتقة من نوع الصفحة وكيانها — فلا تنقلب كل الأيقونات إلى أيقونة واحدة (خلط بين العناصر).
+ */
+function sanitizeDashboardNavItems(
+  schema: ProjectSchema,
+  raw: unknown
+): Array<{ label: string; pageId: string; icon: string }> | null {
+  if (!Array.isArray(raw)) return null
+  const items: Array<{ label: string; pageId: string; icon: string }> = []
+  const seen = new Set<string>()
+  for (const item of raw) {
+    if (!isRecord(item)) continue
+    const label = typeof item.label === 'string' && item.label.trim() ? item.label.trim().slice(0, 40) : ''
+    const pageId =
+      (typeof item.pageId === 'string' && schema.pages.find((p) => p.id === item.pageId)?.id) ??
+      resolvePageRef(schema, item, ['pageName', 'page', 'name'])
+    if (!label || !pageId || seen.has(pageId)) continue
+    seen.add(pageId)
+    const page = schema.pages.find((p) => p.id === pageId)
+    const existing = schema.dashboardNav.items.find((it) => it.pageId === pageId)
+    const icon =
+      typeof item.icon === 'string' && NAV_ICON_WHITELIST.has(item.icon.trim())
+        ? item.icon.trim()
+        : existing?.icon ?? (page ? dashboardNavIconFor(page) : 'file-text')
+    items.push({ label, pageId, icon })
   }
   return items
 }
@@ -420,14 +465,9 @@ function sanitizeActions(schema: ProjectSchema, rawActions: unknown): AgentActio
         break
       }
       case 'update_dashboard_nav': {
-        const items = sanitizeNavItems(schema, args.items)
+        const items = sanitizeDashboardNavItems(schema, args.items)
         if (!items || items.length === 0) continue
-        actions.push({
-          tool: 'update_dashboard_nav',
-          args: {
-            items: items.map((it) => ({ label: it.label, pageId: it.pageId, icon: 'file-text' })),
-          },
-        })
+        actions.push({ tool: 'update_dashboard_nav', args: { items } })
         break
       }
       case 'rename_project': {
@@ -478,18 +518,28 @@ interface PageIntent {
 function pageIntentFromText(text: string): PageIntent | null {
   if (/تسعير|أسعار|الأسعار|باقات/.test(text)) return { type: 'pricing', name: 'الأسعار' }
   if (/تسجيل\s*الدخول|دخول/.test(text)) return { type: 'auth', name: 'تسجيل الدخول', authVariant: 'login' }
-  if (/حساب\s*جديد|إنشاء\s*حساب|اشتراك/.test(text)) return { type: 'auth', name: 'إنشاء حساب', authVariant: 'signup' }
+  if (/حساب\s*جديد|إنشاء\s*حساب|اشتراك(?!ات)/.test(text)) return { type: 'auth', name: 'إنشاء حساب', authVariant: 'signup' }
   if (/فواتير/.test(text)) return { type: 'table', name: 'الفواتير', entity: 'invoices' }
   if (/عملاء|زبائن|زبناء/.test(text)) return { type: 'table', name: 'العملاء', entity: 'customers' }
   if (/طلبات/.test(text)) return { type: 'table', name: 'الطلبات', entity: 'orders' }
   if (/منتجات/.test(text)) return { type: 'table', name: 'المنتجات', entity: 'products' }
   if (/حجوزات/.test(text)) return { type: 'table', name: 'الحجوزات', entity: 'bookings' }
+  // (الجولة 13) كيانات إضافية — طلبات مثل «أضف أعضاء الفريق للوحة التحكم» تُحوّل إلى صفحات جداول دقيقة
+  if (/أعضاء\s*الفريق|فريق\s*العمل|موظفين|موظفون|طاقم/.test(text)) return { type: 'table', name: 'أعضاء الفريق', entity: 'teamMembers' }
+  if (/مستخدمين|مستخدمون|المستخدمين|المستخدمون/.test(text)) return { type: 'table', name: 'المستخدمون', entity: 'users' }
+  if (/خدمات/.test(text)) return { type: 'table', name: 'الخدمات', entity: 'services' }
+  if (/دورات|كورسات/.test(text)) return { type: 'table', name: 'الدورات', entity: 'courses' }
+  if (/طلاب|تلاميذ/.test(text)) return { type: 'table', name: 'الطلاب', entity: 'students' }
+  if (/عقارات/.test(text)) return { type: 'table', name: 'العقارات', entity: 'properties' }
+  if (/مواعيد/.test(text)) return { type: 'table', name: 'المواعيد', entity: 'appointments' }
+  if (/اشتراكات/.test(text)) return { type: 'table', name: 'الاشتراكات', entity: 'subscriptions' }
+  if (/معاملات/.test(text)) return { type: 'table', name: 'المعاملات', entity: 'transactions' }
   if (/إعدادات|اعدادات/.test(text)) return { type: 'settings', name: 'الإعدادات' }
   if (/ملف\s*شخصي|بروفايل|بروفيل/.test(text)) return { type: 'profile', name: 'الملف الشخصي' }
   if (/أسئلة|اسئلة|faq/.test(text)) return { type: 'faq', name: 'الأسئلة الشائعة' }
   // صفحة مخصصة: نستخرج الاسم من نهاية الطلب
   const rest = text
-    .replace(/أضف|اضف|أنشئ|انشئ|جديد|جديدة|صفحة|صفحةً|لي|لى|لـ|لل|ال|من|في|بـ|بعنوان/g, ' ')
+    .replace(/أضف|اضف|أنشئ|انشئ|جديد|جديدة|صفحة|صفحةً|لي|لى|لـ|لل|ال|من|في|بـ|بعنوان|إلى|الى|داخل|مع|الشريط|الجانبي|لوحة|التحكم|قائمة/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
   if (rest.length >= 2) {
@@ -505,6 +555,7 @@ function extractAfterPageKeyword(message: string): string {
     .slice(idx + 'صفحة'.length)
     .replace(/^(?:\s|ل|ال|لل|لـ)+/, '')
     .replace(/^(?:تسعير|أسعار|الأسعار|باقات|دخول|تسجيل الدخول|حساب جديد|إنشاء حساب|فواتير|عملاء|زبائن|طلبات|منتجات|حجوزات|إعدادات|ملف شخصي|أسئلة|شخصية)\s*/, '')
+    .replace(/(?:\s*(?:إلى|الى|في|داخل|للوحة|لوحة|التحكم|الشريط|الجانبي|قائمة|الموقع))+\s*$/g, '')
     .trim()
 }
 
@@ -606,6 +657,57 @@ function firstLandingPage(schema: ProjectSchema): ProjectPage | null {
 function heuristicRun(schema: ProjectSchema, message: string): AgentRunResult {
   const text = message.trim()
 
+  // ---------- (الجولة 13) إزالة صفحة من الشريط الجانبي للوحة التحكم ----------
+  // قبل فرع حذف الصفحة — «احذف X من الشريط الجانبي» تعني إزالتها من القائمة فقط لا حذف الصفحة
+  if (
+    /(أزل|ازل|احذف|امسح|حذف)/.test(text) &&
+    /(الشريط\s*الجانبي|شريط\s*اللوحة|قائمة\s*اللوحة|قائمة\s*لوحة\s*التحكم|sidebar)/.test(text)
+  ) {
+    const page = findPageByIntent(schema, text)
+    if (page) {
+      const remaining = schema.dashboardNav.items.filter((it) => it.pageId !== page.id)
+      if (remaining.length < schema.dashboardNav.items.length) {
+        return {
+          explanation: `أزلت «${page.name}» من الشريط الجانبي للوحة التحكم — الصفحة نفسها ما زالت موجودة في المشروع.`,
+          actions: [{ tool: 'update_dashboard_nav', args: { items: remaining } }],
+          fallback: true,
+        }
+      }
+      return {
+        explanation: `«${page.name}» غير موجودة في الشريط الجانبي أصلاً — جرّب اسم صفحة كما يظهر في قائمة الصفحات.`,
+        actions: [],
+        fallback: true,
+      }
+    }
+  }
+
+  // ---------- (الجولة 13) إضافة صفحة قائمة إلى الشريط الجانبي ----------
+  // «أضف صفحة X إلى الشريط الجانبي» والصفحة موجودة أصلاً = إدراج في القائمة لا إنشاء مكرر
+  if (
+    /(أضف|اضف|أدرج|ادرج|أريد|اريد)/.test(text) &&
+    /(الشريط\s*الجانبي|شريط\s*اللوحة|قائمة\s*اللوحة|قائمة\s*لوحة\s*التحكم|sidebar)/.test(text)
+  ) {
+    const page = findPageByIntent(schema, text)
+    if (page) {
+      if (schema.dashboardNav.items.some((it) => it.pageId === page.id)) {
+        return {
+          explanation: `«${page.name}» موجودة في الشريط الجانبي للوحة التحكم أصلاً — لا حاجة لأي تعديل.`,
+          actions: [],
+          fallback: true,
+        }
+      }
+      const items = [
+        ...schema.dashboardNav.items,
+        { label: page.name, pageId: page.id, icon: dashboardNavIconFor(page) },
+      ]
+      return {
+        explanation: `أدرجت «${page.name}» في الشريط الجانبي للوحة التحكم في نهاية القائمة.`,
+        actions: [{ tool: 'update_dashboard_nav', args: { items } }],
+        fallback: true,
+      }
+    }
+  }
+
   // ---------- حذف صفحة ----------
   if (/احذف|امسح|حذف/.test(text) && /صفحة/.test(text)) {
     const page = findPageByIntent(schema, text)
@@ -628,12 +730,36 @@ function heuristicRun(schema: ProjectSchema, message: string): AgentRunResult {
     const intent = pageIntentFromText(text)
     if (intent) {
       const label = intent.type === 'pricing' ? 'التسعير' : intent.name
+      const sidebarNote = isDashboardAreaPage({ type: intent.type })
+        ? ' وأدرجتها في الشريط الجانبي للوحة التحكم'
+        : ''
       return {
-        explanation: `أضفت صفحة «${label}» مع محتوى جاهز قابل للتعديل.`,
+        explanation: `أضفت صفحة «${label}» مع محتوى جاهز قابل للتعديل${sidebarNote}.`,
         actions: [
           {
             tool: 'create_page',
             args: { name: intent.name, type: intent.type, entity: intent.entity, authVariant: intent.authVariant },
+          },
+        ],
+        fallback: true,
+      }
+    }
+  }
+
+  // ---------- (الجولة 13) إضافة صفحة كيان بلا كلمة «صفحة» ----------
+  // مثل: «أضف أعضاء الفريق للوحة التحكم» — كيان معروف = صفحة جدول تُدرج تلقائياً في الشريط الجانبي
+  if (
+    /(أضف|اضف|أنشئ|انشئ|أريد|اريد|إضافة|اضافة)/.test(text) &&
+    !/مكوّن|مكون|قسم|جدول|رسم|إحصائ|احصائ|سجل|نشاط|مهام|إجراء|اجراء/.test(text)
+  ) {
+    const intent = pageIntentFromText(text)
+    if (intent && intent.entity) {
+      return {
+        explanation: `أضفت صفحة «${intent.name}» إلى لوحة التحكم وأدرجتها في الشريط الجانبي مع بيانات تجريبية جاهزة.`,
+        actions: [
+          {
+            tool: 'create_page',
+            args: { name: intent.name, type: 'table', entity: intent.entity },
           },
         ],
         fallback: true,

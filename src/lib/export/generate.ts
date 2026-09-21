@@ -227,6 +227,14 @@ const ICON_SVG: Record<string, string> = {
   signal: '<path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/>',
   'more-horizontal': '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
   'file-text': '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  // (الجولة 13) أيقونات الشريط الجانبي للوحة التحكم — مطابقة لخريطة أيقونات عارض React
+  'layout-dashboard': '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+  'shopping-cart': '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>',
+  'calendar-days': '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>',
+  'graduation-cap': '<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',
+  building: '<rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/>',
+  utensils: '<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>',
+  'clipboard-list': '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
 }
 
 /** أيقونة مضمّنة بالاسم (Sparkles بديلاً عند الاسم غير المعروف) */
@@ -479,8 +487,7 @@ body.pt-hasbg--soft::after{content:'';position:fixed;inset:0;z-index:-1;backgrou
 .pt-sidebar__item{display:flex;align-items:center;gap:10px;min-height:40px;padding:8px 12px;border-radius:calc(var(--pt-radius) - 2px);font-size:14px;font-weight:500;transition:background .15s}
 .pt-sidebar__item:hover{background:var(--pt-secondary)}
 .pt-sidebar__item.active{background:var(--pt-secondary);color:var(--pt-primary)}
-.pt-sidebar__dot{width:9px;height:9px;border-radius:999px;background:var(--pt-muted);flex-shrink:0}
-.pt-sidebar__item.active .pt-sidebar__dot,.pt-sidebar__item:hover .pt-sidebar__dot{background:var(--pt-primary)}
+.pt-sidebar__item svg,.pt-sidebar-top__pill svg{flex-shrink:0}
 .pt-sidebar__bottom{border-top:1px solid var(--pt-border);padding:12px;display:flex;flex-direction:column;gap:8px}
 .pt-sidebar__user{display:flex;align-items:center;gap:10px}
 .pt-sidebar__item--muted{color:var(--pt-muted);font-size:13px}
@@ -3273,7 +3280,8 @@ function dashboardShell(page: ProjectPage, ctx: RenderCtx): string {
       const target = ctx.schema.pages.find((pg) => pg.id === item.pageId)
       if (!target) return ''
       const active = target.id === page.id
-      return `<a class="pt-sidebar__item${active ? ' active' : ''}" href="${esc(ctx.hrefOf(target.id))}" ${active ? 'aria-current="page"' : ''}><span class="pt-sidebar__dot" aria-hidden="true"></span><span>${esc(item.label)}</span></a>`
+      // (الجولة 13) أيقونة العنصر كما في عارض React — لا خلط بين المعاينة والتصدير
+      return `<a class="pt-sidebar__item${active ? ' active' : ''}" href="${esc(ctx.hrefOf(target.id))}" ${active ? 'aria-current="page"' : ''}>${iconSvg(item.icon || 'file-text', 16)}<span>${esc(item.label)}</span></a>`
     })
     .join('')
 
@@ -3282,7 +3290,7 @@ function dashboardShell(page: ProjectPage, ctx: RenderCtx): string {
       const target = ctx.schema.pages.find((pg) => pg.id === item.pageId)
       if (!target) return ''
       const active = target.id === page.id
-      return `<a class="pt-sidebar-top__pill${active ? ' active' : ''}" href="${esc(ctx.hrefOf(target.id))}"><span class="pt-sidebar__dot" aria-hidden="true"></span><span>${esc(item.label)}</span></a>`
+      return `<a class="pt-sidebar-top__pill${active ? ' active' : ''}" href="${esc(ctx.hrefOf(target.id))}">${iconSvg(item.icon || 'file-text', 15)}<span>${esc(item.label)}</span></a>`
     })
     .join('')
 

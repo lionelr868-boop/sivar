@@ -1,0 +1,794 @@
+     1→// ============================================================
+     2→// SIVAR — Pure Agent Tools / Schema Reducers
+     3→// Task 2-a — دوال نقية (isomorphic) تُستعمل من الخادم والعميل:
+     4→// تطبيق إجراءات المساعد الذكي + عمليات المحرّر الدقيقة.
+     5→// ============================================================
+     6→import {
+     7→  BLOCK_REGISTRY,
+     8→  getBlockDefinition,
+     9→} from '@/lib/registry/blocks'
+    10→import {
+    11→  buildEntityData,
+    12→  defaultEntityFor,
+    13→  defaultStatsPreset,
+    14→  ENTITY_LABELS,
+    15→  refreshEntityRows,
+    16→} from '@/lib/content/mock-data'
+    17→import type {
+    18→  AgentAction,
+    19→  AgentToolName,
+    20→  AuthVariant,
+    21→  Block,
+    22→  BlockType,
+    23→  DashboardNavItem,
+    24→  PageType,
+    25→  ProjectNavigation,
+    26→  ProjectPage,
+    27→  ProjectSchema,
+    28→  ProjectTheme,
+    29→} from '@/lib/types'
+    30→import {
+    31→  COLOR_NAME_TO_HEX,
+    32→  PAGE_TYPE_LABELS,
+    33→  slugify as slugifyFn,
+    34→  uid as uidFn,
+    35→} from '@/lib/types'
+    36→import { buildLandingBlocks, changeLandingVariant as changeLandingVariantInSchema, getLandingVariant, LANDING_VARIANTS } from '@/lib/project/landing-kit'
+    37→
+    38→// ============================================================
+    39→// helpers
+    40→// ============================================================
+    41→function clone<T>(v: T): T {
+    42→  return JSON.parse(JSON.stringify(v)) as T
+    43→}
+    44→
+    45→const PAGE_TYPES: string[] = Object.keys(PAGE_TYPE_LABELS)
+    46→const BLOCK_TYPES: string[] = Object.keys(BLOCK_REGISTRY)
+    47→
+    48→function isPageType(v: unknown): v is PageType {
+    49→  return typeof v === 'string' && PAGE_TYPES.includes(v)
+    50→}
+    51→function isBlockType(v: unknown): v is BlockType {
+    52→  return typeof v === 'string' && BLOCK_TYPES.includes(v)
+    53→}
+    54→
+    55→function strArg(args: Record<string, unknown>, key: string, fallback = ''): string {
+    56→  const v = args[key]
+    57→  return typeof v === 'string' && v.trim() ? v.trim() : fallback
+    58→}
+    59→function numArg(args: Record<string, unknown>, key: string): number | undefined {
+    60→  const v = args[key]
+    61→  if (typeof v === 'number' && Number.isFinite(v)) return v
+    62→  if (typeof v === 'string' && v.trim() && Number.isFinite(Number(v))) return Number(v)
+    63→  return undefined
+    64→}
+    65→function boolArg(args: Record<string, unknown>, key: string): boolean | undefined {
+    66→  const v = args[key]
+    67→  if (typeof v === 'boolean') return v
+    68→  if (v === 'true') return true
+    69→  if (v === 'false') return false
+    70→  return undefined
+    71→}
+    72→
+    73→/** إيجاد صفحة بالمُعرّف أو بالاسم */
+    74→function findPageRef(schema: ProjectSchema, ref: unknown): ProjectPage | undefined {
+    75→  if (typeof ref !== 'string' || !ref.trim()) return undefined
+    76→  const r = ref.trim()
+    77→  return schema.pages.find((p) => p.id === r) ?? schema.pages.find((p) => p.name === r || p.slug === r)
+    78→}
+    79→
+    80→/** إيجاد مكوّن داخل صفحة (بالمُعرّف) */
+    81→function findBlock(page: ProjectPage, blockId: unknown): Block | undefined {
+    82→  if (typeof blockId !== 'string' || !blockId.trim()) return undefined
+    83→  return page.blocks.find((b) => b.id === blockId)
+    84→}
+    85→
+    86→/** تنظيف مراجع التنقل بعد حذف صفحة */
+    87→function cleanNavReferences(schema: ProjectSchema, pageId: string): void {
+    88→  schema.navigation.items = schema.navigation.items.filter((it) => it.pageId !== pageId)
+    89→  if (schema.navigation.cta?.pageId === pageId) schema.navigation.cta = undefined
+    90→  schema.dashboardNav.items = schema.dashboardNav.items.filter((it) => it.pageId !== pageId)
+    91→}
+    92→
+    93→/** كتل البداية لكل نوع صفحة (تُستعمل في create_page + factory) */
+    94→export function starterBlocksFor(
+    95→  schema: ProjectSchema,
+    96→  type: PageType,
+    97→  opts?: { entity?: string; authVariant?: AuthVariant; landingVariant?: string }
+    98→): Block[] {
+    99→  const d = (t: BlockType): Record<string, unknown> => clone(BLOCK_REGISTRY[t].defaults())
+   100→  const mk = (t: BlockType, props: Record<string, unknown>): Block => ({ id: uidFn('b_'), type: t, props })
+   101→
+   102→  switch (type) {
+   103→    case 'landing':
+   104→      return buildLandingBlocks(schema, opts?.landingVariant)
+   105→    case 'auth': {
+   106→      const variant: AuthVariant = opts?.authVariant ?? 'login'
+   107→      const props = d('auth-card')
+   108→      props.variant = variant
+   109→      if (variant === 'signup') {
+   110→        props.title = 'إنشاء حساب'
+   111→        props.subtitle = `انضم إلى ${schema.navigation.brand} وابدأ رحلتك اليوم`
+   112→        props.buttonText = 'إنشاء الحساب'
+   113→      } else if (variant === 'forgot') {
+   114→        props.title = 'استعادة كلمة المرور'
+   115→        props.subtitle = 'أدخل بريدك الإلكتروني وسنرسل لك رابط الاستعادة'
+   116→        props.buttonText = 'إرسال الرابط'
+   117→      }
+   118→      return [mk('auth-card', props)]
+   119→    }
+   120→    case 'dashboard': {
+   121→      const entity = opts?.entity ?? defaultEntityFor(schema.metadata.type)
+   122→      const preset = defaultStatsPreset(schema.metadata.type)
+   123→      const stats = (schema.mockData.stats[preset] ?? schema.mockData.stats.overview ?? []).map((s) => ({
+   124→        ...s,
+   125→      }))
+   126→      return [
+   127→        mk('dashboard-header', {
+   128→          title: 'لوحة التحكم',
+   129→          subtitle: 'نظرة عامة على أداء مشروعك',
+   130→          actions: 'إضافة عنصر,تصدير التقرير',
+   131→        }),
+   132→        mk('stats-row', { items: stats.length ? stats : d('stats-row').items }),
+   133→        mk('chart', { title: 'الإيرادات الشهرية', chartType: 'bar', dataKey: 'revenueMonthly' }),
+   134→        mk('data-table', { entity, title: ENTITY_LABELS[entity] ?? 'العناصر', pageSize: 5 }),
+   135→      ]
+   136→    }
+   137→    case 'pricing':
+   138→      return [mk('pricing', d('pricing'))]
+   139→    case 'table': {
+   140→      const entity = opts?.entity ?? defaultEntityFor(schema.metadata.type)
+   141→      const label = ENTITY_LABELS[entity] ?? 'العناصر'
+   142→      return [
+   143→        mk('dashboard-header', {
+   144→          title: label,
+   145→          subtitle: `إدارة ${label} ومتابعتها لحظة بلحظة`,
+   146→          actions: `إضافة,تصدير`,
+   147→        }),
+   148→        mk('data-table', { entity, title: '', pageSize: 5 }),
+   149→      ]
+   150→    }
+   151→    case 'form':
+   152→      return [
+   153→        mk('dashboard-header', { title: 'نموذج جديد', subtitle: 'املأ النموذج التالي', actions: '' }),
+   154→        mk('form-fields', d('form-fields')),
+   155→      ]
+   156→    case 'settings':
+   157→      return [mk('settings-form', d('settings-form'))]
+   158→    case 'profile':
+   159→      return [mk('profile-card', d('profile-card'))]
+   160→    case 'faq':
+   161→      return [mk('faq', d('faq'))]
+   162→    default:
+   163→      return [mk('empty-state', d('empty-state'))]
+   164→  }
+   165→}
+   166→
+   167→// ============================================================
+   168→// granular helpers (pinned contract)
+   169→// ============================================================
+   170→
+   171→export function addPageToSchema(
+   172→  schema: ProjectSchema,
+   173→  opts: { name: string; type: PageType; entity?: string; authVariant?: AuthVariant; landingVariant?: string }
+   174→): { schema: ProjectSchema; pageId: string } {
+   175→  const next = clone(schema)
+   176→  const type: PageType = isPageType(opts.type) ? opts.type : 'custom'
+   177→  const name = opts.name?.trim() || PAGE_TYPE_LABELS[type]
+   178→  const page: ProjectPage = {
+   179→    id: uidFn('page_'),
+   180→    name,
+   181→    slug: slugifyFn(name),
+   182→    type,
+   183→    authVariant: opts.authVariant,
+   184→    entity: opts.entity,
+   185→    title: name,
+   186→    subtitle: '',
+   187→    blocks: starterBlocksFor(next, type, {
+   188→      entity: opts.entity,
+   189→      authVariant: opts.authVariant,
+   190→      landingVariant: opts.landingVariant,
+   191→    }),
+   192→  }
+   193→  next.pages.push(page)
+   194→  return { schema: next, pageId: page.id }
+   195→}
+   196→
+   197→/** صفحة HTML مخصصة — كود من المستخدم داخل إطار آمن، مع هيكل الموقع أو لوحة التحكم حوله */
+   198→export function addHtmlPageToSchema(
+   199→  schema: ProjectSchema,
+   200→  opts: { name: string; html: string; placement?: 'site' | 'dashboard'; height?: number }
+   201→): { schema: ProjectSchema; pageId: string } {
+   202→  const placement = opts.placement === 'dashboard' ? 'dashboard' : 'site'
+   203→  const type: PageType = placement === 'dashboard' ? 'dashboard' : 'landing'
+   204→  const name = opts.name?.trim() || (placement === 'dashboard' ? 'لوحة HTML' : 'صفحة HTML')
+   205→  const html = typeof opts.html === 'string' && opts.html.trim() ? opts.html : String(BLOCK_REGISTRY['custom-html'].defaults().html)
+   206→  const height = typeof opts.height === 'number' && Number.isFinite(opts.height) && opts.height > 0 ? Math.min(4000, Math.round(opts.height)) : 560
+   207→  const page: ProjectPage = {
+   208→    id: uidFn('page_'),
+   209→    name,
+   210→    slug: slugifyFn(name),
+   211→    type,
+   212→    title: name,
+   213→    subtitle: '',
+   214→    blocks: [
+   215→      {
+   216→        id: uidFn('b_'),
+   217→        type: 'custom-html',
+   218→        props: { name, html, height },
+   219→      },
+   220→    ],
+   221→  }
+   222→  const next = clone(schema)
+   223→  next.pages.push(page)
+   224→  return { schema: next, pageId: page.id }
+   225→}
+   226→
+   227→export function deletePageFromSchema(schema: ProjectSchema, pageId: string): ProjectSchema {
+   228→  const next = clone(schema)
+   229→  const idx = next.pages.findIndex((p) => p.id === pageId)
+   230→  if (idx === -1) return schema
+   231→  next.pages.splice(idx, 1)
+   232→  cleanNavReferences(next, pageId)
+   233→  return next.pages.length === 0 ? schema : next
+   234→}
+   235→
+   236→export function addBlockToPage(
+   237→  schema: ProjectSchema,
+   238→  pageId: string,
+   239→  blockType: BlockType,
+   240→  position?: number
+   241→): { schema: ProjectSchema; blockId: string } {
+   242→  if (!isBlockType(blockType)) {
+   243→    throw new Error('نوع المكوّن غير معروف')
+   244→  }
+   245→  const next = clone(schema)
+   246→  const page = next.pages.find((p) => p.id === pageId)
+   247→  if (!page) {
+   248→    throw new Error('الصفحة غير موجودة')
+   249→  }
+   250→  const def = getBlockDefinition(blockType)
+   251→  const props = def ? clone(def.defaults()) : {}
+   252→  const block: Block = { id: uidFn('b_'), type: blockType, props }
+   253→  const pos = typeof position === 'number' ? Math.max(0, Math.min(position, page.blocks.length)) : page.blocks.length
+   254→  page.blocks.splice(pos, 0, block)
+   255→  return { schema: next, blockId: block.id }
+   256→}
+   257→
+   258→export function updateBlockPropsInSchema(
+   259→  schema: ProjectSchema,
+   260→  pageId: string,
+   261→  blockId: string,
+   262→  patch: Record<string, unknown>
+   263→): ProjectSchema {
+   264→  const next = clone(schema)
+   265→  const page = next.pages.find((p) => p.id === pageId)
+   266→  const block = page ? findBlock(page, blockId) : undefined
+   267→  if (!page || !block) return schema
+   268→  block.props = { ...block.props, ...patch }
+   269→  return next
+   270→}
+   271→
+   272→export function deleteBlockFromSchema(schema: ProjectSchema, pageId: string, blockId: string): ProjectSchema {
+   273→  const next = clone(schema)
+   274→  const page = next.pages.find((p) => p.id === pageId)
+   275→  if (!page) return schema
+   276→  const idx = page.blocks.findIndex((b) => b.id === blockId)
+   277→  if (idx === -1) return schema
+   278→  page.blocks.splice(idx, 1)
+   279→  return next
+   280→}
+   281→
+   282→export function moveBlockInSchema(
+   283→  schema: ProjectSchema,
+   284→  pageId: string,
+   285→  blockId: string,
+   286→  position: number
+   287→): ProjectSchema {
+   288→  const next = clone(schema)
+   289→  const page = next.pages.find((p) => p.id === pageId)
+   290→  if (!page) return schema
+   291→  const idx = page.blocks.findIndex((b) => b.id === blockId)
+   292→  if (idx === -1 || page.blocks.length < 2) return schema
+   293→  const pos = Math.max(0, Math.min(Math.round(position), page.blocks.length - 1))
+   294→  const [moved] = page.blocks.splice(idx, 1)
+   295→  page.blocks.splice(pos, 0, moved)
+   296→  return next
+   297→}
+   298→
+   299→/** تحويل أسماء الألوان العربية إلى HEX + التحقق */
+   300→function normalizeThemeValue(key: string, value: unknown): { value?: unknown; error?: string } {
+   301→  switch (key) {
+   302→    case 'radius':
+   303→      if (typeof value === 'number' && Number.isFinite(value)) return { value: Math.max(0, Math.min(40, value)) }
+   304→      if (typeof value === 'string' && Number.isFinite(Number(value))) return { value: Math.max(0, Math.min(40, Number(value))) }
+   305→      return { error: 'قيمة نصف القطر غير صالحة' }
+   306→    case 'shadow': {
+   307→      const v = String(value)
+   308→      if (['none', 'sm', 'md', 'lg'].includes(v)) return { value: v }
+   309→      return { error: 'قيمة الظل غير صالحة (none/sm/md/lg)' }
+   310→    }
+   311→    case 'fontFamily': {
+   312→      const v = String(value)
+   313→      if (['IBM Plex Sans Arabic', 'Tajawal', 'Cairo'].includes(v)) return { value: v }
+   314→      return { error: 'الخط غير مدعوم (IBM Plex Sans Arabic / Tajawal / Cairo)' }
+   315→    }
+   316→    case 'mode': {
+   317→      const v = String(value)
+   318→      if (v === 'light' || v === 'dark') return { value: v }
+   319→      return { error: 'نمط العرض غير صالح' }
+   320→    }
+   321→    default: {
+   322→      // حقول الألوان
+   323→      const v = String(value).trim()
+   324→      if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v)) return { value: v.toLowerCase() }
+   325→      const mapped = COLOR_NAME_TO_HEX[v]
+   326→      if (mapped) return { value: mapped }
+   327→      return { error: `لون غير صالح: «${v}»` }
+   328→    }
+   329→  }
+   330→}
+   331→
+   332→const THEME_KEYS = [
+   333→  'primary',
+   334→  'primaryForeground',
+   335→  'secondary',
+   336→  'accent',
+   337→  'background',
+   338→  'surface',
+   339→  'text',
+   340→  'mutedText',
+   341→  'border',
+   342→  'radius',
+   343→  'shadow',
+   344→  'fontFamily',
+   345→  'mode',
+   346→]
+   347→
+   348→export function updateThemeInSchema(schema: ProjectSchema, patch: Partial<ProjectTheme>): ProjectSchema {
+   349→  const next = clone(schema)
+   350→  for (const [key, raw] of Object.entries(patch ?? {})) {
+   351→    if (!THEME_KEYS.includes(key)) continue
+   352→    const { value, error } = normalizeThemeValue(key, raw)
+   353→    if (error || value === undefined) continue
+   354→    ;(next.theme as unknown as Record<string, unknown>)[key] = value
+   355→  }
+   356→  return next
+   357→}
+   358→
+   359→export function updateNavigationInSchema(schema: ProjectSchema, patch: Partial<ProjectNavigation>): ProjectSchema {
+   360→  const next = clone(schema)
+   361→  if (typeof patch.brand === 'string' && patch.brand.trim()) next.navigation.brand = patch.brand.trim()
+   362→  if (typeof patch.footerNote === 'string') next.navigation.footerNote = patch.footerNote
+   363→  if (Array.isArray(patch.items)) {
+   364→    next.navigation.items = patch.items
+   365→      .filter((it) => it && typeof it.label === 'string' && typeof it.pageId === 'string')
+   366→      .map((it) => ({ label: it.label.trim(), pageId: it.pageId }))
+   367→  }
+   368→  if (patch.cta === null) {
+   369→    next.navigation.cta = undefined
+   370→  } else if (patch.cta && typeof patch.cta.label === 'string' && typeof patch.cta.pageId === 'string') {
+   371→    next.navigation.cta = { label: patch.cta.label.trim(), pageId: patch.cta.pageId }
+   372→  }
+   373→  return next
+   374→}
+   375→
+   376→export function updateDashboardNavInSchema(schema: ProjectSchema, items: DashboardNavItem[]): ProjectSchema {
+   377→  const next = clone(schema)
+   378→  if (!Array.isArray(items)) return schema
+   379→  next.dashboardNav = {
+   380→    items: items
+   381→      .filter((it) => it && typeof it.label === 'string' && typeof it.pageId === 'string')
+   382→      .map((it) => ({ label: it.label.trim(), pageId: it.pageId, icon: typeof it.icon === 'string' ? it.icon : 'file-text' })),
+   383→  }
+   384→  return next
+   385→}
+   386→
+   387→export function renameProjectInSchema(schema: ProjectSchema, name: string): ProjectSchema {
+   388→  const next = clone(schema)
+   389→  const clean = name.trim()
+   390→  if (!clean) return schema
+   391→  next.metadata.name = clean
+   392→  next.settings.projectName = clean
+   393→  next.navigation.brand = clean
+   394→  return next
+   395→}
+   396→
+   397→// ============================================================
+   398→// applyActions — محرك إجراءات المساعد الذكي
+   399→// ============================================================
+   400→
+   401→interface ActionResult {
+   402→  schema: ProjectSchema
+   403→  applied: string[]
+   404→  errors: string[]
+   405→}
+   406→
+   407→function blockLabel(type: BlockType): string {
+   408→  return BLOCK_REGISTRY[type]?.label ?? type
+   409→}
+   410→
+   411→function refreshEntityIn(schema: ProjectSchema, entityKey: string, seed: number): boolean {
+   412→  const existing = schema.mockData.entities[entityKey]
+   413→  if (existing) {
+   414→    schema.mockData.entities[entityKey] = refreshEntityRows(existing, seed)
+   415→    return true
+   416→  }
+   417→  const fresh = buildEntityData(entityKey, seed)
+   418→  if (fresh) {
+   419→    schema.mockData.entities[entityKey] = fresh
+   420→    return true
+   421→  }
+   422→  return false
+   423→}
+   424→
+   425→export function applyActions(schema: ProjectSchema, actions: AgentAction[]): ActionResult {
+   426→  let current = clone(schema)
+   427→  const applied: string[] = []
+   428→  const errors: string[] = []
+   429→
+   430→  const pushError = (tool: string, msg: string) => errors.push(`${msg}`)
+   431→
+   432→  for (const action of actions ?? []) {
+   433→    const args = (action?.args ?? {}) as Record<string, unknown>
+   434→    try {
+   435→      switch (action.tool as AgentToolName) {
+   436→        // ---------- pages ----------
+   437→        case 'create_page': {
+   438→          const type = isPageType(args.type) ? args.type : null
+   439→          if (!type) {
+   440→            pushError(action.tool, 'نوع الصفحة غير صالح')
+   441→            break
+   442→          }
+   443→          const name = strArg(args, 'name', PAGE_TYPE_LABELS[type])
+   444→          const entity = strArg(args, 'entity') || undefined
+   445→          const authVariantRaw = strArg(args, 'authVariant')
+   446→          const authVariant: AuthVariant | undefined =
+   447→            authVariantRaw === 'login' || authVariantRaw === 'signup' || authVariantRaw === 'forgot'
+   448→              ? authVariantRaw
+   449→              : undefined
+   450→          const landingVariantRaw = strArg(args, 'landingVariant')
+   451→          const landingVariant = LANDING_VARIANTS.some((v) => v.id === landingVariantRaw) ? landingVariantRaw : undefined
+   452→          const { schema: next, pageId } = addPageToSchema(current, { name, type, entity, authVariant, landingVariant })
+   453→          current = next
+   454→          applied.push(
+   455→            landingVariant && type === 'landing'
+   456→              ? `تمت إضافة صفحة هبوط «${name}» بنمط «${getLandingVariant(landingVariant).name}»`
+   457→              : `تمت إضافة صفحة «${name}»`
+   458→          )
+   459→          void pageId
+   460→          break
+   461→        }
+   462→
+   463→        case 'delete_page': {
+   464→          if (current.pages.length <= 1) {
+   465→            pushError(action.tool, 'لا يمكن حذف الصفحة الوحيدة في المشروع')
+   466→            break
+   467→          }
+   468→          const page = findPageRef(current, args.pageId ?? args.name ?? args.page)
+   469→          if (!page) {
+   470→            pushError(action.tool, 'الصفحة غير موجودة')
+   471→            break
+   472→          }
+   473→          current = deletePageFromSchema(current, page.id)
+   474→          applied.push(`تم حذف صفحة «${page.name}»`)
+   475→          break
+   476→        }
+   477→
+   478→        case 'update_page': {
+   479→          const page = findPageRef(current, args.pageId ?? args.page ?? args.name)
+   480→          if (!page) {
+   481→            pushError(action.tool, 'الصفحة غير موجودة')
+   482→            break
+   483→          }
+   484→          const entity = strArg(args, 'entity')
+   485→          if (entity && !current.mockData.entities[entity]) {
+   486→            pushError(action.tool, `الكيان «${entity}» غير معروف في البيانات التجريبية`)
+   487→            break
+   488→          }
+   489→          const next = clone(current)
+   490→          const target = next.pages.find((p) => p.id === page.id) as ProjectPage
+   491→          const name = strArg(args, 'name')
+   492→          if (name) {
+   493→            target.name = name
+   494→            target.slug = slugifyFn(name)
+   495→            target.title = name
+   496→          }
+   497→          const title = strArg(args, 'title')
+   498→          if (title) target.title = title
+   499→          if (typeof args.subtitle === 'string') target.subtitle = args.subtitle
+   500→          if (entity) target.entity = entity
+   501→          current = next
+   502→          applied.push(`تم تحديث صفحة «${target.name}»`)
+   503→          break
+   504→        }
+   505→
+   506→        // ---------- blocks ----------
+   507→        case 'add_block': {
+   508→          const page = findPageRef(current, args.pageId ?? args.page)
+   509→          const blockType = args.blockType ?? args.type
+   510→          if (!isBlockType(blockType)) {
+   511→            pushError(action.tool, 'نوع المكوّن غير معروف')
+   512→            break
+   513→          }
+   514→          if (!page) {
+   515→            pushError(action.tool, 'الصفحة غير موجودة')
+   516→            break
+   517→          }
+   518→          const position = numArg(args, 'position')
+   519→          const { schema: next, blockId } = addBlockToPage(current, page.id, blockType, position)
+   520→          current = next
+   521→          applied.push(`تمت إضافة مكوّن «${blockLabel(blockType)}» إلى صفحة «${page.name}»`)
+   522→          void blockId
+   523→          break
+   524→        }
+   525→
+   526→        case 'update_block':
+   527→        case 'update_content': {
+   528→          const page = findPageRef(current, args.pageId ?? args.page)
+   529→          if (!page) {
+   530→            pushError(action.tool, 'الصفحة غير موجودة')
+   531→            break
+   532→          }
+   533→          const block = findBlock(page, args.blockId ?? args.id)
+   534→          if (!block) {
+   535→            pushError(action.tool, 'المكوّن غير موجود')
+   536→            break
+   537→          }
+   538→          const patch = (args.patch ?? args.props) as Record<string, unknown> | undefined
+   539→          if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+   540→            pushError(action.tool, 'خصائص التحديث غير صالحة')
+   541→            break
+   542→          }
+   543→          current = updateBlockPropsInSchema(current, page.id, block.id, patch)
+   544→          const prefix = action.tool === 'update_content' ? 'محتوى' : 'مكوّن'
+   545→          applied.push(`تم تحديث ${prefix} «${blockLabel(block.type)}»`)
+   546→          break
+   547→        }
+   548→
+   549→        case 'delete_block': {
+   550→          const page = findPageRef(current, args.pageId ?? args.page)
+   551→          if (!page) {
+   552→            pushError(action.tool, 'الصفحة غير موجودة')
+   553→            break
+   554→          }
+   555→          const block = findBlock(page, args.blockId ?? args.id)
+   556→          if (!block) {
+   557→            pushError(action.tool, 'المكوّن غير موجود')
+   558→            break
+   559→          }
+   560→          current = deleteBlockFromSchema(current, page.id, block.id)
+   561→          applied.push(`تم حذف مكوّن «${blockLabel(block.type)}»`)
+   562→          break
+   563→        }
+   564→
+   565→        case 'move_block': {
+   566→          const page = findPageRef(current, args.pageId ?? args.page)
+   567→          if (!page) {
+   568→            pushError(action.tool, 'الصفحة غير موجودة')
+   569→            break
+   570→          }
+   571→          const block = findBlock(page, args.blockId ?? args.id)
+   572→          if (!block) {
+   573→            pushError(action.tool, 'المكوّن غير موجود')
+   574→            break
+   575→          }
+   576→          const idx = page.blocks.findIndex((b) => b.id === block.id)
+   577→          let position = numArg(args, 'position')
+   578→          const direction = strArg(args, 'direction')
+   579→          if (position === undefined && (direction === 'up' || direction === 'down')) {
+   580→            position = direction === 'up' ? idx - 1 : idx + 1
+   581→          }
+   582→          if (position === undefined || position < 0 || position >= page.blocks.length) {
+   583→            pushError(action.tool, 'الموضع الجديد غير صالح')
+   584→            break
+   585→          }
+   586→          current = moveBlockInSchema(current, page.id, block.id, position)
+   587→          applied.push(`تم نقل مكوّن «${blockLabel(block.type)}»`)
+   588→          break
+   589→        }
+   590→
+   591→        // ---------- landing variant ----------
+   592→        case 'change_landing_variant': {
+   593→          const variantRaw = strArg(args, 'variant') || strArg(args, 'landingVariant') || strArg(args, 'variantId')
+   594→          const variantMeta = LANDING_VARIANTS.find((v) => v.id === variantRaw)
+   595→          if (!variantMeta) {
+   596→            pushError(action.tool, 'نمط صفحة الهبوط غير معروف')
+   597→            break
+   598→          }
+   599→          const ref = args.pageId ?? args.page ?? args.name
+   600→          const page = ref ? findPageRef(current, ref) : current.pages.find((p) => p.type === 'landing')
+   601→          if (!page || page.type !== 'landing') {
+   602→            pushError(action.tool, 'لم أجد صفحة هبوط لتغيير نمطها')
+   603→            break
+   604→          }
+   605→          current = changeLandingVariantInSchema(current, page.id, variantMeta.id)
+   606→          applied.push(`تم تحويل صفحة «${page.name}» إلى نمط «${variantMeta.name}»`)
+   607→          break
+   608→        }
+   609→
+   610→        // ---------- theme / navigation ----------
+   611→        case 'update_theme': {
+   612→          const patch = (args.patch ?? args) as Record<string, unknown>
+   613→          const themePatch: Record<string, unknown> = {}
+   614→          let hadValid = false
+   615→          for (const key of THEME_KEYS) {
+   616→            if (patch[key] !== undefined) {
+   617→              const { value, error } = normalizeThemeValue(key, patch[key])
+   618→              if (error) {
+   619→                pushError(action.tool, error)
+   620→              } else if (value !== undefined) {
+   621→                themePatch[key] = value
+   622→                hadValid = true
+   623→              }
+   624→            }
+   625→          }
+   626→          if (!hadValid) {
+   627→            if (!errors.length) pushError(action.tool, 'لا توجد قيم صالحة لتحديث الهوية')
+   628→            break
+   629→          }
+   630→          current = updateThemeInSchema(current, themePatch as Partial<ProjectTheme>)
+   631→          applied.push('تم تحديث هوية الألوان')
+   632→          break
+   633→        }
+   634→
+   635→        case 'update_navigation': {
+   636→          const pageIds = new Set(current.pages.map((p) => p.id))
+   637→          const items = args.items as Array<{ label?: string; pageId?: string }> | undefined
+   638→          if (Array.isArray(items)) {
+   639→            const bad = items.find((it) => !it || typeof it.pageId !== 'string' || !pageIds.has(it.pageId))
+   640→            if (bad) {
+   641→              pushError(action.tool, 'عنصر تنقل يشير إلى صفحة غير موجودة')
+   642→              break
+   643→            }
+   644→          }
+   645→          const cta = args.cta as { label?: string; pageId?: string } | undefined
+   646→          if (cta && (typeof cta.pageId !== 'string' || !pageIds.has(cta.pageId))) {
+   647→            pushError(action.tool, 'زر التنقل يشير إلى صفحة غير موجودة')
+   648→            break
+   649→          }
+   650→          current = updateNavigationInSchema(current, {
+   651→            brand: typeof args.brand === 'string' ? args.brand : undefined,
+   652→            footerNote: typeof args.footerNote === 'string' ? args.footerNote : undefined,
+   653→            items: Array.isArray(items) ? (items as ProjectNavigation['items']) : undefined,
+   654→            cta: (cta as ProjectNavigation['cta']) ?? undefined,
+   655→          })
+   656→          applied.push('تم تحديث قائمة التنقل')
+   657→          break
+   658→        }
+   659→
+   660→        case 'update_dashboard_nav': {
+   661→          const pageIds = new Set(current.pages.map((p) => p.id))
+   662→          const items = args.items as Array<{ label?: string; pageId?: string; icon?: string }> | undefined
+   663→          if (!Array.isArray(items)) {
+   664→            pushError(action.tool, 'قائمة عناصر لوحة التحكم غير صالحة')
+   665→            break
+   666→          }
+   667→          const bad = items.find((it) => !it || typeof it.pageId !== 'string' || !pageIds.has(it.pageId))
+   668→          if (bad) {
+   669→            pushError(action.tool, 'عنصر لوحة التحكم يشير إلى صفحة غير موجودة')
+   670→            break
+   671→          }
+   672→          current = updateDashboardNavInSchema(current, items as DashboardNavItem[])
+   673→          applied.push('تم تحديث قائمة لوحة التحكم')
+   674→          break
+   675→        }
+   676→
+   677→        // ---------- project ----------
+   678→        case 'rename_project': {
+   679→          const name = strArg(args, 'name')
+   680→          if (!name) {
+   681→            pushError(action.tool, 'اسم المشروع غير صالح')
+   682→            break
+   683→          }
+   684→          current = renameProjectInSchema(current, name)
+   685→          applied.push(`تمت إعادة تسمية المشروع إلى «${name}»`)
+   686→          break
+   687→        }
+   688→
+   689→        case 'generate_mock_data': {
+   690→          const entity = strArg(args, 'entity')
+   691→          const seed = Math.max(1, Math.floor(Math.random() * 97))
+   692→          if (entity) {
+   693→            if (!ENTITY_LABELS[entity]) {
+   694→              pushError(action.tool, `الكيان «${entity}» غير معروف`)
+   695→              break
+   696→            }
+   697→            if (!refreshEntityIn(current, entity, seed)) {
+   698→              pushError(action.tool, 'تعذّر تحديث بيانات هذا الكيان')
+   699→              break
+   700→            }
+   701→            applied.push(`تم تحديث بيانات «${ENTITY_LABELS[entity]}»`)
+   702→          } else {
+   703→            let count = 0
+   704→            for (const key of Object.keys(current.mockData.entities)) {
+   705→              if (refreshEntityIn(current, key, seed + count)) count++
+   706→            }
+   707→            applied.push(`تم تحديث البيانات التجريبية (${count} كياناً)`)
+   708→          }
+   709→          break
+   710→        }
+   711→
+   712→        default:
+   713→          pushError(String(action?.tool ?? '?'), 'إجراء غير معروف')
+   714→          break
+   715→      }
+   716→    } catch (e) {
+   717→      pushError(action?.tool ?? '?', (e as Error).message || 'حدث خطأ أثناء تنفيذ الإجراء')
+   718→    }
+   719→  }
+   720→
+   721→  return { schema: current, applied, errors }
+   722→}
+   723→
+   724→// تصدير الأنواع المستعملة داخلياً لفائدة بقية الوحدات
+   725→export type { PageType, BlockType, AuthVariant, ProjectPage, ProjectSchema }
+   726→
+   727→// ============================================================
+   728→// Task 8/9 — الصور المؤقتة (كل صور المخطط)
+   729→// ============================================================
+   730→
+   731→/**
+   732→ * يزيل كل خصائص الصور المؤقتة من المخطط كاملاً (Task 9-b):
+   733→ * - كل كتلة (أي نوع): bgImage / bgImageName من الخصائص.
+   734→ * - عناصر القوائم داخل الخصائص: image / imageName (مشياً عاماً على أي مصفوفة).
+   735→ * - branding: bgImage / bgImageName / bgOverlay (الشعار logo/logoName يبقى).
+   736→ * الصور لا تبقى في قاعدة البيانات: تُحذف بعد تحميل المشروع ZIP،
+   737→ * وتُنقّى من نسخ الإصدارات التاريخية (المشروع الحي يحتفظ بها
+   738→ * حتى التحميل كنسخة عمل للمعاينة والتصدير).
+   739→ * نقية ومتوافقة رجعياً: مخطط بلا صور يُعاد كما هو (نفس المرجع).
+   740→ */
+   741→export function stripTransientImages(schema: ProjectSchema): ProjectSchema {
+   742→  let changed = false
+   743→
+   744→  // ---- الكتل: خصائص الصورة على مستوى الكتلة + داخل عناصر القوائم ----
+   745→  const pages = (schema.pages ?? []).map((page) => ({
+   746→    ...page,
+   747→    blocks: (page.blocks ?? []).map((block) => {
+   748→      if (!block) return block
+   749→      const props = block.props ?? {}
+   750→      let nextProps: Record<string, unknown> | null = null
+   751→      if (props.bgImage !== undefined || props.bgImageName !== undefined) {
+   752→        const { bgImage: _bi, bgImageName: _bn, ...rest } = props
+   753→        nextProps = rest
+   754→        changed = true
+   755→      }
+   756→      // عناصر القوائم داخل أي خاصية مصفوفة (عناصر المعرض/الفريق وغيرها)
+   757→      for (const [key, value] of Object.entries(nextProps ?? props)) {
+   758→        if (!Array.isArray(value)) continue
+   759→        let listChanged = false
+   760→        const nextList = value.map((item) => {
+   761→          if (!item || typeof item !== 'object' || Array.isArray(item)) return item
+   762→          const rec = item as Record<string, unknown>
+   763→          if (rec.image === undefined && rec.imageName === undefined) return item
+   764→          listChanged = true
+   765→          const { image: _im, imageName: _inm, ...restItem } = rec
+   766→          return restItem
+   767→        })
+   768→        if (!listChanged) continue
+   769→        changed = true
+   770→        if (!nextProps) nextProps = { ...props }
+   771→        nextProps[key] = nextList
+   772→      }
+   773→      return nextProps ? { ...block, props: nextProps } : block
+   774→    }),
+   775→  }))
+   776→
+   777→  // ---- branding: خلفية المشروع (الشعار يبقى كما هو) ----
+   778→  let cleanedBranding: ProjectSchema['branding'] | null = null
+   779→  const branding = schema.branding
+   780→  if (branding) {
+   781→    const b = branding as unknown as Record<string, unknown>
+   782→    if (b.bgImage !== undefined || b.bgImageName !== undefined || b.bgOverlay !== undefined) {
+   783→      const { bgImage: _bgi, bgImageName: _bgn, bgOverlay: _bgo, ...rest } = b
+   784→      cleanedBranding = rest as unknown as ProjectSchema['branding']
+   785→      changed = true
+   786→    }
+   787→  }
+   788→
+   789→  if (!changed) return schema
+   790→  const next: ProjectSchema = { ...schema, pages }
+   791→  if (cleanedBranding) next.branding = cleanedBranding
+   792→  return next
+   793→}
+   794→

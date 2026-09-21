@@ -1,0 +1,911 @@
+     1→// ============================================================
+     2→// SIVAR — المساعد الذكي (عقل الوكيل) — خادم فقط
+     3→// Task 3-b — LLM مع مهلة 30 ثانية + تعقيم صارم للإجراءات
+     4→// + بديل استدلالي بالقواعد عند فشل الـ LLM.
+     5→// ============================================================
+     6→import ZAI from 'z-ai-web-dev-sdk'
+     7→import type {
+     8→  AgentAction,
+     9→  AgentToolName,
+    10→  AuthVariant,
+    11→  BlockType,
+    12→  PageType,
+    13→  ProjectPage,
+    14→  ProjectSchema,
+    15→} from '@/lib/types'
+    16→import { COLOR_NAME_TO_HEX } from '@/lib/types'
+    17→import { BLOCK_REGISTRY } from '@/lib/registry/blocks'
+    18→import { ENTITY_KEYS, defaultEntityFor } from '@/lib/content/mock-data'
+    19→import { LANDING_VARIANTS } from '@/lib/project/landing-kit'
+    20→
+    21→// ============================================================
+    22→// أنواع
+    23→// ============================================================
+    24→export interface AgentHistoryMessage {
+    25→  role: string
+    26→  text: string
+    27→}
+    28→
+    29→export interface AgentRunResult {
+    30→  explanation: string
+    31→  actions: AgentAction[]
+    32→  fallback: boolean
+    33→}
+    34→
+    35→// ============================================================
+    36→// ثوابت
+    37→// ============================================================
+    38→const LLM_TIMEOUT_MS = 30_000
+    39→const MAX_ACTIONS = 12
+    40→
+    41→const TOOL_NAMES: string[] = [
+    42→  'create_page', 'delete_page', 'update_page', 'add_block', 'update_block', 'update_content',
+    43→  'delete_block', 'move_block', 'update_theme', 'update_navigation', 'update_dashboard_nav',
+    44→  'rename_project', 'generate_mock_data', 'change_landing_variant',
+    45→]
+    46→const PAGE_TYPES = [
+    47→  'landing', 'auth', 'dashboard', 'pricing', 'table', 'form', 'settings', 'profile', 'faq', 'custom',
+    48→]
+    49→const BLOCK_TYPES: string[] = Object.keys(BLOCK_REGISTRY)
+    50→const LANDING_VARIANT_IDS: string[] = LANDING_VARIANTS.map((v) => v.id as string)
+    51→const LANDING_VARIANTS_PROMPT = LANDING_VARIANTS.map((v) => `${v.id} — ${v.name} (${v.tagline})`).join('؛ ')
+    52→const THEME_COLOR_KEYS = [
+    53→  'primary', 'primaryForeground', 'secondary', 'accent', 'background', 'surface', 'text',
+    54→  'mutedText', 'border',
+    55→]
+    56→
+    57→// ============================================================
+    58→// ألوان عربية إضافية (Task 12) — صيغ مؤنثة/متصرفة/مركّبة ليست في
+    59→// الخريطة العامة (سوداء/بيضاء/خضراء داكنة...) لأنشطة مثل
+    60→// «اجعل خلفية قسم دعوة الإجراء سوداء» و«خلفية بيضاء بنص داكن».
+    61→// ============================================================
+    62→const EXTRA_COLOR_NAMES: Record<string, string> = {
+    63→  'أبيض': '#ffffff',
+    64→  'ابيض': '#ffffff',
+    65→  'سوداء': '#111827',
+    66→  'بيضاء': '#ffffff',
+    67→  'حمراء': '#dc2626',
+    68→  'خضراء': '#059669',
+    69→  'خضراء داكنة': '#065f46',
+    70→  'زرقاء': '#2563eb',
+    71→  'زرقاء داكنة': '#1e3a8a',
+    72→  'زرقاء فاتحة': '#38bdf8',
+    73→  'صفراء': '#eab308',
+    74→  'رمادية': '#4b5563',
+    75→  'بنية': '#92400e',
+    76→  'ذهبية': '#d97706',
+    77→  'بنفسجية': '#7c3aed',
+    78→  'تركوازية': '#0d9488',
+    79→  'برتقالية': '#ea580c',
+    80→  'وردية': '#db2777',
+    81→}
+    82→const ALL_COLOR_NAMES: Record<string, string> = { ...COLOR_NAME_TO_HEX, ...EXTRA_COLOR_NAMES }
+    83→const ALL_COLOR_NAMES_BY_LENGTH = Object.keys(ALL_COLOR_NAMES).sort((a, b) => b.length - a.length)
+    84→
+    85→/** مزيج لونين محلي — ratio = وزن اللون الثاني (0..1) */
+    86→function mixHexLocal(a: string, b: string, ratio: number): string {
+    87→  const parse = (hex: string): [number, number, number] | null => {
+    88→    const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim())
+    89→    if (!m) return null
+    90→    let h = m[1]
+    91→    if (h.length === 3) h = h.split('').map((c) => c + c).join('')
+    92→    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
+    93→  }
+    94→  const ca = parse(a)
+    95→  const cb = parse(b)
+    96→  if (!ca || !cb) return a
+    97→  const t = Math.max(0, Math.min(1, ratio))
+    98→  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)))
+    99→  const mixed = [0, 1, 2].map((i) => clamp(ca[i] + (cb[i] - ca[i]) * t))
+   100→  return `#${mixed.map((v) => v.toString(16).padStart(2, '0')).join('')}`
+   101→}
+   102→
+   103→/** لون النص الثانوي مشتقاً من لون الخط الأساسي — مزج نحو الأبيض 0.35 (فاتح) / الأسود 0.25 (داكن) */
+   104→function deriveMuted(hex: string, mode: string): string {
+   105→  return mode === 'dark' ? mixHexLocal(hex, '#000000', 0.25) : mixHexLocal(hex, '#ffffff', 0.35)
+   106→}
+   107→
+   108→// ============================================================
+   109→// استدعاء الـ LLM (مع مهلة)
+   110→// ============================================================
+   111→async function callLLM(systemPrompt: string, userPrompt: string): Promise<string | null> {
+   112→  try {
+   113→    const zai = await ZAI.create()
+   114→    const completion = await Promise.race([
+   115→      zai.chat.completions.create({
+   116→        messages: [
+   117→          { role: 'assistant', content: systemPrompt },
+   118→          { role: 'user', content: userPrompt },
+   119→        ],
+   120→        thinking: { type: 'disabled' },
+   121→      }),
+   122→      new Promise<never>((_, reject) => {
+   123→        setTimeout(() => reject(new Error('timeout')), LLM_TIMEOUT_MS)
+   124→      }),
+   125→    ])
+   126→    const text = completion.choices[0]?.message?.content
+   127→    return typeof text === 'string' && text.trim() ? text : null
+   128→  } catch {
+   129→    return null
+   130→  }
+   131→}
+   132→
+   133→function extractJsonObject(text: string): Record<string, unknown> | null {
+   134→  let t = text.trim()
+   135→  t = t.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '')
+   136→  const start = t.indexOf('{')
+   137→  const end = t.lastIndexOf('}')
+   138→  if (start === -1 || end === -1 || end <= start) return null
+   139→  try {
+   140→    const parsed = JSON.parse(t.slice(start, end + 1)) as unknown
+   141→    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null
+   142→  } catch {
+   143→    return null
+   144→  }
+   145→}
+   146→
+   147→// ============================================================
+   148→// سياق المشروع المضغوط
+   149→// ============================================================
+   150→function buildContext(schema: ProjectSchema): string {
+   151→  const context = {
+   152→    metadata: {
+   153→      name: schema.metadata.name,
+   154→      type: schema.metadata.type,
+   155→      style: schema.metadata.style,
+   156→      audience: schema.metadata.audience,
+   157→    },
+   158→    theme: {
+   159→      primary: schema.theme.primary,
+   160→      secondary: schema.theme.secondary,
+   161→      accent: schema.theme.accent,
+   162→      radius: schema.theme.radius,
+   163→      shadow: schema.theme.shadow,
+   164→      fontFamily: schema.theme.fontFamily,
+   165→    },
+   166→    pages: schema.pages.map((p) => ({
+   167→      id: p.id,
+   168→      name: p.name,
+   169→      type: p.type,
+   170→      entity: p.entity ?? null,
+   171→      authVariant: p.authVariant ?? null,
+   172→      blocks: p.blocks.map((b) => ({ id: b.id, type: b.type })),
+   173→    })),
+   174→    navigation: {
+   175→      brand: schema.navigation.brand,
+   176→      items: schema.navigation.items.map((it) => ({ label: it.label, pageId: it.pageId })),
+   177→      cta: schema.navigation.cta ? { label: schema.navigation.cta.label, pageId: schema.navigation.cta.pageId } : null,
+   178→    },
+   179→    dashboardNav: schema.dashboardNav.items.map((it) => ({
+   180→      label: it.label, pageId: it.pageId, icon: it.icon,
+   181→    })),
+   182→    availableEntityKeys: ENTITY_KEYS,
+   183→    availableChartKeys: Object.keys(schema.mockData.charts),
+   184→    availableBlockTypes: BLOCK_TYPES,
+   185→  }
+   186→  return JSON.stringify(context)
+   187→}
+   188→
+   189→// ============================================================
+   190→// موجه النظام
+   191→// ============================================================
+   192→const AGENT_SYSTEM_PROMPT = [
+   193→  'أنت «المساعد الذكي» داخل منصة «SIVAR» العربية (الجزائر).',
+   194→  'دورك: تنفيذ تعديلات دقيقة على مشروع المستخدم (نموذج أولي لموقع/تطبيق) عبر أدوات (tools).',
+   195→  'يتوفر لديك سياق المشروع الحالي (صفحاته، مكوّناته، هويته، قوائمه) في رسالة المستخدم.',
+   196→  '',
+   197→  'الأدوات المتاحة مع شكل الوسائط (args) بالضبط:',
+   198→  '1. create_page: {"name":"اسم الصفحة بالعربية","type":"landing|auth|dashboard|pricing|table|form|settings|profile|faq|custom","entity":"اختياري: مفتاح كيان من availableEntityKeys","authVariant":"اختياري للصفحات auth: login|signup|forgot"}',
+   199→  '2. delete_page: {"pageId":"معرّف الصفحة"} أو {"pageName":"اسم الصفحة"}',
+   200→  '3. update_page: {"pageId":"معرّف الصفحة","name":"اسم جديد اختياري","title":"عنوان اختياري","subtitle":"وصف اختياري"}',
+   201→  '4. add_block: {"pageId":"معرّف الصفحة","blockType":"نوع من availableBlockTypes","props":{...خصائص جزئية...},"position":رقم_اختياري}',
+   202→  '5. update_block: {"pageId":"...","blockId":"...","props":{...الخصائص المعدلة فقط...}}',
+   203→  '6. update_content: {"pageId":"...","blockId":"...","content":{...نصوص معدلة مثل title/subtitle...}}',
+   204→  '7. delete_block: {"pageId":"...","blockId":"..."}',
+   205→  '8. move_block: {"pageId":"...","blockId":"...","position":رقم}',
+   206→  '9. update_theme: {"theme":{"primary":"#hex","secondary":"#hex","accent":"#hex","text":"#hex — لون الخط الأساسي في كل الموقع","mutedText":"#hex — لون النصوص الثانوية (الخفيفة)","radius":12,"shadow":"sm|md|lg","fontFamily":"IBM Plex Sans Arabic|Tajawal|Cairo"}}',
+   207→  '10. update_navigation: {"brand":"اسم العلامة","items":[{"label":"...","pageId":"..."}]}',
+   208→  '11. update_dashboard_nav: {"items":[{"label":"...","pageId":"...","icon":"sparkles"}]}',
+   209→  '12. rename_project: {"name":"الاسم الجديد"}',
+   210→  '13. generate_mock_data: {"entity":"مفتاح كيان اختياري — بدون قيمة يُحدّث كل الكيانات"}',
+   211→  '14. change_landing_variant: {"variant":"معرف نمط من أنماط صفحات الهبوط أدناه","pageId":"معرّف صفحة هبوط اختياري — الافتراضي أول صفحة هبوط"} — يعيد بناء أقسام صفحة الهبوط بالنمط المختار. الأنماط: ' + LANDING_VARIANTS_PROMPT,
+   212→  '',
+   213→  'أدوات إضافية عند إنشاء صفحات الهبوط:',
+   214→  '- في create_page من نوع landing يمكنك إضافة "landingVariant":"معرف النمط" من قائمة الأنماط أعلاه لبنائها بنمط محدد.',
+   215→  '- يمكنك تغيير ألوان الخطوط عبر update_theme بالمفتاحين text (لون الخط الأساسي في كل الموقع) وmutedText (لون النصوص الثانوية) — وليس فقط الألوان الأساسية.',
+   216→  '- ألوان كل قسم على حدة: مكوّنات أقسام صفحة الهبوط (hero|features|stats|steps|pricing|testimonials|faq|cta|banner|gallery|team|contact-form) تقبل في props المفتاحين bgColor (لون خلفية القسم) وtextColor (لون خط القسم) بصيغة hex، والقسم بدون textColor يختار لون نصه تلقائياً حسب سطوع خلفيته (داكن على الفاتح وأبيض على الداكن). مثال: {"tool":"update_block","args":{"pageId":"معرف الصفحة","blockId":"معرف كتلة دعوة للإجراء","props":{"bgColor":"#111827"}}} يجعل خلفية القسم سوداء بنص أبيض تلقائي.',
+   217→  '- مكوّن البطل (hero) يدعم: background من (default|muted|gradient-soft|mesh|dark|gradient) وخصائص eyebrow (شارة فوق العنوان) و visual من (dashboard|phone|video|form|analytics|orders|chat|calendar|testimonial|none) — analytics بطاقة تقرير أداء، orders أحدث الطلبات، chat محادثة دعم، calendar تقويم، testimonial رأي عميل — و bgOverlay عند رفع المستخدم صورة خلفية (dark|medium|light|none) — لا تضع bgImage بنفسك أبداً (الصور يرفعها المستخدم فقط).',
+   218→  '- أقسام صفحة الهبوط (cta|banner|features|testimonials|stats|steps|gallery|team|faq) تدعم bgImage/bgOverlay (dark|medium|light|none) كخلفية صورة للقسم — يرفعها المستخدم فقط من لوحة الخصائص ولا تضع data URLs بنفسك أبداً؛ وbranding.bgImage خلفية ثابتة لكل صفحات المشروع (رفع المستخدم فقط) مع bgOverlay من (none|strong|medium|soft).',
+   219→  '- مكوّنات لوحة التحكم الغنية: activity-feed (سجل نشاطات: items[user,action,target,time]) و tasks-list (مهام بمربعات اختيار: items[label,done,meta]) و quick-actions (إجراءات سريعة تنقل لصفحات: actions[icon,label,pageId]) — استعملها لإثراء اللوحات.',
+   220→  '- كل الأزرار في النموذج تعمل تلقائياً: أزرار البطل/التسعير/دعوة الإجراء تنقل إلى أفضل صفحة متاحة، وأزرار ترويسة اللوحة تنقل إلى صفحة النموذج/الجدول، وزر الدخول وإنشاء الحساب ينقلان إلى لوحة التحكم.',
+   221→  '',
+   222→  'قواعد صارمة:',
+   223→  '- غيّر أقل قدر ممكن — طلب صغير = تغيير صغير.',
+   224→  '- لا تحذف أو تعيد تصميم أي شيء لم يطلبه المستخدم صراحة.',
+   225→  '- كل النصوص الجديدة بالعربية الفصحى المبسطة.',
+   226→  '- الأسعار بالدينار الجزائري (دج).',
+   227→  '- الألوان بصيغة hex مثل #059669.',
+   228→  '- استعمل pageId الموجودة في السياق، لا تخترع معرّفات.',
+   229→  '- لإضافة مكوّن استعمل blockType من availableBlockTypes فقط، وخصائص props مطابقة لأنواع المكوّن (عنوان/نص/عناصر).',
+   230→  '',
+   231→  'أعد JSON فقط دون أي نص خارجه، بالصيغة:',
+   232→  '{"explanation":"شرح عربي موجز لما فعلته","actions":[{"tool":"اسم الأداة","args":{...}}]}',
+   233→].join('\n')
+   234→
+   235→// ============================================================
+   236→// تعقيم إجراءات الـ LLM
+   237→// ============================================================
+   238→function resolvePageRef(
+   239→  schema: ProjectSchema,
+   240→  args: Record<string, unknown>,
+   241→  keys: string[]
+   242→): string | null {
+   243→  for (const key of keys) {
+   244→    const v = args[key]
+   245→    if (typeof v !== 'string' || !v.trim()) continue
+   246→    const ref = v.trim()
+   247→    const page = schema.pages.find((p) => p.id === ref) ??
+   248→      schema.pages.find((p) => p.name === ref || p.slug === ref) ??
+   249→      schema.pages.find((p) => p.name.includes(ref) || ref.includes(p.name))
+   250→    if (page) return page.id
+   251→  }
+   252→  return null
+   253→}
+   254→
+   255→function isRecord(v: unknown): v is Record<string, unknown> {
+   256→  return !!v && typeof v === 'object' && !Array.isArray(v)
+   257→}
+   258→
+   259→function mapArabicColors(patch: Record<string, unknown>): Record<string, unknown> {
+   260→  const out: Record<string, unknown> = { ...patch }
+   261→  for (const key of THEME_COLOR_KEYS) {
+   262→    const v = out[key]
+   263→    if (typeof v === 'string') {
+   264→      const trimmed = v.trim()
+   265→      if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(trimmed)) {
+   266→        out[key] = trimmed.toLowerCase()
+   267→      } else if (COLOR_NAME_TO_HEX[trimmed]) {
+   268→        out[key] = COLOR_NAME_TO_HEX[trimmed]
+   269→      } else {
+   270→        delete out[key]
+   271→      }
+   272→    }
+   273→  }
+   274→  return out
+   275→}
+   276→
+   277→function sanitizeNavItems(
+   278→  schema: ProjectSchema,
+   279→  raw: unknown
+   280→): Array<{ label: string; pageId: string }> | null {
+   281→  if (!Array.isArray(raw)) return null
+   282→  const items: Array<{ label: string; pageId: string }> = []
+   283→  for (const item of raw) {
+   284→    if (!isRecord(item)) continue
+   285→    const label = typeof item.label === 'string' && item.label.trim() ? item.label.trim().slice(0, 40) : ''
+   286→    const pageId =
+   287→      (typeof item.pageId === 'string' && schema.pages.find((p) => p.id === item.pageId)?.id) ??
+   288→      resolvePageRef(schema, item, ['pageName', 'page', 'name'])
+   289→    if (label && pageId) items.push({ label, pageId })
+   290→  }
+   291→  return items
+   292→}
+   293→
+   294→function sanitizeActions(schema: ProjectSchema, rawActions: unknown): AgentAction[] {
+   295→  if (!Array.isArray(rawActions)) return []
+   296→  const actions: AgentAction[] = []
+   297→  for (const item of rawActions.slice(0, MAX_ACTIONS)) {
+   298→    if (!isRecord(item)) continue
+   299→    const tool = typeof item.tool === 'string' ? item.tool : ''
+   300→    if (!TOOL_NAMES.includes(tool)) continue
+   301→    const args: Record<string, unknown> = isRecord(item.args) ? { ...item.args } : {}
+   302→
+   303→    switch (tool as AgentToolName) {
+   304→      case 'create_page': {
+   305→        const type = typeof args.type === 'string' && PAGE_TYPES.includes(args.type) ? args.type : null
+   306→        if (!type) continue
+   307→        const name = typeof args.name === 'string' && args.name.trim() ? args.name.trim().slice(0, 40) : ''
+   308→        const entity =
+   309→          typeof args.entity === 'string' && ENTITY_KEYS.includes(args.entity as (typeof ENTITY_KEYS)[number])
+   310→            ? args.entity
+   311→            : undefined
+   312→        const authVariant =
+   313→          typeof args.authVariant === 'string' && ['login', 'signup', 'forgot'].includes(args.authVariant)
+   314→            ? (args.authVariant as AuthVariant)
+   315→            : undefined
+   316→        const clean: Record<string, unknown> = { name, type, entity, authVariant }
+   317→        if (
+   318→          type === 'landing' &&
+   319→          typeof args.landingVariant === 'string' &&
+   320→          LANDING_VARIANT_IDS.includes(args.landingVariant)
+   321→        ) {
+   322→          clean.landingVariant = args.landingVariant
+   323→        }
+   324→        actions.push({ tool: 'create_page', args: clean })
+   325→        break
+   326→      }
+   327→      case 'delete_page': {
+   328→        const pageId = resolvePageRef(schema, args, ['pageId', 'pageName', 'page', 'name'])
+   329→        if (!pageId) continue
+   330→        actions.push({ tool: 'delete_page', args: { pageId } })
+   331→        break
+   332→      }
+   333→      case 'update_page': {
+   334→        const pageId = resolvePageRef(schema, args, ['pageId', 'page', 'pageName'])
+   335→        if (!pageId) continue
+   336→        const clean: Record<string, unknown> = { pageId }
+   337→        if (typeof args.name === 'string' && args.name.trim()) clean.name = args.name.trim().slice(0, 40)
+   338→        if (typeof args.title === 'string' && args.title.trim()) clean.title = args.title.trim().slice(0, 80)
+   339→        if (typeof args.subtitle === 'string') clean.subtitle = args.subtitle.slice(0, 160)
+   340→        if (typeof args.entity === 'string' && ENTITY_KEYS.includes(args.entity as (typeof ENTITY_KEYS)[number])) {
+   341→          clean.entity = args.entity
+   342→        }
+   343→        actions.push({ tool: 'update_page', args: clean })
+   344→        break
+   345→      }
+   346→      case 'add_block': {
+   347→        const pageId = resolvePageRef(schema, args, ['pageId', 'page', 'pageName'])
+   348→        const blockType = typeof args.blockType === 'string' ? args.blockType : (typeof args.type === 'string' ? args.type : '')
+   349→        if (!pageId || !BLOCK_TYPES.includes(blockType)) continue
+   350→        const clean: Record<string, unknown> = { pageId, blockType }
+   351→        if (isRecord(args.props)) clean.props = args.props
+   352→        if (typeof args.position === 'number' && Number.isFinite(args.position)) clean.position = Math.round(args.position)
+   353→        actions.push({ tool: 'add_block', args: clean })
+   354→        break
+   355→      }
+   356→      case 'update_block':
+   357→      case 'update_content': {
+   358→        const pageId = resolvePageRef(schema, args, ['pageId', 'page', 'pageName'])
+   359→        const blockId = typeof args.blockId === 'string' && args.blockId.trim() ? args.blockId.trim() : ''
+   360→        if (!pageId || !blockId) continue
+   361→        const patch = isRecord(args.props) ? args.props : isRecord(args.patch) ? args.patch : isRecord(args.content) ? args.content : null
+   362→        if (!patch) continue
+   363→        actions.push({ tool: tool as AgentToolName, args: { pageId, blockId, props: patch } })
+   364→        break
+   365→      }
+   366→      case 'delete_block': {
+   367→        const pageId = resolvePageRef(schema, args, ['pageId', 'page', 'pageName'])
+   368→        const blockId = typeof args.blockId === 'string' && args.blockId.trim() ? args.blockId.trim() : ''
+   369→        if (!pageId || !blockId) continue
+   370→        actions.push({ tool: 'delete_block', args: { pageId, blockId } })
+   371→        break
+   372→      }
+   373→      case 'move_block': {
+   374→        const pageId = resolvePageRef(schema, args, ['pageId', 'page', 'pageName'])
+   375→        const blockId = typeof args.blockId === 'string' && args.blockId.trim() ? args.blockId.trim() : ''
+   376→        if (!pageId || !blockId) continue
+   377→        const clean: Record<string, unknown> = { pageId, blockId }
+   378→        if (typeof args.position === 'number' && Number.isFinite(args.position)) clean.position = Math.round(args.position)
+   379→        else if (typeof args.direction === 'string' && ['up', 'down'].includes(args.direction)) clean.direction = args.direction
+   380→        else continue
+   381→        actions.push({ tool: 'move_block', args: clean })
+   382→        break
+   383→      }
+   384→      case 'update_theme': {
+   385→        const patch = isRecord(args.theme)
+   386→          ? args.theme
+   387→          : isRecord(args.patch)
+   388→            ? args.patch
+   389→            : args
+   390→        const mapped = mapArabicColors(patch)
+   391→        if (typeof mapped.radius !== 'undefined') {
+   392→          const r = Number(mapped.radius)
+   393→          if (Number.isFinite(r)) mapped.radius = Math.max(0, Math.min(40, Math.round(r)))
+   394→          else delete mapped.radius
+   395→        }
+   396→        if (typeof mapped.shadow === 'string' && !['none', 'sm', 'md', 'lg'].includes(mapped.shadow)) delete mapped.shadow
+   397→        if (typeof mapped.fontFamily === 'string' && !['IBM Plex Sans Arabic', 'Tajawal', 'Cairo'].includes(mapped.fontFamily)) delete mapped.fontFamily
+   398→        if (typeof mapped.mode === 'string' && !['light', 'dark'].includes(mapped.mode)) delete mapped.mode
+   399→        // نتجاهل الإجراء إن لم تبقَ أي قيمة صالحة
+   400→        if (Object.keys(mapped).length === 0) continue
+   401→        // applyActions يقرأ patch ?? args — نضع القيم تحت مفتاح patch
+   402→        actions.push({ tool: 'update_theme', args: { patch: mapped } })
+   403→        break
+   404→      }
+   405→      case 'update_navigation': {
+   406→        const clean: Record<string, unknown> = {}
+   407→        if (typeof args.brand === 'string' && args.brand.trim()) clean.brand = args.brand.trim().slice(0, 40)
+   408→        const items = sanitizeNavItems(schema, args.items)
+   409→        if (Array.isArray(items)) clean.items = items
+   410→        if (isRecord(args.cta)) {
+   411→          const cta = args.cta
+   412→          const label = typeof cta.label === 'string' && cta.label.trim() ? cta.label.trim().slice(0, 40) : ''
+   413→          const pageId =
+   414→            (typeof cta.pageId === 'string' && schema.pages.find((p) => p.id === cta.pageId)?.id) ??
+   415→            resolvePageRef(schema, cta, ['pageName', 'page', 'name'])
+   416→          if (label && pageId) clean.cta = { label, pageId }
+   417→        }
+   418→        if (Object.keys(clean).length === 0) continue
+   419→        actions.push({ tool: 'update_navigation', args: clean })
+   420→        break
+   421→      }
+   422→      case 'update_dashboard_nav': {
+   423→        const items = sanitizeNavItems(schema, args.items)
+   424→        if (!items || items.length === 0) continue
+   425→        actions.push({
+   426→          tool: 'update_dashboard_nav',
+   427→          args: {
+   428→            items: items.map((it) => ({ label: it.label, pageId: it.pageId, icon: 'file-text' })),
+   429→          },
+   430→        })
+   431→        break
+   432→      }
+   433→      case 'rename_project': {
+   434→        const name = typeof args.name === 'string' && args.name.trim() ? args.name.trim().slice(0, 40) : ''
+   435→        if (!name) continue
+   436→        actions.push({ tool: 'rename_project', args: { name } })
+   437→        break
+   438→      }
+   439→      case 'generate_mock_data': {
+   440→        const entity =
+   441→          typeof args.entity === 'string' && ENTITY_KEYS.includes(args.entity as (typeof ENTITY_KEYS)[number])
+   442→            ? args.entity
+   443→            : ''
+   444→        actions.push({ tool: 'generate_mock_data', args: entity ? { entity } : {} })
+   445→        break
+   446→      }
+   447→      case 'change_landing_variant': {
+   448→        const variant =
+   449→          typeof args.variant === 'string' && LANDING_VARIANT_IDS.includes(args.variant)
+   450→            ? args.variant
+   451→            : typeof args.landingVariant === 'string' && LANDING_VARIANT_IDS.includes(args.landingVariant)
+   452→              ? args.landingVariant
+   453→              : ''
+   454→        if (!variant) continue
+   455→        const pageId = resolvePageRef(schema, args, ['pageId', 'page', 'pageName', 'name'])
+   456→        const clean: Record<string, unknown> = { variant }
+   457→        if (pageId) clean.pageId = pageId
+   458→        actions.push({ tool: 'change_landing_variant', args: clean })
+   459→        break
+   460→      }
+   461→      default:
+   462→        break
+   463→    }
+   464→  }
+   465→  return actions.slice(0, MAX_ACTIONS)
+   466→}
+   467→
+   468→// ============================================================
+   469→// البديل الاستدلالي — قواعد نصية
+   470→// ============================================================
+   471→interface PageIntent {
+   472→  type: PageType
+   473→  name: string
+   474→  entity?: string
+   475→  authVariant?: AuthVariant
+   476→}
+   477→
+   478→function pageIntentFromText(text: string): PageIntent | null {
+   479→  if (/تسعير|أسعار|الأسعار|باقات/.test(text)) return { type: 'pricing', name: 'الأسعار' }
+   480→  if (/تسجيل\s*الدخول|دخول/.test(text)) return { type: 'auth', name: 'تسجيل الدخول', authVariant: 'login' }
+   481→  if (/حساب\s*جديد|إنشاء\s*حساب|اشتراك/.test(text)) return { type: 'auth', name: 'إنشاء حساب', authVariant: 'signup' }
+   482→  if (/فواتير/.test(text)) return { type: 'table', name: 'الفواتير', entity: 'invoices' }
+   483→  if (/عملاء|زبائن|زبناء/.test(text)) return { type: 'table', name: 'العملاء', entity: 'customers' }
+   484→  if (/طلبات/.test(text)) return { type: 'table', name: 'الطلبات', entity: 'orders' }
+   485→  if (/منتجات/.test(text)) return { type: 'table', name: 'المنتجات', entity: 'products' }
+   486→  if (/حجوزات/.test(text)) return { type: 'table', name: 'الحجوزات', entity: 'bookings' }
+   487→  if (/إعدادات|اعدادات/.test(text)) return { type: 'settings', name: 'الإعدادات' }
+   488→  if (/ملف\s*شخصي|بروفايل|بروفيل/.test(text)) return { type: 'profile', name: 'الملف الشخصي' }
+   489→  if (/أسئلة|اسئلة|faq/.test(text)) return { type: 'faq', name: 'الأسئلة الشائعة' }
+   490→  // صفحة مخصصة: نستخرج الاسم من نهاية الطلب
+   491→  const rest = text
+   492→    .replace(/أضف|اضف|أنشئ|انشئ|جديد|جديدة|صفحة|صفحةً|لي|لى|لـ|لل|ال|من|في|بـ|بعنوان/g, ' ')
+   493→    .replace(/\s+/g, ' ')
+   494→    .trim()
+   495→  if (rest.length >= 2) {
+   496→    return { type: 'custom', name: rest.slice(0, 40) }
+   497→  }
+   498→  return { type: 'custom', name: 'صفحة جديدة' }
+   499→}
+   500→
+   501→function extractAfterPageKeyword(message: string): string {
+   502→  const idx = message.indexOf('صفحة')
+   503→  if (idx === -1) return ''
+   504→  return message
+   505→    .slice(idx + 'صفحة'.length)
+   506→    .replace(/^(?:\s|ل|ال|لل|لـ)+/, '')
+   507→    .replace(/^(?:تسعير|أسعار|الأسعار|باقات|دخول|تسجيل الدخول|حساب جديد|إنشاء حساب|فواتير|عملاء|زبائن|طلبات|منتجات|حجوزات|إعدادات|ملف شخصي|أسئلة|شخصية)\s*/, '')
+   508→    .trim()
+   509→}
+   510→
+   511→function findPageByIntent(schema: ProjectSchema, text: string): ProjectPage | null {
+   512→  const term = extractAfterPageKeyword(text)
+   513→  if (term && term.length >= 2) {
+   514→    const byName = schema.pages.find(
+   515→      (p) => p.name.includes(term) || term.includes(p.name) || p.slug.includes(term)
+   516→    )
+   517→    if (byName) return byName
+   518→  }
+   519→  const intent = pageIntentFromText(text)
+   520→  if (intent) {
+   521→    const byType = schema.pages.find((p) => p.type === intent.type && (p.entity ?? '') === (intent.entity ?? ''))
+   522→    if (byType) return byType
+   523→  }
+   524→  return null
+   525→}
+   526→
+   527→function detectColor(message: string): string | null {
+   528→  for (const name of ALL_COLOR_NAMES_BY_LENGTH) {
+   529→    if (message.includes(name)) return ALL_COLOR_NAMES[name]
+   530→  }
+   531→  return null
+   532→}
+   533→
+   534→/** كل الألوان المذكورة في النص بترتيب مواضعها — لطلبات مثل «خلفية سوداء ونص أبيض» */
+   535→function detectAllColors(message: string): Array<{ hex: string; at: number }> {
+   536→  const hits: Array<{ hex: string; at: number; end: number }> = []
+   537→  for (const name of ALL_COLOR_NAMES_BY_LENGTH) {
+   538→    let from = 0
+   539→    for (;;) {
+   540→      const at = message.indexOf(name, from)
+   541→      if (at < 0) break
+   542→      hits.push({ hex: ALL_COLOR_NAMES[name], at, end: at + name.length })
+   543→      from = at + name.length
+   544→    }
+   545→  }
+   546→  // الترتيب بالمواضع مع تخطّي الأسماء داخل اسم أطول (أزرق داخل أزرق داكن)
+   547→  hits.sort((a, b) => a.at - b.at)
+   548→  const out: Array<{ hex: string; at: number }> = []
+   549→  let lastEnd = -1
+   550→  for (const hit of hits) {
+   551→    if (hit.at < lastEnd) continue
+   552→    out.push({ hex: hit.hex, at: hit.at })
+   553→    lastEnd = Math.max(lastEnd, hit.end)
+   554→  }
+   555→  return out
+   556→}
+   557→
+   558→// ============================================================
+   559→// أقسام صفحة الهبوط بالعربية → أنواع كتل (Task 12)
+   560→// ============================================================
+   561→const SECTION_KEYWORDS: Array<{ type: BlockType; words: RegExp }> = [
+   562→  { type: 'cta', words: /دعوة.{0,14}إجراء|الدعوة|\bcta\b/ },
+   563→  { type: 'banner', words: /الشريط\s*الإعلاني|الشريط\s*الإعلانية|شريط\s*إعلاني|الإعلان|الإعلانات|إعلان|\bbanner\b/ },
+   564→  { type: 'hero', words: /البطل|بطل|الهيرو|\bhero\b/ },
+   565→  { type: 'features', words: /المزايا|المميزات|مميزات|مزايا|\bfeatures\b/ },
+   566→  { type: 'stats', words: /الإحصائيات|إحصائيات|الأرقام|أرقام|\bstats\b/ },
+   567→  { type: 'steps', words: /الخطوات|خطوات|\bsteps\b/ },
+   568→  { type: 'pricing', words: /التسعير|الأسعار|أسعار|الباقات|باقات|\bpricing\b/ },
+   569→  { type: 'testimonials', words: /الشهادات|شهادات|آراء|الآراء|التقييمات|\btestimonials\b/ },
+   570→  { type: 'faq', words: /الأسئلة|أسئلة|الأسئلة\s*الشائعة|\bfaq\b/ },
+   571→  { type: 'gallery', words: /المعرض|معرض|\bgallery\b/ },
+   572→  { type: 'team', words: /الفريق|فريق|\bteam\b/ },
+   573→  { type: 'contact-form', words: /التواصل|نموذج\s*التواصل|تواصل\s*معنا|\bcontact\b/ },
+   574→]
+   575→
+   576→/** استخراج نمط صفحة الهبوط من نص المستخدم — بالاسم أو المعرف أو الكلمات المفتاحية */
+   577→function detectLandingVariant(message: string): string {
+   578→  // مطابقة مباشرة بالمعرف أو الاسم العربي
+   579→  for (const v of LANDING_VARIANTS) {
+   580→    if (message.includes(v.id)) return v.id
+   581→    if (message.includes(v.name)) return v.id
+   582→  }
+   583→  // كلمات مفتاحية
+   584→  if (/تدرّج|تدرج|غلاف|ملوّن|ملون/.test(message)) return 'gradient-cover'
+   585→  if (/داكن|فاخر|ليلي|أسود|اسود/.test(message)) return 'dark-premium'
+   586→  if (/تطبيق|هاتف|جوال|موبايل/.test(message)) return 'app-showcase'
+   587→  if (/فيديو/.test(message)) return 'video-lead'
+   588→  if (/بريد|تسجيلات|انتظار|مهتمين/.test(message)) return 'email-capture'
+   589→  if (/متجر|منتجات|تسوّق|تسوق/.test(message)) return 'store-promo'
+   590→  if (/بسيط|minimal|نظيف|أبيض/.test(message)) return 'minimal-startup'
+   591→  if (/أرقام|ارقام|إحصائ|احصائ|نتائج/.test(message)) return 'stats-lead'
+   592→  if (/وكالة/.test(message)) return 'agency-bold'
+   593→  if (/فعالية|حدث|مؤتمر|ورشة/.test(message)) return 'event-announce'
+   594→  if (/موسّط|موسط|وسط|ضخم|عنوان\s*كبير/.test(message)) return 'centered-bold'
+   595→  return 'classic-split'
+   596→}
+   597→
+   598→function firstDashboardPage(schema: ProjectSchema): ProjectPage | null {
+   599→  return schema.pages.find((p) => p.type === 'dashboard') ?? schema.pages[0] ?? null
+   600→}
+   601→
+   602→function firstLandingPage(schema: ProjectSchema): ProjectPage | null {
+   603→  return schema.pages.find((p) => p.type === 'landing') ?? schema.pages[0] ?? null
+   604→}
+   605→
+   606→function heuristicRun(schema: ProjectSchema, message: string): AgentRunResult {
+   607→  const text = message.trim()
+   608→
+   609→  // ---------- حذف صفحة ----------
+   610→  if (/احذف|امسح|حذف/.test(text) && /صفحة/.test(text)) {
+   611→    const page = findPageByIntent(schema, text)
+   612→    if (page) {
+   613→      return {
+   614→        explanation: `حذفت صفحة «${page.name}» بناءً على طلبك، ونظّفت قوائم التنقل المرتبطة بها.`,
+   615→        actions: [{ tool: 'delete_page', args: { pageId: page.id } }],
+   616→        fallback: true,
+   617→      }
+   618→    }
+   619→    return {
+   620→      explanation: 'لم أجد الصفحة المطلوب حذفها — تأكد من كتابة اسمها كما يظهر في قائمة الصفحات.',
+   621→      actions: [],
+   622→      fallback: true,
+   623→    }
+   624→  }
+   625→
+   626→  // ---------- إضافة صفحة ----------
+   627→  if (/أضف|اضف|أنشئ|انشئ|أريد|اريد/.test(text) && /صفحة/.test(text)) {
+   628→    const intent = pageIntentFromText(text)
+   629→    if (intent) {
+   630→      const label = intent.type === 'pricing' ? 'التسعير' : intent.name
+   631→      return {
+   632→        explanation: `أضفت صفحة «${label}» مع محتوى جاهز قابل للتعديل.`,
+   633→        actions: [
+   634→          {
+   635→            tool: 'create_page',
+   636→            args: { name: intent.name, type: intent.type, entity: intent.entity, authVariant: intent.authVariant },
+   637→          },
+   638→        ],
+   639→        fallback: true,
+   640→      }
+   641→    }
+   642→  }
+   643→
+   644→  // ---------- إضافة صفحة هبوط بنمط محدد ----------
+   645→  if (/أضف|اضف|أنشئ|انشئ|أريد|اريد/.test(text) && /صفحة\s*هبوط|هبوط\s*بنمط/.test(text)) {
+   646→    const variant = detectLandingVariant(text)
+   647→    const variantName = LANDING_VARIANTS.find((v) => v.id === variant)?.name ?? variant
+   648→    return {
+   649→      explanation: `أنشأت صفحة هبوط جديدة بنمط «${variantName}» — يمكنك تغيير النمط لاحقاً من لوحة الصفحات.`,
+   650→      actions: [
+   651→        {
+   652→          tool: 'create_page',
+   653→          args: { name: 'صفحة هبوط جديدة', type: 'landing', landingVariant: variant },
+   654→        },
+   655→      ],
+   656→      fallback: true,
+   657→    }
+   658→  }
+   659→
+   660→  // ---------- تغيير نمط صفحة الهبوط ----------
+   661→  if (
+   662→    /(بدّل|بدل|غيّر|غير|حَوّل|حوّل|اجعل|صمّم|صمم)/.test(text) &&
+   663→    /(الصفحة\s*الرئيسية|صفحة\s*الهبوط|الهبوط|الواجهة|النمط)/.test(text) &&
+   664→    !/(لون|اللون|ألوان|الوان|ثيم)/.test(text)
+   665→  ) {
+   666→    const landing = schema.pages.find((p) => p.type === 'landing')
+   667→    if (landing) {
+   668→      const variant = detectLandingVariant(text)
+   669→      const variantName = LANDING_VARIANTS.find((v) => v.id === variant)?.name ?? variant
+   670→      return {
+   671→        explanation: `أعدت بناء صفحة «${landing.name}» بنمط «${variantName}» — محتوى النصوص قابل للتعديل من لوحة الخصائص.`,
+   672→        actions: [{ tool: 'change_landing_variant', args: { variant } }],
+   673→        fallback: true,
+   674→      }
+   675→    }
+   676→    return {
+   677→      explanation: 'لا توجد صفحة هبوط في المشروع لتغيير نمطها — أضف أولاً صفحة هبوط جديدة.',
+   678→      actions: [],
+   679→      fallback: true,
+   680→    }
+   681→  }
+   682→
+   683→  // ---------- ألوان كل قسم (Task 12): خلفية/خط قسم بعينه ----------
+   684→  // (قبل فرع تغيير اللون العام — قسم مذكور + لون = تحديد أدق)
+   685→  const sectionKeyword = SECTION_KEYWORDS.find(({ words }) => words.test(text))
+   686→  if (sectionKeyword && !/أضف|اضف|أنشئ|انشئ/.test(text)) {
+   687→    const colors = detectAllColors(text)
+   688→    if (colors.length > 0) {
+   689→      const sectionType = sectionKeyword.type
+   690→      const label = BLOCK_REGISTRY[sectionType]?.label ?? sectionType
+   691→      const landing = schema.pages.find((p) => p.type === 'landing')
+   692→      const fontWord = /خط|كتابة|نص|نصوص/.test(text)
+   693→      // نيّة الخلفية: «خلفية» صراحةً أو «لون» بلا ذكر خط/نص
+   694→      const bgIntent = /خلفية/.test(text) || (/لون|اللون|ألوان|الوان/.test(text) && !fontWord)
+   695→
+   696→      if (bgIntent) {
+   697→        if (!landing) {
+   698→          return {
+   699→            explanation: 'لا توجد صفحة هبوط في المشروع لتطبيق لون القسم — أضف أولاً صفحة هبوط.',
+   700→            actions: [],
+   701→            fallback: true,
+   702→          }
+   703→        }
+   704→        const block = landing.blocks.find((b) => b.type === sectionType)
+   705→        if (!block) {
+   706→          return {
+   707→            explanation: `لم أجد قسم «${label}» في صفحة «${landing.name}» — أضفه أولاً ثم اطلب تغيير لونه.`,
+   708→            actions: [],
+   709→            fallback: true,
+   710→          }
+   711→        }
+   712→        const props: Record<string, unknown> = { bgColor: colors[0].hex }
+   713→        const alsoText = fontWord && colors.length > 1
+   714→        if (alsoText) props.textColor = colors[1].hex
+   715→        return {
+   716→          explanation: `غيّرت خلفية قسم «${label}» في صفحة «${landing.name}» إلى اللون المطلوب${
+   717→            alsoText ? ' مع لون خط مطابق.' : ' — سيُختار لون النص تلقائياً حسب سطوعها (داكن على الفاتح وأبيض على الداكن).'
+   718→          }`,
+   719→          actions: [{ tool: 'update_block', args: { pageId: landing.id, blockId: block.id, props } }],
+   720→          fallback: true,
+   721→        }
+   722→      }
+   723→
+   724→      if (fontWord) {
+   725→        if (!landing) {
+   726→          return {
+   727→            explanation: 'لا توجد صفحة هبوط في المشروع لتطبيق لون خط القسم — أضف أولاً صفحة هبوط.',
+   728→            actions: [],
+   729→            fallback: true,
+   730→          }
+   731→        }
+   732→        const block = landing.blocks.find((b) => b.type === sectionType)
+   733→        if (!block) {
+   734→          return {
+   735→            explanation: `لم أجد قسم «${label}» في صفحة «${landing.name}» — أضفه أولاً ثم اطلب تغيير لون خطه.`,
+   736→            actions: [],
+   737→            fallback: true,
+   738→          }
+   739→        }
+   740→        return {
+   741→          explanation: `غيّرت لون خط قسم «${label}» في صفحة «${landing.name}» — يمكنك معاينة النتيجة فوراً.`,
+   742→          actions: [{ tool: 'update_block', args: { pageId: landing.id, blockId: block.id, props: { textColor: colors[0].hex } } }],
+   743→          fallback: true,
+   744→        }
+   745→      }
+   746→    }
+   747→  }
+   748→
+   749→  // ---------- لون الخط العام (Task 12): theme.text + mutedText مشتق ----------
+   750→  if (/لون|اللون/.test(text) && /خط|كتابة|نص|نصوص/.test(text)) {
+   751→    const hex = detectColor(text)
+   752→    if (hex) {
+   753→      const muted = deriveMuted(hex, schema.theme.mode)
+   754→      return {
+   755→        explanation:
+   756→          'غيّرت لون الخط الأساسي في كل الموقع واشتقت لون النصوص الثانوية منه تلقائياً — يمكنك معاينة النتيجة فوراً.',
+   757→        actions: [{ tool: 'update_theme', args: { patch: { text: hex, mutedText: muted } } }],
+   758→        fallback: true,
+   759→      }
+   760→    }
+   761→  }
+   762→
+   763→  // ---------- تغيير اللون ----------
+   764→  if (/غيّر|غير|تغيير|بدّل|بدل|اجعل/.test(text) && /لون|اللون|ألوان|الوان|هوية|ثيم/.test(text)) {
+   765→    const hex = detectColor(text) ?? COLOR_NAME_TO_HEX['أزرق']
+   766→    return {
+   767→      explanation: `غيّرت اللون الأساسي للهوية البصرية${detectColor(text) ? '' : ' (أزرق افتراضياً)'} — يمكنك معاينة النتيجة فوراً.`,
+   768→      actions: [{ tool: 'update_theme', args: { patch: { primary: hex } } }],
+   769→      fallback: true,
+   770→    }
+   771→  }
+   772→
+   773→  // ---------- إضافة مكوّنات ----------
+   774→  if (/أضف|اضف|أنشئ|انشئ|اريد|أريد/.test(text)) {
+   775→    const target = firstDashboardPage(schema)
+   776→    if (target && /جدول|جداول/.test(text)) {
+   777→      const entity = defaultEntityFor(schema.metadata.type)
+   778→      return {
+   779→        explanation: `أضفت مكوّن «جدول البيانات» إلى صفحة «${target.name}» ببيانات تجريبية جزائرية.`,
+   780→        actions: [{ tool: 'add_block', args: { pageId: target.id, blockType: 'data-table', props: { entity, pageSize: 5 } } }],
+   781→        fallback: true,
+   782→      }
+   783→    }
+   784→    if (target && /faq|أسئلة|اسئلة|الأسئلة|سؤال|أسوال/.test(text)) {
+   785→      return {
+   786→        explanation: `أضفت قسم «الأسئلة الشائعة» إلى صفحة «${target.name}».`,
+   787→        actions: [{ tool: 'add_block', args: { pageId: target.id, blockType: 'faq' } }],
+   788→        fallback: true,
+   789→      }
+   790→    }
+   791→    if (target && /إحصائية|احصائية|إحصائيات|احصائيات/.test(text)) {
+   792→      return {
+   793→        explanation: `أضفت صف بطاقات الإحصائيات إلى صفحة «${target.name}».`,
+   794→        actions: [{ tool: 'add_block', args: { pageId: target.id, blockType: 'stats-row' } }],
+   795→        fallback: true,
+   796→      }
+   797→    }
+   798→    if (target && /رسم|بياني|إيرادات|ايرادات/.test(text)) {
+   799→      return {
+   800→        explanation: `أضفت رسماً بيانياً للإيرادات الشهرية إلى صفحة «${target.name}».`,
+   801→        actions: [
+   802→          {
+   803→            tool: 'add_block',
+   804→            args: { pageId: target.id, blockType: 'chart', props: { title: 'الإيرادات الشهرية', chartType: 'bar', dataKey: 'revenueMonthly' } },
+   805→          },
+   806→        ],
+   807→        fallback: true,
+   808→      }
+   809→    }
+   810→    if (target && /نشاطات|النشاطات|سجل|سجل النشاط/.test(text)) {
+   811→      return {
+   812→        explanation: `أضفت مكوّن «سجل النشاطات» إلى صفحة «${target.name}» بأحداث تجريبية جزائرية.`,
+   813→        actions: [{ tool: 'add_block', args: { pageId: target.id, blockType: 'activity-feed' } }],
+   814→        fallback: true,
+   815→      }
+   816→    }
+   817→    if (target && /مهام|المهام|قائمة مهام|checklist/.test(text)) {
+   818→      return {
+   819→        explanation: `أضفت مكوّن «المهام» إلى صفحة «${target.name}» مع شريط تقدّم تفاعلي.`,
+   820→        actions: [{ tool: 'add_block', args: { pageId: target.id, blockType: 'tasks-list' } }],
+   821→        fallback: true,
+   822→      }
+   823→    }
+   824→    if (target && /إجراءات سريعة|إجراء سريع|اختصارات/.test(text)) {
+   825→      return {
+   826→        explanation: `أضفت مكوّن «إجراءات سريعة» إلى صفحة «${target.name}» — يمكن ربط كل إجراء بصفحة من لوحة الخصائص.`,
+   827→        actions: [{ tool: 'add_block', args: { pageId: target.id, blockType: 'quick-actions' } }],
+   828→        fallback: true,
+   829→      }
+   830→    }
+   831→    const landing = firstLandingPage(schema)
+   832→    if (landing && /قسم|هيرو|hero|ترحيب/.test(text)) {
+   833→      return {
+   834→        explanation: `أضفت قسم «البطل» إلى صفحة «${landing.name}».`,
+   835→        actions: [{ tool: 'add_block', args: { pageId: landing.id, blockType: 'hero' } }],
+   836→        fallback: true,
+   837→      }
+   838→    }
+   839→  }
+   840→
+   841→  // ---------- تصميم احترافي ----------
+   842→  if (/احترافي|احترافية|أجمل|اجمل|أفضل|افضل/.test(text) && /تصميم|شكل|مظهر|اللون|الهوية/.test(text)) {
+   843→    return {
+   844→      explanation: 'رفعت مستوى التصميم: حواف أنعم (radius 12) وظلال أوضح لتبدو الواجهة أكثر احترافية.',
+   845→      actions: [{ tool: 'update_theme', args: { patch: { radius: 12, shadow: 'md' } } }],
+   846→      fallback: true,
+   847→    }
+   848→  }
+   849→
+   850→  // ---------- لم يفهم ----------
+   851→  return {
+   852→    explanation:
+   853→      'لم أفهم الطلب تماماً — جرّب صياغة مثل: «أضف صفحة للتسعير» أو «غيّر اللون الأساسي إلى الأخضر»',
+   854→    actions: [],
+   855→    fallback: true,
+   856→  }
+   857→}
+   858→
+   859→// ============================================================
+   860→// نقطة الدخول — runAgent
+   861→// ============================================================
+   862→export async function runAgent(
+   863→  schema: ProjectSchema,
+   864→  message: string,
+   865→  history: AgentHistoryMessage[]
+   866→): Promise<AgentRunResult> {
+   867→  const trimmed = message.trim()
+   868→  if (!trimmed) {
+   869→    return {
+   870→      explanation: 'اكتب طلبك وسأنفّذه فوراً — مثل: «أضف صفحة للتسعير».',
+   871→      actions: [],
+   872→      fallback: true,
+   873→    }
+   874→  }
+   875→
+   876→  const historyText = (history ?? [])
+   877→    .slice(-8)
+   878→    .map((m) => `${m.role === 'user' ? 'المستخدم' : 'المساعد'}: ${String(m.text ?? '').slice(0, 200)}`)
+   879→    .join('\n')
+   880→
+   881→  const userPrompt = [
+   882→    `طلب المستخدم: ${trimmed}`,
+   883→    historyText ? `\nسياق المحادثة السابقة:\n${historyText}` : '',
+   884→    `\nسياق المشروع الحالي (JSON):\n${buildContext(schema)}`,
+   885→  ]
+   886→    .filter(Boolean)
+   887→    .join('\n')
+   888→
+   889→  const text = await callLLM(AGENT_SYSTEM_PROMPT, userPrompt)
+   890→  if (text) {
+   891→    const parsed = extractJsonObject(text)
+   892→    if (parsed) {
+   893→      const actions = sanitizeActions(schema, parsed.actions)
+   894→      const explanation =
+   895→        typeof parsed.explanation === 'string' && parsed.explanation.trim()
+   896→          ? parsed.explanation.trim().slice(0, 400)
+   897→          : ''
+   898→      if (actions.length > 0) {
+   899→        return { explanation: explanation || 'نفّذت تعديلاتك على المشروع.', actions, fallback: false }
+   900→      }
+   901→      if (explanation) {
+   902→        // الـ LLM فهم الطلب لكنه لم يجد إجراءات (أو رفض) — نعيد شرحه
+   903→        return { explanation, actions: [], fallback: false }
+   904→      }
+   905→    }
+   906→  }
+   907→
+   908→  // فشل الـ LLM أو خرج تالفاً → البديل الاستدلالي
+   909→  return heuristicRun(schema, trimmed)
+   910→}
+   911→

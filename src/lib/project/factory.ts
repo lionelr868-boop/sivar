@@ -111,6 +111,8 @@ export function createProjectFromAnalysis(
       authVariant,
     })
     schema.pages = next.pages
+    // (الجولة 13) الصفحات المقترحة من منطقة اللوحة تُدرج في الشريط الجانبي أيضاً
+    schema.dashboardNav = next.dashboardNav
     addedNames.push(name ?? PROJECT_TYPE_LABELS[type as PageType] ?? type)
   }
 
@@ -123,6 +125,16 @@ export function createProjectFromAnalysis(
     }
     return true
   })
+
+  // (الجولة 13) تنظيف مراجع التنقل عن أي صفحة أزيلت بالتكرار — يبقى كل عنصر مشيراً لصفحة قائمة بدقة
+  {
+    const pageIds = new Set(schema.pages.map((p) => p.id))
+    schema.dashboardNav.items = schema.dashboardNav.items.filter((it) => pageIds.has(it.pageId))
+    schema.navigation.items = schema.navigation.items.filter((it) => pageIds.has(it.pageId))
+    if (schema.navigation.cta && !pageIds.has(schema.navigation.cta.pageId)) {
+      schema.navigation.cta = undefined
+    }
+  }
 
   // ---------- نمط صفحة الهبوط المختار ----------
   // إن اختار المستخدم نمطاً من مكتبة أنماط الهبوط، نعيد بناء أول صفحة هبوط به

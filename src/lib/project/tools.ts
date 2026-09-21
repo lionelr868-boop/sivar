@@ -90,6 +90,126 @@ function cleanNavReferences(schema: ProjectSchema, pageId: string): void {
   schema.dashboardNav.items = schema.dashboardNav.items.filter((it) => it.pageId !== pageId)
 }
 
+// ============================================================
+// شريط لوحة التحكم الجانبي — إدراج دقيق بلا تكرار ولا خلط
+// (الجولة 13): كل صفحة تُعرض داخل قشرة لوحة التحكم يجب أن
+// تظهر في الشريط الجانبي لحظة إنشائها — من الوكيل أو المحرر.
+// ============================================================
+
+/** أنواع الصفحات التي تُعرض داخل قشرة لوحة التحكم — لها مكان في الشريط الجانبي */
+const DASHBOARD_AREA_TYPES: ReadonlySet<string> = new Set(['dashboard', 'table', 'form', 'settings', 'profile'])
+
+/** هل تنتمي الصفحة لمنطقة لوحة التحكم (تُعرض داخل قشرتها الجانبية)؟ */
+export function isDashboardAreaPage(page: Pick<ProjectPage, 'type'>): boolean {
+  return DASHBOARD_AREA_TYPES.has(page.type)
+}
+
+/** أيقونات الكيانات في شريط اللوحة (مطابقة لاصطلاح القوالب الجاهزة) */
+const ENTITY_NAV_ICON: Record<string, string> = {
+  customers: 'users',
+  orders: 'shopping-cart',
+  products: 'package',
+  bookings: 'calendar',
+  invoices: 'file-text',
+  services: 'briefcase',
+  users: 'users',
+  clients: 'users',
+  tasks: 'clipboard-list',
+  teamMembers: 'users',
+  courses: 'graduation-cap',
+  students: 'graduation-cap',
+  properties: 'building',
+  appointments: 'calendar-days',
+  menuItems: 'utensils',
+  transactions: 'credit-card',
+  subscriptions: 'wallet',
+}
+
+/** الأيقونة الدقيقة لعنصر شريط لوحة التحكم حسب نوع الصفحة وكيانها */
+export function dashboardNavIconFor(page: Pick<ProjectPage, 'type' | 'entity'>): string {
+  switch (page.type) {
+    case 'dashboard':
+      return 'layout-dashboard'
+    case 'table':
+      return ENTITY_NAV_ICON[page.entity ?? ''] ?? 'file-text'
+    case 'form':
+      return 'clipboard-list'
+    case 'settings':
+      return 'settings'
+    case 'profile':
+      return 'user'
+    default:
+      return 'file-text'
+  }
+}
+
+/**
+ * يُدرج عنصراً لصفحة في شريط لوحة التحكم (تعديل مباشر على المخطط المستنسخ) — بدقة:
+ * - لا تكرار: صفحة لها عنصر بالفعل لا تُضاف مرتين.
+ * - لا خلط: العنوان = اسم الصفحة، والأيقونة مطابقة لنوع الصفحة وكيانها.
+ * - ترتيب مستقر: صفحات «لوحة تحكم» جديدة تُدرج بعد آخر عنصر لوحة (يبقى الرئيسي أولاً)،
+ *   وبقية أنواع اللوحة تُلحق في نهاية القائمة دون المساس بالعناصر القائمة.
+ */
+function insertDashboardNavItem(schema: ProjectSchema, page: ProjectPage): void {
+  if (!isDashboardAreaPage(page)) return
+  if (schema.dashboardNav.items.some((it) => it.pageId === page.id)) return
+  const item: DashboardNavItem = { label: page.name, pageId: page.id, icon: dashboardNavIconFor(page) }
+  const items = schema.dashboardNav.items
+  if (page.type === 'dashboard') {
+    let at = 0
+    for (let i = items.length - 1; i >= 0; i--) {
+      const target = schema.pages.find((p) => p.id === items[i].pageId)
+      if (target?.type === 'dashboard') {
+        at = i + 1
+        break
+      }
+    }
+    items.splice(at, 0, item)
+  } else {
+    items.push(item)
+  }
+}
+
+/** يضمن ظهور صفحة قائمة في الشريط الجانبي للوحة التحكم (إن كانت من أنواع منطقة اللوحة) — دالة نقية */
+export function ensurePageInDashboardNav(schema: ProjectSchema, pageId: string): ProjectSchema {
+  const page = schema.pages.find((p) => p.id === pageId)
+  if (!page || !isDashboardAreaPage(page)) return schema
+  if (schema.dashboardNav.items.some((it) => it.pageId === pageId)) return schema
+  const next = clone(schema)
+  const target = next.pages.find((p) => p.id === pageId) as ProjectPage
+  insertDashboardNavItem(next, target)
+  return next
+}
+
+/**
+ * مزامنة عنصر صفحة في الشريط الجانبي بعد تعديلها (إعادة تسمية/تغيير كيان) —
+ * يُبقي العنصر في موضعه ويحدّث عنوانه وأيقونته فقط، بلا خلط مع بقية العناصر.
+ */
+function syncPageInDashboardNav(schema: ProjectSchema, page: ProjectPage): void {
+  const item = schema.dashboardNav.items.find((it) => it.pageId === page.id)
+  if (!item) return
+  if (item.label !== page.name) item.label = page.name
+  const icon = dashboardNavIconFor(page)
+  if (item.icon !== icon) item.icon = icon
+}
+
+/**
+ * (الجولة 13) مزامنة قوائم التنقل بعد تعديل صفحة من المحرر (إعادة تسمية) —
+ * يحدّث عنوان عنصر الشريط الجانبي وأيقونته وعنوان عنصر قائمة الموقع لنفس الصفحة فقط،
+ * دون المساس بترتيب العناصر أو بقية القوائم — لا خلط بين العناصر.
+ */
+export function syncPageNavigation(schema: ProjectSchema, pageId: string): ProjectSchema {
+  const page = schema.pages.find((p) => p.id === pageId)
+  if (!page) return schema
+  const next = clone(schema)
+  const target = next.pages.find((p) => p.id === pageId) as ProjectPage
+  syncPageInDashboardNav(next, target)
+  for (const navItem of next.navigation.items) {
+    if (navItem.pageId === target.id && navItem.label !== target.name) navItem.label = target.name
+  }
+  return next
+}
+
 /** كتل البداية لكل نوع صفحة (تُستعمل في create_page + factory) */
 export function starterBlocksFor(
   schema: ProjectSchema,
@@ -191,6 +311,8 @@ export function addPageToSchema(
     }),
   }
   next.pages.push(page)
+  // (الجولة 13) صفحات منطقة اللوحة تُدرج فوراً في الشريط الجانبي — بعنوان مطابق وأيقونة دقيقة
+  insertDashboardNavItem(next, page)
   return { schema: next, pageId: page.id }
 }
 
@@ -221,6 +343,8 @@ export function addHtmlPageToSchema(
   }
   const next = clone(schema)
   next.pages.push(page)
+  // (الجولة 13) صفحة HTML داخل اللوحة تظهر أيضاً في الشريط الجانبي
+  insertDashboardNavItem(next, page)
   return { schema: next, pageId: page.id }
 }
 
@@ -376,10 +500,26 @@ export function updateNavigationInSchema(schema: ProjectSchema, patch: Partial<P
 export function updateDashboardNavInSchema(schema: ProjectSchema, items: DashboardNavItem[]): ProjectSchema {
   const next = clone(schema)
   if (!Array.isArray(items)) return schema
+  const seen = new Set<string>()
   next.dashboardNav = {
     items: items
       .filter((it) => it && typeof it.label === 'string' && typeof it.pageId === 'string')
-      .map((it) => ({ label: it.label.trim(), pageId: it.pageId, icon: typeof it.icon === 'string' ? it.icon : 'file-text' })),
+      // (الجولة 13) لا تكرار لنفس الصفحة — أول ظهور يفوز فلا يحدث خلط بين العناصر
+      .filter((it) => {
+        if (seen.has(it.pageId)) return false
+        seen.add(it.pageId)
+        return true
+      })
+      .map((it) => {
+        // (الجولة 13) أيقونة دقيقة: صالحة كما أعطيت، وإلا أيقونة العنصر القائم لنفس الصفحة، وإلا أيقونة نوع الصفحة
+        const page = next.pages.find((p) => p.id === it.pageId)
+        const existing = schema.dashboardNav.items.find((nav) => nav.pageId === it.pageId)
+        const icon =
+          typeof it.icon === 'string' && it.icon.trim()
+            ? it.icon.trim()
+            : existing?.icon ?? (page ? dashboardNavIconFor(page) : 'file-text')
+        return { label: it.label.trim(), pageId: it.pageId, icon }
+      }),
   }
   return next
 }
@@ -451,10 +591,14 @@ export function applyActions(schema: ProjectSchema, actions: AgentAction[]): Act
           const landingVariant = LANDING_VARIANTS.some((v) => v.id === landingVariantRaw) ? landingVariantRaw : undefined
           const { schema: next, pageId } = addPageToSchema(current, { name, type, entity, authVariant, landingVariant })
           current = next
+          // (الجولة 13) صفحات منطقة اللوحة تُدرج تلقائياً في الشريط الجانبي — نذكر ذلك صراحة
+          const created = current.pages.find((p) => p.id === pageId)
           applied.push(
             landingVariant && type === 'landing'
               ? `تمت إضافة صفحة هبوط «${name}» بنمط «${getLandingVariant(landingVariant).name}»`
-              : `تمت إضافة صفحة «${name}»`
+              : created && isDashboardAreaPage(created)
+                ? `تمت إضافة صفحة «${name}» وإدراجها في الشريط الجانبي للوحة التحكم`
+                : `تمت إضافة صفحة «${name}»`
           )
           void pageId
           break
@@ -498,6 +642,12 @@ export function applyActions(schema: ProjectSchema, actions: AgentAction[]): Act
           if (title) target.title = title
           if (typeof args.subtitle === 'string') target.subtitle = args.subtitle
           if (entity) target.entity = entity
+          // (الجولة 13) مزامنة دقيقة: عنوان الشريط الجانبي وقائمة الموقع يتبعان اسم الصفحة،
+          // وأيقونة الشريط تتبع نوع الصفحة/كيانها — بلا خلط بين العناصر القائمة
+          syncPageInDashboardNav(next, target)
+          for (const navItem of next.navigation.items) {
+            if (navItem.pageId === target.id && navItem.label !== target.name) navItem.label = target.name
+          }
           current = next
           applied.push(`تم تحديث صفحة «${target.name}»`)
           break

@@ -8,7 +8,7 @@ import { useAppStore } from '@/store/app-store'
 import * as api from '@/lib/api-client'
 import { t } from '@/lib/i18n'
 import { BLOCK_REGISTRY } from '@/lib/registry/blocks'
-import { addBlockToPage, addHtmlPageToSchema, addPageToSchema, deletePageFromSchema } from '@/lib/project/tools'
+import { addBlockToPage, addHtmlPageToSchema, addPageToSchema, deletePageFromSchema, syncPageNavigation } from '@/lib/project/tools'
 import { changeLandingVariant, getLandingVariant, LANDING_VARIANTS } from '@/lib/project/landing-kit'
 import type { LandingVariantMeta } from '@/lib/project/landing-kit'
 import { LandingVariantThumb } from '@/components/platform/templates-library/landing-variant-thumb'
@@ -157,10 +157,16 @@ export function PagesPanel({ onNavigated }: { onNavigated?: () => void }) {
     if (!renameTarget) return
     const name = renameDraft.trim()
     if (name) {
-      applySchemaFn((s) => ({
-        ...s,
-        pages: s.pages.map((p) => (p.id === renameTarget ? { ...p, name, title: p.title ?? name } : p)),
-      }))
+      // (الجولة 13) إعادة التسمية من المحرر تُزامن عنوان الشريط الجانبي وقائمة الموقع تلقائياً
+      applySchemaFn((s) =>
+        syncPageNavigation(
+          {
+            ...s,
+            pages: s.pages.map((p) => (p.id === renameTarget ? { ...p, name, title: p.title ?? name } : p)),
+          },
+          renameTarget
+        )
+      )
     }
     setRenameTarget(null)
   }
@@ -403,6 +409,7 @@ export function PagesPanel({ onNavigated }: { onNavigated?: () => void }) {
         entityKeys={entityKeys}
         onCreate={(opts) => {
           let pageId = ''
+          let inSidebar = false
           applySchemaFn((s) => {
             const res = addPageToSchema(s, {
               name: opts.name,
@@ -412,24 +419,35 @@ export function PagesPanel({ onNavigated }: { onNavigated?: () => void }) {
               landingVariant: opts.landingVariant,
             })
             pageId = res.pageId
+            // (الجولة 13) هل أُدرجت الصفحة الجديدة في الشريط الجانبي للوحة التحكم؟
+            inSidebar = res.schema.dashboardNav.items.some((it) => it.pageId === res.pageId)
             return res.schema
           })
           if (pageId) {
             selectPage(pageId)
-            toast.success(t.builder.pageAddedToast.replace('{name}', opts.name))
+            const toastMsg = inSidebar
+              ? t.builder.pageAddedSidebarToast.replace('{name}', opts.name)
+              : t.builder.pageAddedToast.replace('{name}', opts.name)
+            toast.success(toastMsg)
             onNavigated?.()
           }
         }}
         onCreateHtml={(opts) => {
           let pageId = ''
+          let inSidebar = false
           applySchemaFn((s) => {
             const res = addHtmlPageToSchema(s, { name: opts.name, html: opts.html, placement: opts.placement, height: 640 })
             pageId = res.pageId
+            // (الجولة 13) صفحة HTML داخل اللوحة تُدرج في الشريط الجانبي أيضاً
+            inSidebar = res.schema.dashboardNav.items.some((it) => it.pageId === res.pageId)
             return res.schema
           })
           if (pageId) {
             selectPage(pageId)
-            toast.success(t.builder.pageAddedToast.replace('{name}', opts.name))
+            const toastMsg = inSidebar
+              ? t.builder.pageAddedSidebarToast.replace('{name}', opts.name)
+              : t.builder.pageAddedToast.replace('{name}', opts.name)
+            toast.success(toastMsg)
             onNavigated?.()
             // حفظ في مكتبة HTML — غير حاجز (لا يمنع إنشاء الصفحة)
             if (opts.saveToLibrary && opts.snippetName) {

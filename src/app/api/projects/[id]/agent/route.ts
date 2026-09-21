@@ -11,7 +11,7 @@ import {
   readProjectSchema,
 } from '@/lib/server/session'
 import { runAgent, type AgentHistoryMessage } from '@/lib/server/agent'
-import { applyActions } from '@/lib/project/tools'
+import { applyActions, dashboardNavIconFor, isDashboardAreaPage } from '@/lib/project/tools'
 import { validateSchema } from '@/lib/project/validate'
 import { BLOCK_REGISTRY } from '@/lib/registry/blocks'
 import type { Block, ProjectPage, ProjectSchema } from '@/lib/types'
@@ -30,12 +30,12 @@ function autoFixSchema(schema: ProjectSchema): ProjectSchema {
     schema.navigation.cta = undefined
   }
 
-  // 2. تقليم قائمة لوحة التحكم + إعادة ملئها إن فرغت
+  // 2. تقليم قائمة لوحة التحكم + إعادة ملئها إن فرغت — (الجولة 13) بأنواع منطقة اللوحة كاملة وأيقونات دقيقة مطابقة
   schema.dashboardNav.items = schema.dashboardNav.items.filter((it) => pageIds.has(it.pageId))
   if (schema.dashboardNav.items.length === 0) {
     for (const page of schema.pages) {
-      if (['dashboard', 'table', 'settings', 'profile'].includes(page.type)) {
-        schema.dashboardNav.items.push({ label: page.name, pageId: page.id, icon: 'file-text' })
+      if (isDashboardAreaPage(page)) {
+        schema.dashboardNav.items.push({ label: page.name, pageId: page.id, icon: dashboardNavIconFor(page) })
       }
     }
   }
