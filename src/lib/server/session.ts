@@ -15,9 +15,12 @@ import type {
   ProjectType,
   UserDTO,
 } from '@/lib/types'
+import { stripTransientImages } from '@/lib/project/tools'
 
 export const SESSION_COOKIE = 'sivar_session'
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30 // 30 يوماً
+/** (الجولة 14) مدة الاحتفاظ الكامل بالمشروع المصدَّر (بصوره) قبل تنقية الصور المؤقتة */
+export const EXPORT_RETENTION_MS = 24 * 60 * 60 * 1000 // 24 ساعة
 
 // ============================================================
 // كلمة المرور
@@ -165,4 +168,36 @@ export async function findOwnedProject(projectId: string, userId: string): Promi
   if (!projectId || typeof projectId !== 'string') return null
   const project = await db.project.findFirst({ where: { id: projectId, userId } })
   return project ?? null
+}
+
+// ============================================================
+// (الجولة 14) الاحتفاظ 24 ساعة بعد التصدير ثم تنقية الصور
+// ============================================================
+
+/**
+ * يطبّق سياسة الاحتفاظ عند أول وصول بعد انقضاء المدة:
+ * المشروع المصدَّر يبقى كاملاً (بصوره وتعديلاته) في قاعدة البيانات
+ * 24 ساعة من لحظة التحميل؛ بعدها تُنقّى الصور المؤقتة الثقيلة (data
+ * URLs) تلقائياً ويُصفَّر عدّاد الاحتفاظ — التعديلات والبنية يبقيان.
+ * أي حفظ/تحرير جديد يصفّر العدّاد فيبقى المشروع كاملاً طوال العمل عليه.
+ */
+export async function enforceExportRetention(project: Project): Promise<Project> {
+  if (!project.exportedAt) return project
+  const age = Date.now() - project.exportedAt.getTime()
+  if (age <= EXPORT_RETENTION_MS) return project
+
+  let schema: ProjectSchema
+  try {
+    schema = readProjectSchema(project)
+  } catch {
+    // مخطط تالف: نصفّر العدّاد فقط حتى لا نعلّق المشروع في حلقة
+    const reset = await db.project.update({ where: { id: project.id }, data: { exportedAt: null } })
+    return reset
+  }
+  const stripped = stripTransientImages(schema)
+  const schemaJson = stripped === schema ? project.schemaJson : JSON.stringify(stripped)
+  return db.project.update({
+    where: { id: project.id },
+    data: { schemaJson, exportedAt: null },
+  })
 }

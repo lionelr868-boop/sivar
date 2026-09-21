@@ -146,17 +146,118 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
   const start = t.indexOf('{')
   const end = t.lastIndexOf('}')
   if (start === -1 || end === -1 || end <= start) return null
-  try {
-    const parsed = JSON.parse(t.slice(start, end + 1)) as unknown
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null
-  } catch {
-    return null
+  const slice = t.slice(start, end + 1)
+  const tryParse = (s: string): Record<string, unknown> | null => {
+    try {
+      const parsed = JSON.parse(s) as unknown
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null
+    } catch {
+      return null
+    }
   }
+  const direct = tryParse(slice)
+  if (direct) return direct
+  // (الجولة 14) إصلاح JSON شائع الأعطال من النموذج: فواصل زائدة في نهاية
+  // القوائم + أقواس مفتوحة غير مغلقة/أقواس إغلاق غير متطابقة
+  const noTrailing = slice.replace(/,\s*([}\]])/g, '$1')
+  const trailingFixed = tryParse(noTrailing)
+  if (trailingFixed) return trailingFixed
+  const repaired = repairJsonBrackets(noTrailing)
+  if (repaired !== noTrailing) {
+    const repairedParsed = tryParse(repaired)
+    if (repairedParsed) return repairedParsed
+  }
+  return null
+}
+
+/** يكمل/يصحّح أقواس JSON الناقصة مع احترام السلاسل النصية (inside strings) */
+function repairJsonBrackets(candidate: string): string {
+  const stack: string[] = []
+  let inStr = false
+  let esc = false
+  let out = ''
+  for (const ch of candidate) {
+    if (inStr) {
+      out += ch
+      if (esc) esc = false
+      else if (ch === '\\') esc = true
+      else if (ch === '"') inStr = false
+      continue
+    }
+    if (ch === '"') {
+      inStr = true
+      out += ch
+      continue
+    }
+    if (ch === '{' || ch === '[') {
+      stack.push(ch)
+      out += ch
+      continue
+    }
+    if (ch === '}' || ch === ']') {
+      const expected = ch === '}' ? '{' : '['
+      // أغلق تلقائياً الأقواس المفتوقة قبل القوس المطلوب (قوس إغلاق غير متطابق)
+      while (stack.length > 0 && stack[stack.length - 1] !== expected) {
+        out += stack[stack.length - 1] === '{' ? '}' : ']'
+        stack.pop()
+      }
+      if (stack.length > 0 && stack[stack.length - 1] === expected) {
+        stack.pop()
+        out += ch
+      }
+      // قوس إغلاق زائد بلا مقابل مفتوح — نتجاهله
+      continue
+    }
+    out += ch
+  }
+  while (stack.length > 0) {
+    const open = stack.pop() as string
+    out += open === '{' ? '}' : ']'
+  }
+  return out
 }
 
 // ============================================================
 // سياق المشروع المضغوط
 // ============================================================
+
+/** (الجولة 14) عناصر الأقسام الحاملة للبيانات — يراها الوكيل ليتحرّك بدقة:
+ * المعرض (منتجات/خدمات...)، التسعير (الخطط)، الفريق (الأعضاء) */
+function compactBlockItems(block: { type: string; props: Record<string, unknown> }): Record<string, unknown> | null {
+  if (block.type === 'gallery') {
+    const items = Array.isArray(block.props.items) ? block.props.items : []
+    return {
+      variant: typeof block.props.variant === 'string' ? block.props.variant : 'products',
+      items: items.slice(0, 12).map((it) => {
+        if (!it || typeof it !== 'object') return null
+        const r = it as Record<string, unknown>
+        return { title: r.title, price: r.price }
+      }).filter(Boolean),
+    }
+  }
+  if (block.type === 'pricing') {
+    const plans = Array.isArray(block.props.plans) ? block.props.plans : []
+    return {
+      plans: plans.slice(0, 8).map((it) => {
+        if (!it || typeof it !== 'object') return null
+        const r = it as Record<string, unknown>
+        return { name: r.name, price: r.price, period: r.period, highlighted: r.highlighted }
+      }).filter(Boolean),
+    }
+  }
+  if (block.type === 'team') {
+    const items = Array.isArray(block.props.items) ? block.props.items : []
+    return {
+      members: items.slice(0, 12).map((it) => {
+        if (!it || typeof it !== 'object') return null
+        const r = it as Record<string, unknown>
+        return { name: r.name, role: r.role }
+      }).filter(Boolean),
+    }
+  }
+  return null
+}
+
 function buildContext(schema: ProjectSchema): string {
   const context = {
     metadata: {
@@ -179,7 +280,10 @@ function buildContext(schema: ProjectSchema): string {
       type: p.type,
       entity: p.entity ?? null,
       authVariant: p.authVariant ?? null,
-      blocks: p.blocks.map((b) => ({ id: b.id, type: b.type })),
+      blocks: p.blocks.map((b) => {
+        const extra = compactBlockItems(b)
+        return extra ? { id: b.id, type: b.type, content: extra } : { id: b.id, type: b.type }
+      }),
     })),
     navigation: {
       brand: schema.navigation.brand,
@@ -234,6 +338,9 @@ const AGENT_SYSTEM_PROMPT = [
   'قواعد صارمة:',
   '- غيّر أقل قدر ممكن — طلب صغير = تغيير صغير.',
   '- لا تحذف أو تعيد تصميم أي شيء لم يطلبه المستخدم صراحة.',
+  '- (مهم) تعديلاتك تراكمية لا إتلافية: عند update_block أرسل في props المفاتيح المعدّلة فقط، والمصفوفات (items/plans) تُدمج بالفهرس مع العناصر القائمة — أرسل العنصر كاملاً بما فيه الحقول التي لا تريد تغييرها (انسخها من content في السياق) حتى لا تُفقد الميزات والشارات. لا ترسل مصفوفة أقصر من القائمة القائمة إلا إذا كان الحذف مقصوداً.',
+  '- (الجولة 14 — تزامن موازي) بيانات لوحة التحكم تعمل بالتوازي مع صفحة الموقع: عناصر معرض (gallery) بنوع منتجات/خدمات/عقارات/قائمة طعام/دورات هي نفسها صفوف جدول الكيان المقابل في لوحة التحكم، وعناصر قسم الفريق هي صفوف أعضاء الفريق. عند تعديل هذه العناصر يتحدّث الجدول تلقائياً — اذكر ذلك في explanation (مثال: «وسيظهر ذلك في جدول المنتجات بلوحة التحكم»). وعند تجديد البيانات التجريبية (generate_mock_data) تُعكس الأسماء والأسعار الجديدة على أقسام الموقع تلقائياً.',
+  '- عندما يطلب المستخدم تغيير المنتجات/الخدمات/أعضاء الفريق في لوحة التحكم: عدّل عناصر القسم المقابل في صفحة الموقع بـ update_block (انسخ العناصر من content ثم عدّلها) — أو استعمل generate_mock_data لتجديدها بالكامل. لا توجد أداة منفصلة لتعديل الجداول.',
   '- كل النصوص الجديدة بالعربية الفصحى المبسطة.',
   '- الأسعار بالدينار الجزائري (دج).',
   '- الألوان بصيغة hex مثل #059669.',
@@ -403,8 +510,17 @@ function sanitizeActions(schema: ProjectSchema, rawActions: unknown): AgentActio
         const pageId = resolvePageRef(schema, args, ['pageId', 'page', 'pageName'])
         const blockId = typeof args.blockId === 'string' && args.blockId.trim() ? args.blockId.trim() : ''
         if (!pageId || !blockId) continue
-        const patch = isRecord(args.props) ? args.props : isRecord(args.patch) ? args.patch : isRecord(args.content) ? args.content : null
+        let patch = isRecord(args.props) ? args.props : isRecord(args.patch) ? args.patch : isRecord(args.content) ? args.content : null
         if (!patch) continue
+        // (الجولة 14) النموذج يدمج أحياناً الصيغتين: props.content داخل props —
+        // نستخرج المحتوى الداخلي حين يكون "content" المفتاح الوحيد
+        if (
+          isRecord(patch.content) &&
+          Object.keys(patch).length === 1 &&
+          Object.keys(patch.content as Record<string, unknown>).length > 0
+        ) {
+          patch = { ...(patch.content as Record<string, unknown>) }
+        }
         actions.push({ tool: tool as AgentToolName, args: { pageId, blockId, props: patch } })
         break
       }
@@ -1012,22 +1128,48 @@ export async function runAgent(
     .filter(Boolean)
     .join('\n')
 
-  const text = await callLLM(AGENT_SYSTEM_PROMPT, userPrompt)
-  if (text) {
-    const parsed = extractJsonObject(text)
-    if (parsed) {
-      const actions = sanitizeActions(schema, parsed.actions)
-      const explanation =
-        typeof parsed.explanation === 'string' && parsed.explanation.trim()
-          ? parsed.explanation.trim().slice(0, 400)
-          : ''
-      if (actions.length > 0) {
-        return { explanation: explanation || 'نفّذت تعديلاتك على المشروع.', actions, fallback: false }
+  // (الجولة 14) محاولة LLM أولى — وإن جاء الرد غير قابل للتحليل (نثرًا أو
+  // JSON تالفًا) نعيد المحاولة مرة واحدة بتذكير صارم بصيغة JSON فقط
+  const parseAttempt = (raw: string | null): { parsed: Record<string, unknown> | null } => {
+    if (!raw) return { parsed: null }
+    return { parsed: extractJsonObject(raw) }
+  }
+
+  let text = await callLLM(AGENT_SYSTEM_PROMPT, userPrompt)
+  let { parsed } = parseAttempt(text)
+  let actions = parsed ? sanitizeActions(schema, parsed.actions) : []
+  let explanation =
+    parsed && typeof parsed.explanation === 'string' && parsed.explanation.trim()
+      ? parsed.explanation.trim().slice(0, 400)
+      : ''
+
+  if (actions.length === 0) {
+    const retryPrompt = `${userPrompt}\n\n[تعليمات إلزامية: أعد JSON صالحًا فقط بالصيغة {"explanation":"...","actions":[{"tool":"...","args":{...}}]} دون أي نص خارج القوسين. استعمل pageId وblockId الحقيقية من السياق حرفيًا.]`
+    const retryText = await callLLM(AGENT_SYSTEM_PROMPT, retryPrompt)
+    const retry = parseAttempt(retryText)
+    if (retry.parsed) {
+      const retryActions = sanitizeActions(schema, retry.parsed.actions)
+      if (retryActions.length > 0) {
+        text = retryText
+        parsed = retry.parsed
+        actions = retryActions
+        explanation =
+          typeof retry.parsed.explanation === 'string' && retry.parsed.explanation.trim()
+            ? retry.parsed.explanation.trim().slice(0, 400)
+            : ''
       }
-      if (explanation) {
-        // الـ LLM فهم الطلب لكنه لم يجد إجراءات (أو رفض) — نعيد شرحه
-        return { explanation, actions: [], fallback: false }
-      }
+    }
+  }
+  void text
+  void parsed
+
+  if (text && parsed) {
+    if (actions.length > 0) {
+      return { explanation: explanation || 'نفّذت تعديلاتك على المشروع.', actions, fallback: false }
+    }
+    if (explanation) {
+      // الـ LLM فهم الطلب لكنه لم يجد إجراءات (أو رفض) — نعيد شرحه
+      return { explanation, actions: [], fallback: false }
     }
   }
 

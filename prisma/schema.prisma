@@ -32,6 +32,9 @@ model Project {
   status       String           @default("draft")
   schemaJson   String
   analysisJson String?
+  /// (الجولة 14) آخر تصدير ZIP — المشروع يبقى كاملاً بصوره في قاعدة
+  /// البيانات 24 ساعة بعد التصدير ثم تُنقّى الصور المؤقتة تلقائياً
+  exportedAt   DateTime?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   versions     ProjectVersion[]

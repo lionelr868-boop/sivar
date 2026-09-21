@@ -1,15 +1,15 @@
 'use client'
 
 // نافذة التصدير: تجهيز → فحوصات متحركة → جاهز للتحميل / خطأ
-// Task 8 — بعد التحميل: مزامنة حذف الصور المؤقتة محلياً (كما في الخادم)
+// (الجولة 14) التحميل يحفظ آخر التعديلات أولاً ويصدّر المشروع كاملاً
+// بصوره — ويبقى محفوظاً في قاعدة البيانات 24 ساعة قبل تنظيف الصور.
 import { useState } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { t } from '@/lib/i18n'
 import { downloadProjectZip } from '@/lib/api-client'
-import { stripTransientImages } from '@/lib/project/tools'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Check, Download, ExternalLink, FileCheck2, Loader2, XCircle, Wrench } from 'lucide-react'
+import { Check, Download, ExternalLink, FileCheck2, Loader2, XCircle, Wrench, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 
 export function ExportDialog() {
@@ -19,26 +19,30 @@ export function ExportDialog() {
   const projectId = useAppStore((s) => s.projectId)
   const setView = useAppStore((s) => s.setView)
   const sendAgent = useAppStore((s) => s.sendAgent)
-  const schema = useAppStore((s) => s.schema)
-  const applySchemaFn = useAppStore((s) => s.applySchemaFn)
+  const dirty = useAppStore((s) => s.dirty)
+  const saveProject = useAppStore((s) => s.saveProject)
   const [downloaded, setDownloaded] = useState(false)
+  const [savingBefore, setSavingBefore] = useState(false)
 
   const phase = exportState.phase
   if (!exportState.open) return null
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!projectId) return
+    // (الجولة 14) تعديلات معلّقة غير محفوظة؟ نحفظها أولاً حتى يُحمَّل
+    // المشروع المعدَّل كاملاً كما يراه المستخدم — لا نسخة قديمة
+    if (dirty) {
+      setSavingBefore(true)
+      try {
+        await saveProject()
+      } catch {
+        // saveProject يعرض خطأه — نتابع التحميل بنسخة الخادم الأخيرة
+      }
+      setSavingBefore(false)
+    }
     downloadProjectZip(projectId)
     setDownloaded(true)
-    // مطلب المستخدم: صور الخلفية تُحذف من قاعدة البيانات بعد التحميل —
-    // نحاذي الحالة المحلية بالخادم حتى لا تُعاد الكتابة عند الحفظ التالي
-    const hasTransientImage = (schema?.pages ?? []).some((p) =>
-      (p.blocks ?? []).some((b) => b.type === 'hero' && (b.props?.bgImage || b.props?.bgImageName))
-    )
-    if (hasTransientImage && schema) {
-      applySchemaFn((s) => stripTransientImages(s))
-      toast.info(t.builder.heroImageCleared, { duration: 6000 })
-    }
+    toast.success(t.export.retentionToast, { duration: 6000 })
   }
 
   return (
@@ -97,10 +101,23 @@ export function ExportDialog() {
                 </li>
               ))}
             </ul>
+            <div className="mb-3 flex items-start gap-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-start">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+              <p className="text-xs leading-relaxed text-muted-foreground">{t.export.retentionNote}</p>
+            </div>
             <div className="flex flex-col gap-2">
-              <Button size="lg" className="h-11 gap-2" onClick={handleDownload}>
-                <Download className="size-4.5" />
-                {t.export.downloadZip}
+              <Button size="lg" className="h-11 gap-2" disabled={savingBefore} onClick={() => void handleDownload()}>
+                {savingBefore ? (
+                  <>
+                    <Loader2 className="size-4.5 animate-spin" />
+                    {t.export.savingBeforeDownload}
+                  </>
+                ) : (
+                  <>
+                    <Download className="size-4.5" />
+                    {t.export.downloadZip}
+                  </>
+                )}
               </Button>
               {downloaded ? (
                 <div className="space-y-2 rounded-lg bg-secondary/60 p-3">

@@ -34,6 +34,7 @@ import {
   uid as uidFn,
 } from '@/lib/types'
 import { buildLandingBlocks, changeLandingVariant as changeLandingVariantInSchema, getLandingVariant, LANDING_VARIANTS } from '@/lib/project/landing-kit'
+import { mergeBlockProps } from '@/lib/project/entity-sync'
 
 // ============================================================
 // helpers
@@ -357,11 +358,35 @@ export function deletePageFromSchema(schema: ProjectSchema, pageId: string): Pro
   return next.pages.length === 0 ? schema : next
 }
 
+/** تعقيم خصائص يرسلها الوكيل/المحرر لمكوّن جديد: قيم JSON بسيطة فقط (بلا دوال ولا ملفات data URL ضخمة) */
+function sanitizeInitialProps(raw: unknown): Record<string, unknown> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const out: Record<string, unknown> = {}
+  const walk = (value: unknown): unknown => {
+    if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return typeof value === 'string' && value.length > 3000 ? value.slice(0, 3000) : value
+    }
+    if (Array.isArray(value)) return value.slice(0, 24).map(walk)
+    if (value && typeof value === 'object') {
+      const rec: Record<string, unknown> = {}
+      for (const [k, v] of Object.entries(value).slice(0, 30)) rec[k] = walk(v)
+      return rec
+    }
+    return undefined
+  }
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>).slice(0, 30)) {
+    const clean = walk(value)
+    if (clean !== undefined) out[key] = clean
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
 export function addBlockToPage(
   schema: ProjectSchema,
   pageId: string,
   blockType: BlockType,
-  position?: number
+  position?: number,
+  initialProps?: Record<string, unknown>
 ): { schema: ProjectSchema; blockId: string } {
   if (!isBlockType(blockType)) {
     throw new Error('نوع المكوّن غير معروف')
@@ -372,7 +397,10 @@ export function addBlockToPage(
     throw new Error('الصفحة غير موجودة')
   }
   const def = getBlockDefinition(blockType)
-  const props = def ? clone(def.defaults()) : {}
+  // (الجولة 14) خصائص الوكيل/المحرر تُدمج فوق الافتراضيات — لا تُستبدل
+  // كي تكتمل النواقص من القالب ولا ينتج مكوّن مبتور
+  const defaults = def ? clone(def.defaults()) : {}
+  const props = initialProps ? mergeBlockProps(defaults, initialProps) : defaults
   const block: Block = { id: uidFn('b_'), type: blockType, props }
   const pos = typeof position === 'number' ? Math.max(0, Math.min(position, page.blocks.length)) : page.blocks.length
   page.blocks.splice(pos, 0, block)
@@ -389,7 +417,9 @@ export function updateBlockPropsInSchema(
   const page = next.pages.find((p) => p.id === pageId)
   const block = page ? findBlock(page, blockId) : undefined
   if (!page || !block) return schema
-  block.props = { ...block.props, ...patch }
+  // (الجولة 14) دمج جراحي غير إتلافي: المصفوفات تُدمج بالفهرس فلا تضيع
+  // تعديلات المستخدم السابقة (صور/شارات/ميزات) عند كل تحديث
+  block.props = mergeBlockProps(block.props ?? {}, patch)
   return next
 }
 
@@ -666,7 +696,9 @@ export function applyActions(schema: ProjectSchema, actions: AgentAction[]): Act
             break
           }
           const position = numArg(args, 'position')
-          const { schema: next, blockId } = addBlockToPage(current, page.id, blockType, position)
+          // (الجولة 14) خصائص الوكيل اختيارية وتُدمج فوق الافتراضيات
+          const initialProps = sanitizeInitialProps(args.props)
+          const { schema: next, blockId } = addBlockToPage(current, page.id, blockType, position, initialProps)
           current = next
           applied.push(`تمت إضافة مكوّن «${blockLabel(blockType)}» إلى صفحة «${page.name}»`)
           void blockId

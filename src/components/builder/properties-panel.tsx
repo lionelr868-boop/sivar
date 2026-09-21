@@ -70,7 +70,17 @@ export function PropertiesPanel() {
   }
 
   const setProps = (patch: Record<string, unknown>) => {
+    const before = schema
     applySchemaFn((s) => updateBlockPropsInSchema(s, page.id, block.id, patch))
+    // (الجولة 14) تزامن موازٍ: تعديل عناصر المعرض/الفريق ينعكس على جداول
+    // لوحة التحكم — نُعلم المستخدم مرة واحدة عند تعديل القوائم تحديداً
+    const touchedList = Object.keys(patch).some((k) => k === 'items' || k === 'plans')
+    if (touchedList && (block.type === 'gallery' || block.type === 'team')) {
+      const after = useAppStore.getState().schema
+      const rowsChanged = before && after && before !== after &&
+        JSON.stringify(before.mockData?.entities) !== JSON.stringify(after.mockData?.entities)
+      if (rowsChanged) toast.info(t.builder.syncedEntitiesToast, { duration: 3500 })
+    }
   }
 
   const blockIdx = page.blocks.findIndex((b) => b.id === block.id)

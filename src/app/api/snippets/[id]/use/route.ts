@@ -62,7 +62,8 @@ export async function POST(request: Request, { params }: RouteContext): Promise<
     const schemaJson = JSON.stringify(next)
     await db.project.update({
       where: { id: project.id },
-      data: { schemaJson, status: project.status === 'draft' ? 'building' : project.status },
+      // (الجولة 14) إضافة صفحة = تحرير نشط: يُصفّر عدّاد الاحتفاظ بعد التصدير
+      data: { schemaJson, status: project.status === 'draft' ? 'building' : project.status, exportedAt: null },
     })
     await createProjectVersion(project.id, `إضافة صفحة HTML: ${snippet.name}`, schemaJson)
 

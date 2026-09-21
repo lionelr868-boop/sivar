@@ -1,13 +1,15 @@
 // ============================================================
 // SIVAR — GET /api/projects/[id]/export
 // Task 3-b — تصدير الموقع الثابت كملف ZIP (JSZip) + Netlify
-// Task 8-a — بعد التحميل: حذف صور خلفيات البطل المؤقتة من
-// قاعدة البيانات (تبقى داخل ZIP فقط — مطلب المستخدم).
+// (الجولة 14) المشروع المعدَّل يُصدَّر كاملاً بصوره وخلفياته،
+// ويبقى محفوظاً كاملاً في قاعدة البيانات 24 ساعة قبل تنقية
+// الصور المؤقتة — لا حذف ولا فقدان بعد التحميل.
 // ============================================================
 import JSZip from 'jszip'
 import { db } from '@/lib/db'
 import {
   createProjectVersion,
+  enforceExportRetention,
   findOwnedProject,
   getSessionUserId,
   readProjectSchema,
@@ -15,7 +17,6 @@ import {
 import { generateStaticSite } from '@/lib/export/generate'
 import { validateSchema } from '@/lib/project/validate'
 import { slugify } from '@/lib/types'
-import { stripTransientImages } from '@/lib/project/tools'
 import type { ProjectSchema } from '@/lib/types'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -27,13 +28,16 @@ export async function GET(_request: Request, { params }: RouteContext): Promise<
     if (!userId) {
       return Response.json({ error: 'يجب تسجيل الدخول أولاً' }, { status: 401 })
     }
-    const project = await findOwnedProject(id, userId)
-    if (!project) {
+    const owned = await findOwnedProject(id, userId)
+    if (!owned) {
       return Response.json({ error: 'المشروع غير موجود' }, { status: 404 })
     }
+    // (الجولة 14) احترام سياسة الاحتفاظ: إن انقضت 24 ساعة على تصدير سابق
+    // نُنقّي الصور المؤقتة أولاً — وإلا يُصدَّر المشروع كاملاً بصوره
+    const project = await enforceExportRetention(owned)
 
     // ---------- التحقق قبل التصدير ----------
-    let schema
+    let schema: ProjectSchema
     try {
       schema = readProjectSchema(project)
     } catch {
@@ -75,17 +79,15 @@ export async function GET(_request: Request, { params }: RouteContext): Promise<
     const asciiBase = base.replace(/[^\x20-\x7E]/g, '').replace(/[^a-zA-Z0-9-]/g, '') || 'sivar-project'
     const encodedBase = encodeURIComponent(base)
 
-    // ---------- حذف الصور المؤقتة من قاعدة البيانات بعد التحميل ----------
-    // (تبقى الصور داخل ملف ZIP فقط — أعد رفعها إن احتجت تصديراً جديداً بها)
-    const stripped = stripTransientImages(schema)
-    const schemaJsonToStore = stripped === schema ? project.schemaJson : JSON.stringify(stripped)
-
-    // ---------- تحديث الحالة + إصدار ----------
+    // ---------- (الجولة 14) الحفظ الكامل + عدّاد الاحتفاظ 24 ساعة ----------
+    // المخطط يبقى كما هو تماماً (بالصور والتعديلات)؛ نكتفي بوسم لحظة
+    // التحميل — بعد 24 ساعة تُنقّى الصور المؤقتة تلقائياً عند أول وصول.
+    const schemaJson = project.schemaJson
     await db.project.update({
       where: { id: project.id },
-      data: { status: 'downloaded', schemaJson: schemaJsonToStore },
+      data: { status: 'downloaded', exportedAt: new Date(), schemaJson },
     })
-    await createProjectVersion(project.id, 'تم تحميل المشروع', schemaJsonToStore)
+    await createProjectVersion(project.id, 'تم تحميل المشروع', schemaJson)
 
     return new Response(new Uint8Array(buffer), {
       status: 200,
@@ -94,6 +96,7 @@ export async function GET(_request: Request, { params }: RouteContext): Promise<
         'Content-Disposition': `attachment; filename="${asciiBase}.zip"; filename*=UTF-8''${encodedBase}.zip`,
         'Cache-Control': 'no-store',
         'X-Project-Name': encodeURIComponent(project.name || ''),
+        'X-Retention-Hours': '24',
       },
     })
   } catch {

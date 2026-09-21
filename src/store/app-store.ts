@@ -5,6 +5,7 @@
 import { create } from 'zustand'
 import { toast } from 'sonner'
 import * as api from '@/lib/api-client'
+import { syncEntitiesFromLanding } from '@/lib/project/entity-sync'
 import {
   type AgentResult,
   type AppView,
@@ -247,14 +248,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     const snapshot = cloneSchema(schema)
     const draft = cloneSchema(schema)
     mutator(draft)
+    // (الجولة 14) التزامن الموازي لحظياً: أي تعديل على أقسام الموقع
+    // (معرض/فريق) ينعكس فوراً على صفوف جداول لوحة التحكم في المعاينة
+    const synced = syncEntitiesFromLanding(draft)
     const nextPast = [...past, snapshot].slice(-HISTORY_LIMIT)
-    set({ schema: draft, past: nextPast, future: [], dirty: true, selectedBlockId: get().selectedBlockId })
+    set({ schema: synced, past: nextPast, future: [], dirty: true, selectedBlockId: get().selectedBlockId })
   },
 
   applySchemaFn: (fn) => {
     const { schema, past } = get()
     if (!schema) return
-    const next = fn(schema)
+    const mutated = fn(schema)
+    if (mutated === schema) return
+    // (الجولة 14) نفس التزامن الموازي لمسار لوحة الخصائص
+    const next = syncEntitiesFromLanding(mutated)
     if (next === schema) return
     set({
       schema: next,
@@ -329,11 +336,23 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // ---------- agent ----------
   sendAgent: async (text) => {
-    const { projectId, agentBusy } = get()
+    const { projectId, agentBusy, schema, dirty, saving } = get()
     if (!projectId || agentBusy || !text.trim()) return
     const userMsg: AgentMessage = { id: uid('m_'), role: 'user', text: text.trim(), ts: Date.now() }
     set({ agentMessages: [...get().agentMessages, userMsg], agentBusy: true })
     try {
+      // (الجولة 14) إصلاح حذف التعديلات السابقة: نحفظ التعديلات غير
+      // المحفوظة أولاً حتى يشتغل المساعد على آخر نسخة — فلا تُمسّ تعديلات
+      // المستخدم اليدوية بعد الآن
+      if (dirty && schema && !saving) {
+        try {
+          await api.saveProject(projectId, { schema })
+          set({ dirty: false })
+          toast.info('حفظنا تعديلاتك الأخيرة قبل تنفيذ طلب المساعد الذكي', { duration: 4000 })
+        } catch {
+          // نتابع على نسخة الخادم — عدم الحفظ لا يمنع تنفيذ الطلب
+        }
+      }
       const history = get()
         .agentMessages.filter((m) => m.id !== userMsg.id)
         .slice(-8)
@@ -346,11 +365,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         actions: result.actions,
         ts: Date.now(),
       }
-      const { schema } = get()
+      const current = get().schema
       set({
         agentMessages: [...get().agentMessages, agentMsg],
         agentBusy: false,
-        past: schema ? [...get().past, cloneSchema(schema)].slice(-HISTORY_LIMIT) : get().past,
+        past: current ? [...get().past, cloneSchema(current)].slice(-HISTORY_LIMIT) : get().past,
         schema: result.schema,
         future: [],
         dirty: true,
@@ -389,9 +408,27 @@ export const useAppStore = create<AppState>((set, get) => ({
   closeExport: () => set({ exportState: { open: false, phase: 'idle', checks: [] } }),
 
   runExport: async () => {
-    const { projectId, schema } = get()
+    const { projectId, schema, dirty, saving } = get()
     if (!projectId || !schema) return
     set({ exportState: { open: true, phase: 'preparing', checks: [] } })
+    // (الجولة 14) نحفظ آخر التعديلات قبل الفحص والتصدير — حتى يُحمَّل
+    // المشروع المعدَّل كاملاً كما يراه المستخدم لا نسخة قديمة
+    if (dirty && !saving) {
+      try {
+        await api.saveProject(projectId, { schema })
+        set({ dirty: false })
+      } catch (e) {
+        set({
+          exportState: {
+            open: true,
+            phase: 'error',
+            checks: [],
+            error: (e as Error).message || 'تعذّر حفظ التعديلات قبل التصدير.',
+          },
+        })
+        return
+      }
+    }
     await new Promise((r) => setTimeout(r, 700))
     set({ exportState: { open: true, phase: 'checks', checks: [] } })
     try {

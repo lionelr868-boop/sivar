@@ -79,7 +79,8 @@ export async function POST(request: Request, { params }: RouteContext): Promise<
     }
     const updated = await db.project.update({
       where: { id: project.id },
-      data: { schemaJson: version.schemaJson, ...(restoredName ? { name: restoredName } : {}) },
+      // (الجولة 14) استعادة = تحرير نشط: يُصفّر عدّاد الاحتفاظ بعد التصدير
+      data: { schemaJson: version.schemaJson, exportedAt: null, ...(restoredName ? { name: restoredName } : {}) },
     })
     const restoredNumber = await createProjectVersion(
       project.id,

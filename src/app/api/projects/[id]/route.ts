@@ -6,12 +6,13 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import {
   createProjectVersion,
+  enforceExportRetention,
   findOwnedProject,
   getSessionUserId,
   projectToDTO,
   projectToSummaryDTO,
 } from '@/lib/server/session'
-import { stripTransientImages } from '@/lib/project/tools'
+import { syncEntitiesFromLanding } from '@/lib/project/entity-sync'
 import type { ProjectSchema, ProjectStatus } from '@/lib/types'
 
 const MAX_SCHEMA_BYTES = 2 * 1024 * 1024 // 2MB
@@ -30,8 +31,11 @@ export async function GET(_request: Request, { params }: RouteContext): Promise<
     if (!project) {
       return NextResponse.json({ error: 'المشروع غير موجود' }, { status: 404 })
     }
-    const versionCount = await db.projectVersion.count({ where: { projectId: project.id } })
-    return NextResponse.json({ project: projectToDTO(project, versionCount) })
+    // (الجولة 14) سياسة الاحتفاظ: بعد 24 ساعة من التصدير تُنقّى الصور
+    // المؤقتة عند أول فتح — قبل ذلك يعود المشروع كاملاً بصوره وتعديلاته
+    const retained = await enforceExportRetention(project)
+    const versionCount = await db.projectVersion.count({ where: { projectId: retained.id } })
+    return NextResponse.json({ project: projectToDTO(retained, versionCount) })
   } catch {
     return NextResponse.json({ error: 'حدث خطأ في الخادم' }, { status: 500 })
   }
@@ -64,13 +68,22 @@ export async function PATCH(request: Request, { params }: RouteContext): Promise
     if (s.version !== 1 || !Array.isArray(s.pages) || s.pages.length === 0) {
       return NextResponse.json({ error: 'مخطط المشروع غير صالح' }, { status: 400 })
     }
-    const schemaJson = JSON.stringify(schema)
+    // (الجولة 14) التزامن الموازي عند الحفظ: تعديلات أقسام الموقع
+    // (معرض/فريق) تُشتق منها صفوف جداول لوحة التحكم — حتى لو فات العميل
+    // جزء من المزامنة تبقى قاعدة البيانات متسقة مع ما يراه المستخدم
+    const saved = syncEntitiesFromLanding(schema as ProjectSchema)
+    const schemaJson = JSON.stringify(saved)
     if (schemaJson.length > MAX_SCHEMA_BYTES) {
       return NextResponse.json({ error: 'المشروع كبير جداً' }, { status: 413 })
     }
 
     // ---------- الاسم والحالة ----------
-    const data: { schemaJson: string; name?: string; status?: string } = { schemaJson }
+    const data: { schemaJson: string; name?: string; status?: string; exportedAt: Date | null } = {
+      schemaJson,
+      // (الجولة 14) حفظ جديد = تحرير نشط: العدّاد يُصفّر فيبقى المشروع
+      // كاملاً بصوره حتى 24 ساعة من التصدير التالي
+      exportedAt: null,
+    }
     if (typeof body.name === 'string' && body.name.trim()) {
       data.name = body.name.trim().slice(0, 60)
     } else {
@@ -82,12 +95,12 @@ export async function PATCH(request: Request, { params }: RouteContext): Promise
 
     const updated = await db.project.update({ where: { id: project.id }, data })
 
-    // ---------- إصدار جديد (بلا صور مؤقتة — لا تبقى في قاعدة البيانات) ----------
+    // ---------- إصدار جديد كامل (الصور محفوظة — لا ضياع عند الاستعادة) ----------
     const versionLabel =
       typeof body.versionLabel === 'string' && body.versionLabel.trim()
         ? body.versionLabel.trim().slice(0, 80)
         : 'تحديث المشروع'
-    await createProjectVersion(project.id, versionLabel, JSON.stringify(stripTransientImages(schema as ProjectSchema)))
+    await createProjectVersion(project.id, versionLabel, schemaJson)
 
     const versionCount = await db.projectVersion.count({ where: { projectId: project.id } })
     return NextResponse.json({ project: projectToSummaryDTO(updated, versionCount) })

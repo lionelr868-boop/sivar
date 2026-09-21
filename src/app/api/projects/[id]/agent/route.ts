@@ -12,6 +12,7 @@ import {
 } from '@/lib/server/session'
 import { runAgent, type AgentHistoryMessage } from '@/lib/server/agent'
 import { applyActions, dashboardNavIconFor, isDashboardAreaPage } from '@/lib/project/tools'
+import { agentSyncPlan, syncEntitiesFromLanding, syncLandingFromEntities } from '@/lib/project/entity-sync'
 import { validateSchema } from '@/lib/project/validate'
 import { BLOCK_REGISTRY } from '@/lib/registry/blocks'
 import type { Block, ProjectPage, ProjectSchema } from '@/lib/types'
@@ -141,6 +142,25 @@ export async function POST(request: Request, { params }: RouteContext): Promise<
     let nextSchema = applied.schema
     let explanation = result.explanation
 
+    // ---------- (الجولة 14) التزامن الموازي: الموقع ↔ لوحة التحكم ----------
+    // اتجاه واحد لكل تشغيل حسب طبيعة الإجراءات — لا يطحن أحدهما الآخر:
+    // تعديل أقسام الموقع مباشرة → تُشتق صفوف الجداول منها؛
+    // تجديد بيانات تجريبية → تُعكس الأسماء/الأسعار على الأقسام.
+    const plan = agentSyncPlan(result.actions)
+    if (plan.landingDirty) {
+      const synced = syncEntitiesFromLanding(nextSchema)
+      if (synced !== nextSchema) {
+        nextSchema = synced
+        explanation = `${explanation} وتحدّثت بيانات لوحة التحكم المقابلة تلقائياً.`
+      }
+    } else if (plan.regenerated.length > 0) {
+      const mirrored = syncLandingFromEntities(nextSchema, plan.regenerated)
+      if (mirrored !== nextSchema) {
+        nextSchema = mirrored
+        explanation = `${explanation} وعُكست الأسماء والأسعار الجديدة على أقسام الموقع تلقائياً.`
+      }
+    }
+
     // ---------- التحقق + الإصلاح التلقائي ----------
     let validation = validateSchema(nextSchema)
     if (!validation.ok) {
@@ -152,6 +172,8 @@ export async function POST(request: Request, { params }: RouteContext): Promise<
     }
 
     // ---------- الحفظ + إصدار جديد ----------
+    // (الجولة 14) تحرير نشط: المشروع يُحفظ كاملاً بصوره — عدّاد الاحتفاظ
+    // بعد التصدير يُصفّر لأن المستخدم عاد للعمل على المشروع
     const schemaJson = JSON.stringify(nextSchema)
     const versionLabel = (applied.applied[0] ?? 'تحديث عبر المساعد الذكي').slice(0, 60)
     await db.project.update({
@@ -159,6 +181,7 @@ export async function POST(request: Request, { params }: RouteContext): Promise<
       data: {
         schemaJson,
         status: project.status === 'ready' ? 'ready' : 'building',
+        exportedAt: null,
       },
     })
     await createProjectVersion(project.id, versionLabel, schemaJson)
