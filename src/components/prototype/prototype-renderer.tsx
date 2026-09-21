@@ -18,6 +18,7 @@ import { hexDarken, hexLighten, PrototypeThemeScope } from './theme-provider'
 import { PAvatar } from './ui/p-avatar'
 import { PBadge } from './ui/p-badge'
 import { PButton } from './ui/p-button'
+import type { EntityRowChange, PreviewSession } from './blocks/shared'
 
 // ---- المكوّنات ----
 import { ActivityFeedBlock } from './blocks/activity-feed-block'
@@ -550,6 +551,8 @@ function AuthShell({
 
 // ============================================================
 // تروستة لوحة التحكم: بحث + إشعارات + قائمة المستخدم (Task 8)
+// (الجولة 16) هوية الجلسة على حسب جمهور الصفحة: صفحات الزبون
+// تعرض أمينة بلقاسم افتراضياً (أو اسم الجلسة) بلا روابط المدير.
 // ============================================================
 const NOTIFICATIONS = [
   { title: 'طلب جديد من وهران', detail: 'قيمة 12,500 دج — بانتظار التأكيد', time: 'قبل 4 دقائق' },
@@ -560,12 +563,15 @@ const NOTIFICATIONS = [
 function DashboardTopbar({
   schema,
   ctx,
+  audience,
   tableSearch,
   onTableSearch,
   go,
 }: {
   schema: ProjectSchema
   ctx: BlockCtx
+  /** (الجولة 16) جمهور الصفحة الحالية — client = فضاء الزبون */
+  audience: 'admin' | 'client'
   tableSearch: string
   onTableSearch: (q: string) => void
   go: (pageId: string) => void
@@ -573,6 +579,15 @@ function DashboardTopbar({
   const [notifOpen, setNotifOpen] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
   const [unread, setUnread] = useState(true)
+
+  const isClient = audience === 'client'
+  // صفحات الزبون: أمينة بلقاسم افتراضياً (SSR) — والجلسة تحل محلها إن وُجدت
+  const identityName = isClient
+    ? (ctx.session?.name ?? 'أمينة بلقاسم')
+    : (ctx.session?.name ?? 'مستخدم تجريبي')
+  const identityEmail = isClient
+    ? (ctx.session?.email ?? 'amina@sivar.dz')
+    : (ctx.session?.email ?? 'demo@sivar.dz')
 
   const profilePage = schema.pages.find((pg) => pg.type === 'profile')
   const settingsPage = schema.pages.find((pg) => pg.type === 'settings')
@@ -674,8 +689,8 @@ function DashboardTopbar({
             aria-expanded={userOpen}
             className="flex min-h-9 cursor-pointer items-center gap-2 rounded-full border border-[var(--pt-border)] py-1 pe-2.5 ps-1 transition-colors duration-150 hover:bg-[var(--pt-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pt-primary)]"
           >
-            <PAvatar name="م" size={28} />
-            <span className="hidden text-[13px] font-bold text-[var(--pt-text)] md:inline">مستخدم تجريبي</span>
+            <PAvatar name={isClient ? identityName : (ctx.session?.name ?? 'م')} size={28} />
+            <span className="hidden text-[13px] font-bold text-[var(--pt-text)] md:inline">{identityName}</span>
           </button>
           {userOpen ? (
             <div
@@ -685,13 +700,14 @@ function DashboardTopbar({
               aria-label="قائمة الحساب"
             >
               <div className="border-b border-[var(--pt-border)] px-3.5 py-2.5">
-                <p className="text-sm font-bold">مستخدم تجريبي</p>
+                <p className="text-sm font-bold">{identityName}</p>
                 <p className="truncate text-[11px] text-[var(--pt-muted)]" dir="ltr">
-                  demo@sivar.dz
+                  {identityEmail}
                 </p>
               </div>
               <div className="p-1.5">
-                {profilePage ? (
+                {/* (الجولة 16) روابط الملف/الإعدادات صفحات مدير — تخفى في فضاء الزبون */}
+                {!isClient && profilePage ? (
                   <button
                     type="button"
                     role="menuitem"
@@ -705,7 +721,7 @@ function DashboardTopbar({
                     الملف الشخصي
                   </button>
                 ) : null}
-                {settingsPage ? (
+                {!isClient && settingsPage ? (
                   <button
                     type="button"
                     role="menuitem"
@@ -727,6 +743,8 @@ function DashboardTopbar({
                       role="menuitem"
                       onClick={() => {
                         closeMenus()
+                        // (الجولة 16) يفرّغ الجلسة أولاً ثم ينقل لصفحة الدخول
+                        ctx.onLogout?.()
                         go(loginPage.id)
                       }}
                       className="flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-[calc(var(--pt-radius)-4px)] px-2.5 text-[13px] font-semibold transition-colors duration-150 hover:bg-[var(--pt-secondary)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--pt-primary)]"
@@ -748,6 +766,8 @@ function DashboardTopbar({
 
 // ============================================================
 // قشرة لوحة التحكم (dashboard / table / form / settings / profile)
+// (الجولة 16) فصل الجمهور: صفحات admin تعرض عناصر شريط المدير فقط،
+// وصفحات client (فضاء الزبون) عناصر شريطها الخاص فقط — بلا خلط.
 // ============================================================
 function DashboardShell({
   schema,
@@ -762,7 +782,18 @@ function DashboardShell({
   selectedBlockId?: string | null
   onBlockSelect?: (blockId: string | null) => void
 }): ReactElement {
-  const items = schema.dashboardNav.items
+  // (الجولة 16) جمهور الصفحة يحدد عناصر الشريط وهوية المستخدم
+  const audience: 'admin' | 'client' = page.audience === 'client' ? 'client' : 'admin'
+  const isClient = audience === 'client'
+  const items = schema.dashboardNav.items.filter((it) => {
+    const target = schema.pages.find((pg) => pg.id === it.pageId)
+    return (target?.audience === 'client' ? 'client' : 'admin') === audience
+  })
+  const navAriaLabel = isClient ? 'تنقل فضاء الزبون' : 'تنقل لوحة التحكم'
+  // صفحات الزبون: أمينة بلقاسم + شارة «زبون» — والجلسة تحل محل الاسم إن وُجدت
+  const identityName = isClient
+    ? (ctx.session?.name ?? 'أمينة بلقاسم')
+    : (ctx.session?.name ?? 'مستخدم تجريبي')
   const logo = ctx.schema.branding?.logo
   const projectBg = ctx.schema.branding?.bgImage
   const homeId = schema.pages.find((pg) => pg.type === 'landing')?.id ?? schema.pages[0]?.id
@@ -818,11 +849,11 @@ function DashboardShell({
           )}
         </div>
 
-        <nav aria-label="تنقل لوحة التحكم" className="flex-1 space-y-1 overflow-y-auto p-3">
+        <nav aria-label={navAriaLabel} className="flex-1 space-y-1 overflow-y-auto p-3">
           {items.map((item) => navItem(item, false))}
         </nav>
 
-        {/* العودة إلى الموقع + بطاقة المستخدم التجريبي */}
+        {/* العودة إلى الموقع + بطاقة المستخدم (هوية حسب الجمهور) */}
         <div className="space-y-1 border-t border-[var(--pt-border)] p-3">
           {homeId ? (
             <button
@@ -835,10 +866,10 @@ function DashboardShell({
             </button>
           ) : null}
           <div className="flex items-center gap-2.5 rounded-[calc(var(--pt-radius)-2px)] p-2">
-            <PAvatar name="م" size={34} />
+            <PAvatar name={identityName} size={34} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-bold">مستخدم تجريبي</p>
-              <PBadge tone="primary">بيانات تجريبية</PBadge>
+              <p className="truncate text-[13px] font-bold">{identityName}</p>
+              {isClient ? <PBadge tone="primary">زبون</PBadge> : <PBadge tone="primary">بيانات تجريبية</PBadge>}
             </div>
           </div>
         </div>
@@ -875,7 +906,7 @@ function DashboardShell({
             ) : null}
           </div>
           <nav
-            aria-label="تنقل لوحة التحكم"
+            aria-label={navAriaLabel}
             className="flex gap-2 overflow-x-auto px-4 py-2.5"
             style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--pt-border) transparent' }}
           >
@@ -885,7 +916,14 @@ function DashboardShell({
 
         {/* تروستة لوحة التحكم (بحث + إشعارات + مستخدم) */}
         {!ctx.mini ? (
-          <DashboardTopbar schema={schema} ctx={ctx} tableSearch={tableSearch} onTableSearch={setTableSearch} go={go} />
+          <DashboardTopbar
+            schema={schema}
+            ctx={ctx}
+            audience={audience}
+            tableSearch={tableSearch}
+            onTableSearch={setTableSearch}
+            go={go}
+          />
         ) : null}
 
         {/* محتوى الصفحة */}
@@ -920,6 +958,11 @@ export function PrototypeRenderer({
   onNavigate,
   interactive,
   mini,
+  onEntityRowChange,
+  session,
+  onLoginAs,
+  onLogout,
+  onPlaceOrder,
 }: {
   schema: ProjectSchema
   pageId: string
@@ -932,6 +975,16 @@ export function PrototypeRenderer({
   interactive?: boolean
   /** معاينة مصغّرة — بديل خفيف لأقسام HTML المخصصة */
   mini?: boolean
+  /** (الجولة 15) إدارة صفوف الكيانات من لوحة تحكم الموقع نفسه */
+  onEntityRowChange?: (entityKey: string, change: EntityRowChange) => void
+  /** (الجولة 16) جلسة الدخول التجريبية — مدير أو زبون */
+  session?: PreviewSession | null
+  /** (الجولة 16) الدخول بدور من بطاقة الدخول */
+  onLoginAs?: (role: 'admin' | 'client') => void
+  /** (الجولة 16) تسجيل الخروج — يفرّغ الجلسة */
+  onLogout?: () => void
+  /** (الجولة 16) زبون يطلب خطة تسعير — صف حقيقي في orders */
+  onPlaceOrder?: (plan: { name: string; price: number }) => void
 }): ReactElement {
   const page =
     schema.pages.find((pg) => pg.id === pageId) ??
@@ -943,6 +996,11 @@ export function PrototypeRenderer({
     interactive: interactive ?? false,
     mini,
     onNavigate,
+    onEntityRowChange,
+    session,
+    onLoginAs,
+    onLogout,
+    onPlaceOrder,
   }
 
   const shellProps = { schema, page, ctx, selectedBlockId, onBlockSelect }

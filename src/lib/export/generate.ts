@@ -24,11 +24,13 @@ import type {
   ProjectTheme,
 } from '@/lib/types'
 import { slugify } from '@/lib/types'
-import { ENTITY_LABELS } from '@/lib/content/mock-data'
+import { DEMO_CLIENT, ENTITY_LABELS, ENTITY_SINGULARS } from '@/lib/content/mock-data'
 import {
   bannerButtonTarget,
   ctaButtonTarget,
   dashboardActionTarget,
+  findAdminDashboardPage,
+  findClientPage,
   findDashboardPage,
   findHomePage,
   heroPrimaryTarget,
@@ -185,6 +187,14 @@ function avatarHtml(name: string, size = 32): string {
   return `<span class="pt-avatar" style="width:${size}px;height:${size}px;background:${tone};font-size:${fontSize}px" role="img" aria-label="${esc(name || 'مستخدم')}">${esc(initialsOf(name || '؟'))}</span>`
 }
 
+/** (الجولة 16) أنواع صفحات منطقة اللوحة — تحمل جمهور admin/client وتخضع لحراسة الجلسة */
+const DASHBOARD_PAGE_TYPES: ReadonlySet<string> = new Set(['dashboard', 'table', 'form', 'settings', 'profile'])
+
+/** (الجولة 16) أفاتار بخطّ تعويض الهوية: script.js يستبدله بأفاتار اسم الجلسة (data-user-avatar) */
+function sessionAvatarHtml(name: string, size: number): string {
+  return avatarHtml(name, size).replace('<span class="pt-avatar"', '<span class="pt-avatar" data-user-avatar="1"')
+}
+
 // ============================================================
 // أيقونات SVG مضمّنة (بدون أي مكتبات) — مسارات بنمط lucide
 // stroke يتبع currentColor — تُستخدم في التروستة/الزر الخلفي/الكتل الجديدة
@@ -235,6 +245,9 @@ const ICON_SVG: Record<string, string> = {
   building: '<rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/>',
   utensils: '<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>',
   'clipboard-list': '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+  // (الجولة 15) أيقونتا إجراءات صفوف الجداول — تعديل وحذف (نمط lucide)
+  pencil: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>',
+  'trash-2': '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
 }
 
 /** أيقونة مضمّنة بالاسم (Sparkles بديلاً عند الاسم غير المعروف) */
@@ -898,6 +911,17 @@ body.pt-hasbg--soft::after{content:'';position:fixed;inset:0;z-index:-1;backgrou
 .pt-auth__back{position:relative;display:inline-flex;align-items:center;gap:6px;margin-top:24px;min-height:40px;font-size:14px;font-weight:600;color:var(--pt-muted);transition:color .15s}
 .pt-auth__back:hover{color:var(--pt-primary)}
 
+/* ===== (الجولة 16) محدد الأدوار في بطاقة الدخول (كزبون / كمدير) ===== */
+.blk-auth__roles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:2px 0 4px}
+.blk-role{display:flex;flex-direction:column;gap:3px;align-items:flex-start;padding:10px 12px;border:1px solid var(--pt-border);border-radius:calc(var(--pt-radius) - 2px);background:transparent;cursor:pointer;text-align:start;transition:border-color .15s,background .15s}
+.blk-role .blk-role__icon{display:flex}
+.blk-role__name{font-size:13.5px;font-weight:700;color:var(--pt-text);display:flex;align-items:center;gap:6px}
+.blk-role__hint{font-size:11.5px;color:var(--pt-muted)}
+.blk-role.is-on{border-color:var(--pt-primary);background:color-mix(in srgb,var(--pt-primary) 10%,transparent)}
+.blk-role.is-on .blk-role__name{color:var(--pt-primary)}
+.blk-role:focus-visible{outline:2px solid var(--pt-primary);outline-offset:2px}
+.blk-auth__role-note{margin:10px 0 0;font-size:12.5px;color:var(--pt-muted);line-height:1.6}
+
 /* ===== dashboard blocks ===== */
 .blk-dash-header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px}
 .blk-dash-header__title{font-size:22px;font-weight:800}
@@ -961,6 +985,27 @@ body.pt-hasbg--soft::after{content:'';position:fixed;inset:0;z-index:-1;backgrou
 .blk-table__foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--pt-border);padding:12px 20px;font-size:12px;color:var(--pt-muted)}
 .blk-table__pager{display:flex;align-items:center;gap:10px}
 .blk-table__pager-count{font-size:12px;color:var(--pt-muted);white-space:nowrap}
+/* ===== (الجولة 15) إدارة الصفوف داخل الجدول: أدوات الترويسة + إجراءات الصف ===== */
+.blk-table__tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pt-rowacts{display:inline-flex;gap:6px}
+.pt-rowact{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:calc(var(--pt-radius) - 6px);border:1px solid transparent;background:transparent;color:var(--pt-muted);cursor:pointer;transition:all .15s ease}
+.pt-rowact:hover{border-color:var(--pt-border);background:var(--pt-secondary);color:var(--pt-text)}
+.pt-rowact--danger:hover{color:#dc2626}
+.blk-table__act{white-space:nowrap}
+.blk-table__empty td{padding:30px 16px;text-align:center;color:var(--pt-muted);font-size:13px}
+.pt-linkbtn{background:none;border:none;padding:0;margin:0;color:var(--pt-primary);text-decoration:underline;cursor:pointer;font:inherit;font-size:11px}
+/* ===== (الجولة 15) نافذة إضافة/تعديل/حذف + التنبيه العائم ===== */
+.pt-modal{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.55)}
+.pt-modal__card{width:100%;max-width:560px;max-height:88vh;overflow-y:auto;background:var(--pt-surface);border:1px solid var(--pt-border);border-radius:var(--pt-radius);padding:22px 24px;box-shadow:var(--pt-shadow)}
+.pt-modal__card--sm{max-width:390px}
+.pt-modal__card--sm .pt-modal__actions{margin-top:18px}
+.pt-modal h3{font-size:17px;font-weight:800;color:var(--pt-text);margin:0}
+.pt-modal__note{margin:6px 0 0;font-size:12px;color:var(--pt-muted)}
+.pt-modal__grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:18px}
+@media(min-width:640px){.pt-modal__grid{grid-template-columns:1fr 1fr}}
+.pt-modal__actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:12px;margin-top:6px}
+.pt-toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(10px);background:#16121f;color:#fff;padding:10px 20px;border-radius:999px;font-size:13px;font-weight:600;opacity:0;visibility:hidden;transition:opacity .25s,transform .25s,visibility .25s;z-index:80;box-shadow:0 10px 30px rgba(0,0,0,.3);pointer-events:none;max-width:90vw;text-align:center}
+.pt-toast.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
 
 /* ===== تروستة لوحة التحكم (بحث + إشعارات + مستخدم) ===== */
 .pt-topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:8px;padding:10px 16px;background:color-mix(in srgb,var(--pt-surface) 95%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--pt-border)}
@@ -1135,11 +1180,13 @@ body:has(.pt-back) .pt-demo-badge{display:none}
   .blk-donut-wrap{justify-content:center}
   .pt-user__name{display:none}
   .pt-topbar{padding:8px 12px}
+  .blk-table__tools{width:100%}
 }
 @media (max-width:480px){
   .blk-features__grid{grid-template-columns:1fr}
   .blk-hero{padding-block:44px}
   .pt-lead-form{flex-direction:column}
+  .blk-auth__roles{grid-template-columns:1fr}
 }
 @media (max-width:640px){
   .pt-mock-dash__body{grid-template-columns:104px minmax(0,1fr)}
@@ -1174,7 +1221,23 @@ function buildScriptJs(): string {
   // النماذج: نجاح أو إعادة توجيه (الدخول إلى لوحة التحكم)
   document.querySelectorAll('form.pt-form').forEach(function (form) {
     form.addEventListener('submit', function (e) {
+      // (الجولة 15) نموذج الإعدادات: حفظ محلي + تنبيه — دون استبدال النموذج
+      if (form.hasAttribute('data-settings')) { handleSettingsSave(form, e); return }
       e.preventDefault()
+      // (الجولة 16) بطاقة الدخول بمحدد الأدوار: اضبط الجلسة حسب الدور المختار
+      // ثم انقل إلى فضاء ذلك الدور (بلا data-redirect على هذا النموذج)
+      if (form.hasAttribute('data-login-roles')) {
+        var authCard = form.closest('.blk-auth__card')
+        var selRole = authCard ? authCard.querySelector('.blk-role.is-on') : null
+        var role = selRole && selRole.getAttribute('data-role') === 'admin' ? 'admin' : 'client'
+        writeSession(role, role === 'client' ? 'أمينة بلقاسم' : 'مستخدم تجريبي', role === 'client' ? 'amina@sivar.dz' : 'demo@sivar.dz')
+        window.location.href = role === 'client' ? form.getAttribute('data-client-href') : form.getAttribute('data-admin-href')
+        return
+      }
+      // (الجولة 16) التسجيل العام يصنع جلسة زبون قبل اتباع data-redirect
+      if (form.hasAttribute('data-signup-client')) {
+        writeSession('client', 'أمينة بلقاسم', 'amina@sivar.dz')
+      }
       var redirect = form.getAttribute('data-redirect')
       if (redirect) {
         window.location.href = redirect
@@ -1198,7 +1261,10 @@ function buildScriptJs(): string {
     var own = document.querySelector('[data-table-search="' + table.id + '"]')
     var q1 = own ? own.value.trim().toLowerCase() : ''
     var q2 = topbarSearch ? topbarSearch.value.trim().toLowerCase() : ''
-    var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr'))
+    var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr')).filter(function (r) {
+      // (الجولة 15) صفّ الإشعار «لا يوجد بعد» ليس بيانات — لا يُحسب في العدّاد
+      return !r.classList.contains('blk-table__empty')
+    })
     var matched = []
     rows.forEach(function (row) {
       var text = row.textContent.toLowerCase()
@@ -1446,6 +1512,653 @@ function buildScriptJs(): string {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     })
   }
+
+  // ===== (الجولة 15) إدارة المحتوى داخل الموقع المُصدَّر — وضع تجريبي محلي =====
+  // البذرة (window.SIVAR_SEED) مُحقونة في كل صفحة قبل هذا الملف؛ كل التعديلات
+  // تُحفظ في متصفح الزائر (localStorage) وتُطبَّق فوراً على الجدول وقسم
+  // المعرض/الفريق المقابل — بلا أي خادم. زر «إعادة الضبط» يعيد الأصل.
+  var SEED = window.SIVAR_SEED || { key: 'sivar-site', entities: {}, entityByVariant: {} }
+  var AVATAR_TONES_JS = ['#0d9488', '#7c5cd6', '#c2610c', '#bd4b7f', '#3d6bd6', '#6a8f1f']
+  var STATUS_TONES_JS = {
+    'مكتمل': 'success', 'نشط': 'success', 'مدفوع': 'success', 'متاح': 'success', 'مؤكد': 'success', 'نشطة': 'success',
+    'جديد': 'warning', 'قيد المعالجة': 'warning', 'معلق': 'warning', 'معلّقة': 'warning', 'قيد المراجعة': 'warning', 'متأخرة': 'warning',
+    'ملغى': 'danger', 'فاشل': 'danger', 'ملغاة': 'danger', 'نفد': 'danger', 'نفد المخزون': 'danger', 'متوقف': 'danger', 'موقوفة': 'danger', 'غير نشط': 'danger'
+  }
+  var BADGES_JS = ['نشط', 'مكتمل', 'مدفوع', 'متاح', 'مؤكد', 'جديد', 'قيد المعالجة', 'معلق', 'متأخرة', 'ملغى', 'نفد المخزون', 'غير نشط']
+  var GALLERY_GRADIENTS_JS = [
+    'linear-gradient(135deg, var(--pt-primary), var(--pt-accent))',
+    'linear-gradient(135deg, var(--pt-accent), color-mix(in srgb, var(--pt-primary) 55%, #db2777))',
+    'linear-gradient(135deg, color-mix(in srgb, var(--pt-primary) 70%, #16121f), var(--pt-primary))',
+    'linear-gradient(135deg, var(--pt-accent), color-mix(in srgb, var(--pt-primary) 45%, #0d9488))'
+  ]
+  var ICON_PENCIL_JS = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>'
+  var ICON_TRASH_JS = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>'
+
+  // ---- منافذ JS للمولّدات (مطابقة حرفياً لمخرجات SSR) ----
+  function escJs(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+  }
+  function fmtNumJs(v) {
+    v = Number(v)
+    if (!isFinite(v)) return '0'
+    try {
+      var s = v.toLocaleString('ar-DZ')
+      return /^[\\d\\s.,'’]+$/.test(s) ? s : v.toLocaleString('en-US')
+    } catch (e) {
+      return v.toLocaleString('en-US')
+    }
+  }
+  function initialsJs(name) {
+    var parts = String(name || '').trim().split(/\\s+/).filter(Boolean)
+    if (parts.length === 0) return '؟'
+    if (parts.length === 1) return parts[0].slice(0, 2)
+    return (parts[0].charAt(0) || '') + (parts[1].charAt(0) || '')
+  }
+  function hashNameJs(name) {
+    var h = 0
+    var s = String(name || '')
+    for (var i = 0; i < s.length; i++) {
+      h = (h * 31 + s.charCodeAt(i)) >>> 0
+    }
+    return h
+  }
+  function avatarJs(name, size) {
+    var tone = AVATAR_TONES_JS[hashNameJs(name || '؟') % AVATAR_TONES_JS.length]
+    var fontSize = Math.max(10, Math.round(size * 0.38))
+    return '<span class="pt-avatar" style="width:' + size + 'px;height:' + size + 'px;background:' + tone + ';font-size:' + fontSize + 'px" role="img" aria-label="' + escJs(name || 'مستخدم') + '">' + escJs(initialsJs(name || '؟')) + '</span>'
+  }
+  function statusToneJs(s) {
+    return Object.prototype.hasOwnProperty.call(STATUS_TONES_JS, s) ? STATUS_TONES_JS[s] : 'default'
+  }
+  function badgeJs(text, tone) {
+    return '<span class="pt-badge pt-badge--' + escJs(tone) + '">' + escJs(text) + '</span>'
+  }
+  function cellJs(col, value) {
+    switch (col.type) {
+      case 'avatar':
+        return '<span class="pt-cell-avatar">' + avatarJs(typeof value === 'string' ? value : '', 32) + '<span>' + escJs(typeof value === 'string' && value ? value : '—') + '</span></span>'
+      case 'badge':
+        return badgeJs(value == null ? '—' : String(value), statusToneJs(value == null ? '' : String(value)))
+      case 'currency':
+        return '<span class="pt-currency">' + escJs(fmtNumJs(Number(value) || 0)) + ' <small>دج</small></span>'
+      case 'number':
+        return '<span>' + escJs(fmtNumJs(Number(value) || 0)) + '</span>'
+      case 'progress':
+        var pv = Math.max(0, Math.min(100, Number(value) || 0))
+        return '<span class="pt-progress"><span class="pt-progress__track"><span class="pt-progress__fill" style="width:' + pv + '%"></span></span><span class="pt-progress__pct">' + pv + '%</span></span>'
+      case 'email':
+      case 'phone':
+        return '<span class="pt-ltr">' + escJs(typeof value === 'string' && value ? value : '—') + '</span>'
+      case 'date':
+        return '<span style="white-space:nowrap;font-size:13px;color:var(--pt-muted)">' + escJs(typeof value === 'string' && value ? value : '—') + '</span>'
+      default:
+        return '<span>' + escJs(typeof value === 'string' && value ? value : typeof value === 'number' ? fmtNumJs(value) : '—') + '</span>'
+    }
+  }
+  function cellStrJs(row, key) {
+    var v = row ? row[key] : null
+    return v == null ? '' : String(v)
+  }
+
+  // ---- التخزين المحلي ----
+  function readStore() { try { return JSON.parse(localStorage.getItem(SEED.key) || '{}') } catch (e) { return {} } }
+  function writeStore(store) { try { localStorage.setItem(SEED.key, JSON.stringify(store)) } catch (e) {} }
+  function storedRows(entityKey) {
+    var s = readStore()
+    return s && s.entities && Object.prototype.hasOwnProperty.call(s.entities, entityKey) ? s.entities[entityKey] : null
+  }
+  function saveRows(entityKey, rows) {
+    var s = readStore()
+    s.entities = s.entities || {}
+    s.entities[entityKey] = rows
+    writeStore(s)
+  }
+  function clearRows(entityKey) {
+    var s = readStore()
+    if (s.entities) delete s.entities[entityKey]
+    writeStore(s)
+  }
+  function currentRows(entityKey) {
+    var stored = storedRows(entityKey)
+    if (stored != null) return stored.slice()
+    var ent = SEED.entities && SEED.entities[entityKey]
+    return ent && ent.rows ? ent.rows.slice() : []
+  }
+
+  // ---- (الجولة 16) الجلسة: داخل نفس مخزن localStorage للموقع (store.session) ----
+  // القراءة دائماً read → تغيير .session → كتابة حتى لا تُفقد كيانات/إعدادات المخزن
+  function readSession() {
+    var s = readStore()
+    return s && s.session && (s.session.role === 'client' || s.session.role === 'admin') ? s.session : null
+  }
+  function writeSession(role, name, email) {
+    var s = readStore()
+    s.session = { role: role, name: name, email: email }
+    writeStore(s)
+  }
+  function clearSession() {
+    var s = readStore()
+    if (s.session) delete s.session
+    writeStore(s)
+  }
+  function colJs(entityKey) {
+    var ent = SEED.entities && SEED.entities[entityKey]
+    return ent && ent.columns ? ent.columns : []
+  }
+  function singularOf(entityKey) {
+    return SEED.labels && SEED.labels[entityKey] ? SEED.labels[entityKey] : 'عنصر'
+  }
+  function nameColOf(cols) {
+    for (var i = 0; i < cols.length; i++) {
+      if (cols[i].type === 'text' || cols[i].type === 'avatar') return cols[i]
+    }
+    return null
+  }
+  function priceColOf(cols) {
+    for (var i = 0; i < cols.length; i++) {
+      if (cols[i].type === 'currency') return cols[i]
+    }
+    return null
+  }
+  function rowNameJs(cols, row) {
+    for (var i = 0; i < cols.length; i++) {
+      if (cols[i].type === 'text' || cols[i].type === 'avatar') {
+        var v = row ? row[cols[i].key] : null
+        if (typeof v === 'string' && v) return v
+      }
+    }
+    return ''
+  }
+
+  // ---- التنبيه العائم ----
+  var toastEl = null
+  var toastTimer = null
+  function toast(msg) {
+    if (!toastEl) {
+      toastEl = document.createElement('div')
+      toastEl.className = 'pt-toast'
+      toastEl.setAttribute('role', 'status')
+      toastEl.setAttribute('aria-live', 'polite')
+      document.body.appendChild(toastEl)
+    }
+    toastEl.textContent = msg
+    if (toastTimer) clearTimeout(toastTimer)
+    toastEl.classList.add('show')
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show') }, 2400)
+  }
+
+  // ---- إعادة بناء صفوف الجدول من المخزن/البذرة ----
+  function tableCardOf(entityKey) {
+    var cards = document.querySelectorAll('.blk-table[data-entity]')
+    for (var i = 0; i < cards.length; i++) {
+      if (cards[i].getAttribute('data-entity') === entityKey) return cards[i]
+    }
+    return null
+  }
+  function rowHtmlJs(cols, row, i, singular, readOnly) {
+    var cells = ''
+    for (var c = 0; c < cols.length; c++) {
+      cells += '<td>' + cellJs(cols[c], row ? row[cols[c].key] : null) + '</td>'
+    }
+    // (الجولة 16) وضع الزبون للقراءة فقط — بلا عمود إجراءات ولا أزرار تعديل/حذف
+    if (readOnly) return '<tr data-idx="' + i + '">' + cells + '</tr>'
+    var name = rowNameJs(cols, row) || singular
+    return '<tr data-idx="' + i + '">' + cells +
+      '<td class="blk-table__act"><span class="pt-rowacts">' +
+      '<button type="button" class="pt-rowact" data-edit-row aria-label="تعديل ' + escJs(name) + '" title="تعديل">' + ICON_PENCIL_JS + '</button>' +
+      '<button type="button" class="pt-rowact pt-rowact--danger" data-del-row aria-label="حذف ' + escJs(name) + '" title="حذف">' + ICON_TRASH_JS + '</button>' +
+      '</span></td></tr>'
+  }
+  // (الجولة 16) صفوف وضع الزبون: قيمة عمود avatar === اسم الزبونة التجريبية؛
+  // لا عمود avatar أو صفر مطابقات → كل الصفوف (نفس قاعدة SSR حرفياً — لا يُفرغ الجدول)
+  function clientRowsJs(entityKey, rows) {
+    var cols = colJs(entityKey)
+    var avatarCol = null
+    for (var i = 0; i < cols.length; i++) {
+      if (cols[i].type === 'avatar') { avatarCol = cols[i]; break }
+    }
+    if (!avatarCol) return rows
+    var matched = []
+    for (var j = 0; j < rows.length; j++) {
+      if (rows[j] && rows[j][avatarCol.key] === 'أمينة بلقاسم') matched.push(rows[j])
+    }
+    return matched.length ? matched : rows
+  }
+  function renderTbody(card) {
+    if (!card) return
+    var table = card.querySelector('table.pt-table')
+    var entityKey = card.getAttribute('data-entity')
+    var cols = colJs(entityKey)
+    if (!table || !cols.length) return
+    var tbody = table.querySelector('tbody')
+    if (!tbody) return
+    var readOnly = card.getAttribute('data-client-view') === '1'
+    var rows = currentRows(entityKey)
+    if (readOnly) rows = clientRowsJs(entityKey, rows)
+    var singular = singularOf(entityKey)
+    var html = ''
+    for (var i = 0; i < rows.length; i++) {
+      html += rowHtmlJs(cols, rows[i], i, singular, readOnly)
+    }
+    if (!rows.length) {
+      html = '<tr class="blk-table__empty"><td colspan="' + (cols.length + (readOnly ? 0 : 1)) + '">لا يوجد ' + escJs(singular) + ' بعد' + (readOnly ? '.' : ' — اضغط «إضافة» لإضافة أول عنصر من هنا مباشرة.') + '</td></tr>'
+    }
+    tbody.innerHTML = html
+    refreshTable(table)
+  }
+
+  // ---- النوافذ (إضافة/تعديل/حذف) ----
+  var activeModal = null
+  function closeModal() {
+    if (activeModal && activeModal.parentNode) activeModal.parentNode.removeChild(activeModal)
+    activeModal = null
+  }
+  function mountModal(innerHtml) {
+    closeModal()
+    var wrap = document.createElement('div')
+    wrap.className = 'pt-modal'
+    wrap.setAttribute('role', 'dialog')
+    wrap.setAttribute('aria-modal', 'true')
+    wrap.setAttribute('aria-labelledby', 'pt-modal-title')
+    wrap.innerHTML = innerHtml
+    document.body.appendChild(wrap)
+    wrap.addEventListener('click', function (e) { if (e.target === wrap) closeModal() })
+    var closeBtn = wrap.querySelector('[data-modal-close]')
+    if (closeBtn) closeBtn.addEventListener('click', closeModal)
+    activeModal = wrap
+    return wrap
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && activeModal) closeModal()
+  })
+  function badgesDatalistHtml() {
+    var out = '<datalist id="pt-badges">'
+    for (var i = 0; i < BADGES_JS.length; i++) out += '<option value="' + escJs(BADGES_JS[i]) + '"></option>'
+    return out + '</datalist>'
+  }
+  function openRowModal(entityKey, idx) {
+    var cols = colJs(entityKey)
+    if (!cols.length) return
+    var rows = currentRows(entityKey)
+    var row = (idx != null && idx >= 0 && idx < rows.length) ? rows[idx] : null
+    var singular = singularOf(entityKey)
+    var nameCol = nameColOf(cols)
+    var fieldsHtml = ''
+    for (var i = 0; i < cols.length; i++) {
+      var col = cols[i]
+      var val = row && row[col.key] != null ? String(row[col.key]) : ''
+      var isReq = !!(nameCol && col.key === nameCol.key)
+      var reqAttr = isReq ? ' data-required="1"' : ''
+      var control = ''
+      if (col.type === 'number' || col.type === 'currency' || col.type === 'progress') {
+        control = '<input class="pt-input" type="number" dir="ltr"' + (col.type === 'progress' ? ' min="0" max="100"' : '') + ' data-field="' + escJs(col.key) + '"' + reqAttr + ' value="' + escJs(val) + '">'
+      } else if (col.type === 'badge') {
+        control = '<input class="pt-input" type="text" list="pt-badges" data-field="' + escJs(col.key) + '"' + reqAttr + ' value="' + escJs(val) + '">'
+      } else if (col.type === 'email' || col.type === 'phone') {
+        control = '<input class="pt-input" type="text" dir="ltr" data-field="' + escJs(col.key) + '"' + reqAttr + ' value="' + escJs(val) + '">'
+      } else {
+        var ph = col.type === 'date' ? ' placeholder="مثال: 15 جانفي 2025"' : ''
+        control = '<input class="pt-input" type="text" data-field="' + escJs(col.key) + '"' + reqAttr + ph + ' value="' + escJs(val) + '">'
+      }
+      fieldsHtml += '<div><label class="pt-label">' + escJs(col.label) + (isReq ? '<span class="pt-required">*</span>' : '') + '</label>' + control + '</div>'
+    }
+    var modalTitle = idx == null ? 'إضافة ' + singular + ' جديد' : 'تعديل ' + singular
+    var modal = mountModal(
+      '<div class="pt-modal__card">' +
+        '<h3 id="pt-modal-title">' + escJs(modalTitle) + '</h3>' +
+        '<p class="pt-modal__note">يُحدَّث الجدول وقسم الموقع المقابل تلقائياً عند الحفظ.</p>' +
+        '<form class="pt-modal__grid">' + fieldsHtml + badgesDatalistHtml() +
+          '<div class="pt-modal__actions">' +
+            '<button type="button" class="pt-btn pt-btn--outline" data-modal-close>إلغاء</button>' +
+            '<button type="submit" class="pt-btn pt-btn--primary">' + (idx == null ? 'إضافة' : 'حفظ التعديلات') + '</button>' +
+          '</div>' +
+        '</form>' +
+      '</div>'
+    )
+    var form = modal.querySelector('form')
+    if (!form) return
+    var submitBtn = form.querySelector('button[type="submit"]')
+    var reqInput = form.querySelector('[data-required]')
+    function syncSubmitState() {
+      if (submitBtn && reqInput) submitBtn.disabled = String(reqInput.value == null ? '' : reqInput.value).trim() === ''
+    }
+    form.addEventListener('input', syncSubmitState)
+    syncSubmitState()
+    form.addEventListener('submit', function (e) {
+      e.preventDefault()
+      var byKey = {}
+      var els = form.querySelectorAll('[data-field]')
+      for (var j = 0; j < els.length; j++) byKey[els[j].getAttribute('data-field')] = els[j]
+      var newRow = {}
+      for (var c = 0; c < cols.length; c++) {
+        var col2 = cols[c]
+        var el2 = byKey[col2.key]
+        var v = el2 ? String(el2.value == null ? '' : el2.value) : ''
+        if (col2.type === 'number' || col2.type === 'currency' || col2.type === 'progress') {
+          newRow[col2.key] = Number(v) || 0
+        } else {
+          newRow[col2.key] = v.trim()
+        }
+      }
+      var next = currentRows(entityKey)
+      if (idx != null && idx >= 0 && idx < next.length) next[idx] = newRow
+      else next.push(newRow)
+      saveRows(entityKey, next)
+      closeModal()
+      renderTbody(tableCardOf(entityKey))
+      toast(idx == null ? 'أُضيف ' + singular + ' بنجاح ✓' : 'حُدّث ' + singular + ' ✓')
+      syncLandingNow()
+    })
+    var firstInput = form.querySelector('input, select, textarea')
+    if (firstInput) firstInput.focus()
+  }
+  function openDeleteModal(entityKey, idx) {
+    var cols = colJs(entityKey)
+    if (!cols.length) return
+    var rows = currentRows(entityKey)
+    if (idx == null || idx < 0 || idx >= rows.length) return
+    var singular = singularOf(entityKey)
+    var name = rowNameJs(cols, rows[idx]) || singular
+    var modal = mountModal(
+      '<div class="pt-modal__card pt-modal__card--sm">' +
+        '<h3 id="pt-modal-title">حذف ' + escJs(singular) + '</h3>' +
+        '<p class="pt-modal__note">هل تريد حذف «' + escJs(name) + '»؟ سيُحذف العنصر المقابل من قسم الموقع أيضاً.</p>' +
+        '<div class="pt-modal__actions">' +
+          '<button type="button" class="pt-btn pt-btn--outline" data-modal-close>إلغاء</button>' +
+          '<button type="button" class="pt-btn" data-modal-confirm style="background:#dc2626;color:#fff">حذف</button>' +
+        '</div>' +
+      '</div>'
+    )
+    var confirmBtn = modal.querySelector('[data-modal-confirm]')
+    if (!confirmBtn) return
+    confirmBtn.addEventListener('click', function () {
+      var next = currentRows(entityKey)
+      if (idx >= 0 && idx < next.length) next.splice(idx, 1)
+      saveRows(entityKey, next)
+      closeModal()
+      renderTbody(tableCardOf(entityKey))
+      toast('حُذف ' + singular + ' ✓')
+      syncLandingNow()
+    })
+  }
+
+  // ---- أحداث مفوَّضة: تعمل على الصفوف المعاد بناؤها أيضاً ----
+  document.addEventListener('click', function (e) {
+    var t = e.target && e.target.closest ? e.target : null
+    if (!t) return
+    var addBtn = t.closest('[data-add-row]')
+    if (addBtn) {
+      var card1 = addBtn.closest('.blk-table')
+      if (card1) openRowModal(card1.getAttribute('data-entity'), null)
+      return
+    }
+    var editBtn = t.closest('[data-edit-row]')
+    if (editBtn) {
+      var card2 = editBtn.closest('.blk-table')
+      var tr1 = editBtn.closest('tr')
+      if (card2 && tr1 && tr1.getAttribute('data-idx') != null) {
+        openRowModal(card2.getAttribute('data-entity'), parseInt(tr1.getAttribute('data-idx'), 10))
+      }
+      return
+    }
+    var delBtn = t.closest('[data-del-row]')
+    if (delBtn) {
+      var card3 = delBtn.closest('.blk-table')
+      var tr2 = delBtn.closest('tr')
+      if (card3 && tr2 && tr2.getAttribute('data-idx') != null) {
+        openDeleteModal(card3.getAttribute('data-entity'), parseInt(tr2.getAttribute('data-idx'), 10))
+      }
+      return
+    }
+    var resetBtn = t.closest('[data-reset-entity]')
+    if (resetBtn) {
+      var card4 = resetBtn.closest('.blk-table')
+      if (card4) {
+        clearRows(card4.getAttribute('data-entity'))
+        renderTbody(card4)
+        toast('استُعيدت البيانات الأصلية ✓')
+        syncLandingNow()
+      }
+    }
+  })
+
+  // ===== (الجولة 16) الأدوار والجلسة: تبديل الدور + تسجيل الخروج + طلب الخطة =====
+  document.addEventListener('click', function (e) {
+    var t = e.target && e.target.closest ? e.target : null
+    if (!t) return
+    // تبديل محدد الدور في بطاقة الدخول: is-on + aria-checked + نص الملاحظة
+    var roleBtn = t.closest('.blk-role[data-role]')
+    if (roleBtn) {
+      var group = roleBtn.closest('.blk-auth__roles')
+      if (group) {
+        var roleVal = roleBtn.getAttribute('data-role')
+        group.querySelectorAll('.blk-role').forEach(function (b) {
+          var on = b === roleBtn
+          b.classList.toggle('is-on', on)
+          b.setAttribute('aria-checked', on ? 'true' : 'false')
+        })
+        var authCard2 = roleBtn.closest('.blk-auth__card')
+        var note = authCard2 ? authCard2.querySelector('.blk-auth__role-note') : null
+        if (note) note.textContent = roleVal === 'admin' ? (note.getAttribute('data-note-admin') || '') : (note.getAttribute('data-note-client') || '')
+      }
+      return
+    }
+    // تسجيل الخروج: فرّغ الجلسة ثم انقل إلى رابط صفحة الدخول
+    var logoutLink = t.closest('[data-logout]')
+    if (logoutLink) {
+      e.preventDefault()
+      clearSession()
+      var logoutHref = logoutLink.getAttribute('href')
+      if (logoutHref) window.location.href = logoutHref
+      return
+    }
+    // زبون مسجّل يضغط زر خطة في صفحة الأسعار → صف حقيقي في كيان orders
+    // يظهر في «طلباتي» (فلترة الزبون) وفي جدول طلبات المدير (بلا فلترة)
+    var planBtn = t.closest('a.pt-btn[data-plan-name]')
+    if (planBtn) {
+      var clientHref = document.body.getAttribute('data-client-href')
+      var session = readSession()
+      if (!clientHref || !session || session.role !== 'client') return
+      var ordersEnt = SEED.entities && SEED.entities.orders
+      if (!ordersEnt || !ordersEnt.columns || !ordersEnt.columns.length) return
+      e.preventDefault()
+      var planName = planBtn.getAttribute('data-plan-name') || ''
+      var planPrice = Number(planBtn.getAttribute('data-plan-price')) || 0
+      var orderRows = currentRows('orders')
+      orderRows.push({
+        id: 'ORD-' + (Date.now() % 100000),
+        customer: session.name,
+        item: planName,
+        quantity: 1,
+        total: planPrice,
+        date: new Date().toISOString().slice(0, 10),
+        status: 'جديد'
+      })
+      saveRows('orders', orderRows)
+      toast('تم استلام طلبك ✓ — يظهر الآن في «طلباتي»')
+      // مهلة قصيرة تُظهر التنبيه قبل الانتقال إلى فضاء الزبون
+      setTimeout(function () { window.location.href = clientHref }, 800)
+    }
+  })
+
+  // ---- تزامن صفحة الموقع: المعرض والفريق يتبعان صفوف الجداول ----
+  function applyStoredToLanding() {
+    var grids = document.querySelectorAll('.blk-gallery__grid[data-gallery-variant]')
+    for (var g = 0; g < grids.length; g++) {
+      var grid = grids[g]
+      var variant = grid.getAttribute('data-gallery-variant')
+      var entityKey = SEED.entityByVariant ? SEED.entityByVariant[variant] : null
+      if (!entityKey || storedRows(entityKey) == null) continue
+      var rows = storedRows(entityKey)
+      var cols = colJs(entityKey)
+      var nameCol = nameColOf(cols)
+      if (!nameCol) continue
+      var priceCol = priceColOf(cols)
+      for (var i = 0; i < rows.length; i++) {
+        var name = cellStrJs(rows[i], nameCol.key)
+        var priceVal = priceCol ? (Number(rows[i][priceCol.key]) || 0) : 0
+        var card = grid.children[i]
+        if (card) {
+          var titleEl = card.querySelector('.blk-gallery__title')
+          if (titleEl) titleEl.textContent = name
+          var priceEl = card.querySelector('.blk-gallery__price')
+          if (priceVal > 0) {
+            var priceHtml = escJs(fmtNumJs(priceVal)) + ' <small>دج</small>'
+            if (priceEl) priceEl.innerHTML = priceHtml
+            else {
+              var rowEl = card.querySelector('.blk-gallery__row')
+              if (rowEl) {
+                var priceP = document.createElement('p')
+                priceP.className = 'blk-gallery__price'
+                priceP.innerHTML = priceHtml
+                rowEl.appendChild(priceP)
+              }
+            }
+          } else if (priceEl && priceEl.parentNode) {
+            priceEl.parentNode.removeChild(priceEl)
+          }
+        } else {
+          var letter = name.trim().charAt(0) || '؟'
+          var art = document.createElement('article')
+          art.className = 'blk-gallery__item'
+          art.innerHTML =
+            '<div class="blk-gallery__thumb" style="background:' + GALLERY_GRADIENTS_JS[i % 4] + '" role="img" aria-label="صورة رمزية لـ ' + escJs(name) + '">' +
+              '<span class="blk-gallery__letter" aria-hidden="true">' + escJs(letter) + '</span>' +
+            '</div>' +
+            '<div class="blk-gallery__body"><div class="blk-gallery__row">' +
+              '<h3 class="blk-gallery__title">' + escJs(name) + '</h3>' +
+              (priceVal > 0 ? '<p class="blk-gallery__price">' + escJs(fmtNumJs(priceVal)) + ' <small>دج</small></p>' : '') +
+            '</div></div>'
+          grid.appendChild(art)
+        }
+      }
+      while (grid.children.length > rows.length) {
+        grid.removeChild(grid.children[grid.children.length - 1])
+      }
+    }
+    var teamGrids = document.querySelectorAll('.blk-team__grid[data-team-grid]')
+    for (var t = 0; t < teamGrids.length; t++) {
+      var tGrid = teamGrids[t]
+      var tKey = 'teamMembers'
+      if (storedRows(tKey) == null) continue
+      var tRows = storedRows(tKey)
+      var tCols = colJs(tKey)
+      var tNameCol = nameColOf(tCols)
+      if (!tNameCol) continue
+      var tRoleCol = null
+      for (var rc = 0; rc < tCols.length; rc++) {
+        if (tCols[rc].key === 'role') { tRoleCol = tCols[rc]; break }
+      }
+      for (var m = 0; m < tRows.length; m++) {
+        var mName = cellStrJs(tRows[m], tNameCol.key)
+        var mRole = tRoleCol ? cellStrJs(tRows[m], tRoleCol.key) : ''
+        var tCard = tGrid.children[m]
+        if (tCard) {
+          var nameEl = tCard.querySelector('.blk-team__name')
+          if (nameEl) nameEl.textContent = mName
+          var roleEl = tCard.querySelector('.blk-team__role')
+          if (roleEl) roleEl.textContent = mRole
+        } else {
+          var member = document.createElement('article')
+          member.className = 'blk-team__card'
+          member.innerHTML = avatarJs(mName, 56) +
+            '<p class="blk-team__name">' + escJs(mName) + '</p>' +
+            '<p class="blk-team__role">' + escJs(mRole) + '</p>'
+          tGrid.appendChild(member)
+        }
+      }
+      while (tGrid.children.length > tRows.length) {
+        tGrid.removeChild(tGrid.children[tGrid.children.length - 1])
+      }
+    }
+  }
+  function syncLandingNow() { applyStoredToLanding() }
+
+  // ---- حفظ نموذج الإعدادات محلياً (دون استبدال النموذج) ----
+  function settingsStoreKey() { return SEED.key + ':settings' }
+  function handleSettingsSave(form, e) {
+    if (e && e.preventDefault) e.preventDefault()
+    var map = {}
+    var els = form.querySelectorAll('[data-skey]')
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i]
+      var k = el.getAttribute('data-skey')
+      if (!k) continue
+      if (el.tagName === 'BUTTON') {
+        map[k] = el.classList.contains('on') ? 'true' : 'false'
+      } else if (el.tagName === 'SELECT') {
+        map[k] = String(el.value == null ? '' : el.value)
+      } else if (el.tagName === 'INPUT') {
+        if (String(el.getAttribute('type') || '').toLowerCase() === 'password') continue
+        map[k] = String(el.value == null ? '' : el.value)
+      }
+    }
+    try { localStorage.setItem(settingsStoreKey(), JSON.stringify(map)) } catch (err) {}
+    toast('تم حفظ الإعدادات محلياً ✓')
+  }
+  function applyStoredSettings() {
+    var raw = null
+    try { raw = localStorage.getItem(settingsStoreKey()) } catch (e) { return }
+    if (!raw) return
+    var map
+    try { map = JSON.parse(raw) } catch (e) { return }
+    if (!map || typeof map !== 'object') return
+    var els = document.querySelectorAll('[data-skey]')
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i]
+      var k = el.getAttribute('data-skey')
+      if (!k || !Object.prototype.hasOwnProperty.call(map, k)) continue
+      if (el.tagName === 'BUTTON') {
+        var on = String(map[k]) === 'true'
+        el.classList.toggle('on', on)
+        el.setAttribute('aria-checked', on ? 'true' : 'false')
+      } else {
+        el.value = map[k]
+      }
+    }
+  }
+
+  // ---- (الجولة 16) انعكاس هوية الجلسة على بطاقات المستخدم (الشريط والتروستة) ----
+  function applySessionIdentity(session) {
+    document.querySelectorAll('[data-user-name]').forEach(function (el) {
+      el.textContent = session.name
+    })
+    document.querySelectorAll('[data-user-email]').forEach(function (el) {
+      el.textContent = session.email
+    })
+    document.querySelectorAll('.pt-avatar[data-user-avatar]').forEach(function (av) {
+      var w = parseInt((av.style && av.style.width) || '', 10)
+      av.outerHTML = avatarJs(session.name, w || 28)
+    })
+  }
+
+  // ---- الحالة الأولى: حراسة الجلسة ثم طبّق المخزن المحلي (جداول + صفحة الموقع + الإعدادات) ----
+  function initPage() {
+    // (الجولة 16) صفحات منطقة اللوحة محروسة: لا جلسة أو دور الجلسة ≠ جمهور
+    // الصفحة → أعِد التوجيه إلى صفحة الدخول ووقف بقية التهيئة (لا وميض)
+    var audience = document.body.getAttribute('data-audience')
+    var loginHref = document.body.getAttribute('data-login-href')
+    if (audience && loginHref) {
+      var guard = readSession()
+      if (!guard || guard.role !== audience) {
+        window.location.href = loginHref
+        return
+      }
+    }
+    var session = readSession()
+    if (session) applySessionIdentity(session)
+    applyStoredSettings()
+    Array.prototype.slice.call(document.querySelectorAll('.blk-table[data-entity]')).forEach(function (card) {
+      if (storedRows(card.getAttribute('data-entity')) != null) renderTbody(card)
+    })
+    applyStoredToLanding()
+  }
+  initPage()
 })()
 `
 }
@@ -1499,6 +2212,19 @@ ${hasLogo ? '| \`assets/logo.*\` | شعار مشروعك — يظهر في ال�
 ## دعم
 
 أُنشئ هذا النموذج بواسطة منصة **SIVAR** — منصة جزائرية لتحويل الأفكار إلى نماذج أولية.
+
+## إدارة المحتوى داخل الموقع (وضع تجريبي)
+- من أي صفحة جدول في لوحة التحكم يمكنك إضافة وتعديل وحذف العناصر (منتجات، خدمات، أعضاء...) بزر «إضافة» وأيقونات كل صف — بدون أي خادم.
+- التعديلات تُطبَّق فوراً على صفحات الموقع المقابلة (المعرض/الفريق) وتُحفظ محلياً في متصفحك (localStorage).
+- زر «إعادة الضبط» في تذييل كل جدول يعيد البيانات الأصلية.
+- نموذج الإعدادات يحفظ قيمه محلياً في متصفحك أيضاً.
+
+## الدخول بالأدوار (وضع تجريبي)
+- من صفحة الدخول اختر كيف تدخل: «كزبون» يأخذك مباشرة إلى فضاء الزبون (طلباتك وملفك الشخصي)، أو «كمدير» يفتح لك لوحة تحكم الموقع الكاملة — أدخل بأي بريد وكلمة مرور.
+- تُحفظ جلسة الدخول محلياً في متصفحك فقط (localStorage) — لا حسابات حقيقية في هذا الوضع التجريبي.
+- صفحات لوحة التحكم وفضاء الزبون تتحقق من دورك عند الفتح: إن اختلف دور الجلسة عن جمهور الصفحة تُعاد تلقائياً إلى صفحة الدخول.
+- زبون مسجّل يضغط زر أي خطة في صفحة الأسعار → يُنشأ طلب حقيقي (محلي تجريبي) يظهر فوراً في «طلباتي» داخل فضاء الزبون وفي جدول طلبات المدير.
+- «تسجيل الخروج» في قائمة الحساب أعلى اللوحة يفرّغ الجلسة ويعيدك إلى صفحة الدخول.
 `
 }
 
@@ -2421,7 +3147,7 @@ function renderPricing(p: Record<string, unknown>, ctx: RenderCtx): string {
       ${name ? `<h3 class="blk-plan__name">${esc(name)}</h3>` : ''}
       <p class="blk-plan__price"><span class="blk-plan__amount">${esc(fmtNum(price))}</span><span class="blk-plan__period">${esc(currency)} / ${esc(period)}</span></p>
       <ul class="blk-plan__features">${featureList}</ul>
-      ${buttonText ? `<a class="pt-btn ${highlighted ? 'pt-btn--primary' : 'pt-btn--outline'} pt-btn--block" href="${esc(targetHref)}">${esc(buttonText)}</a>` : ''}
+      ${buttonText ? `<a class="pt-btn ${highlighted ? 'pt-btn--primary' : 'pt-btn--outline'} pt-btn--block" href="${esc(targetHref)}" data-plan-name="${esc(name)}" data-plan-price="${price}">${esc(buttonText)}</a>` : ''}
     </article>`
     })
     .join('')
@@ -2539,6 +3265,8 @@ function renderGallery(p: Record<string, unknown>, ctx: RenderCtx): string {
   const subtitle = S(p, 'subtitle')
   const bg = sectionBgOf(p, ctx)
   const items = L(p, 'items')
+  // (الجولة 15) وسم النوع يربط المعرض بكيانه — لتزامن الإضافة/الحذف من الجداول
+  const variant = S(p, 'variant', 'products')
   const cards = items
     .map((item, i) => {
       const t = iS(item, 'title')
@@ -2576,7 +3304,7 @@ function renderGallery(p: Record<string, unknown>, ctx: RenderCtx): string {
     </article>`
     })
     .join('')
-  return sectionWrap(`${sectionHeading(title, subtitle)}<div class="blk-gallery__grid">${cards}</div>`, false, '', bg)
+  return sectionWrap(`${sectionHeading(title, subtitle)}<div class="blk-gallery__grid" data-gallery-variant="${esc(variant)}">${cards}</div>`, false, '', bg)
 }
 
 // ---------- banner ----------
@@ -2649,7 +3377,7 @@ function renderTeam(p: Record<string, unknown>, ctx: RenderCtx): string {
     </article>`
     })
     .join('')
-  return sectionWrap(`${sectionHeading(title, '')}<div class="blk-team__grid">${cards}</div>`, false, '', bg)
+  return sectionWrap(`${sectionHeading(title, '')}<div class="blk-team__grid" data-team-grid="1">${cards}</div>`, false, '', bg)
 }
 
 // ---------- custom-html ----------
@@ -2665,6 +3393,10 @@ function renderCustomHtml(p: Record<string, unknown>): string {
 }
 
 // ---------- auth-card ----------
+/** (الجولة 16) ملاحظتا محدد الأدوار — حرفياً من مواصفة §5 (تُبدّلان من script.js) */
+const ROLE_NOTE_CLIENT = 'أدخل بأي بريد وكلمة مرور — سنتجول مباشرة في فضاء الزبون (وضع تجريبي).'
+const ROLE_NOTE_ADMIN = 'أدخل بأي بريد وكلمة مرور — سنتجول في لوحة تحكم المدير (وضع تجريبي).'
+
 function renderAuthCard(p: Record<string, unknown>, ctx: RenderCtx): string {
   const variant = (['login', 'signup', 'forgot'] as const).includes(S(p, 'variant') as 'login')
     ? S(p, 'variant')
@@ -2674,10 +3406,17 @@ function renderAuthCard(p: Record<string, unknown>, ctx: RenderCtx): string {
   const buttonText = S(p, 'buttonText', 'دخول')
   const demoHint = S(p, 'demoHint')
 
+  // (الجولة 16) نظام الأدوار — يُفعّل فقط حين توجد صفحة فضاء الزبون (audience=client)
+  const clientPage = findClientPage(ctx.schema)
+  const adminDash = findAdminDashboardPage(ctx.schema)
+  const rolesEnabled = variant === 'login' && !!clientPage
+
   // الدخول والتسجيل كلاهما ينتقلان إلى لوحة التحكم (data-redirect) —
-  // الاستعادة تُظهر رسالة نجاح كما هي
+  // الاستعادة تُظهر رسالة نجاح كما هي.
+  // (الجولة 16) التسجيل العام يصنع حساب زبون: هدفه صفحة فضاء الزبون إن وُجدت.
   const dash = findDashboardPage(ctx.schema)
-  const redirect = (variant === 'login' || variant === 'signup') && dash ? ctx.hrefOf(dash.id) : ''
+  const submitTarget = clientPage ?? dash
+  const redirect = (variant === 'login' || variant === 'signup') && submitTarget ? ctx.hrefOf(submitTarget.id) : ''
   const success =
     variant === 'forgot'
       ? 'أرسلنا لك رابط الاستعادة — تحقق من بريدك الوارد.'
@@ -2685,6 +3424,32 @@ function renderAuthCard(p: Record<string, unknown>, ctx: RenderCtx): string {
         ? 'تم إنشاء حسابك التجريبي بنجاح. مرحباً بك!'
         : 'تم تسجيل الدخول بنجاح (وضع تجريبي).'
   const formId = `auth-${Math.random().toString(36).slice(2, 8)}`
+
+  // (الجولة 16) محدد الأدوار أعلى النموذج (داخل البطاقة تحت الترويسة) —
+  // كزبون مختاراً افتراضياً، والتبديل من script.js (is-on + aria-checked + الملاحظة)
+  const rolesHtml = rolesEnabled && clientPage
+    ? `<div class="blk-auth__roles" role="radiogroup" aria-label="نوع الدخول">
+    <button type="button" class="blk-role is-on" data-role="client" role="radio" aria-checked="true">
+      <span class="blk-role__name"><span class="blk-role__icon">${iconSvg('user', 16)}</span><span>كزبون</span></span>
+      <span class="blk-role__hint">فضاء حسابي وطلباتي</span>
+    </button>
+    <button type="button" class="blk-role" data-role="admin" role="radio" aria-checked="false">
+      <span class="blk-role__name"><span class="blk-role__icon">${iconSvg('shield', 16)}</span><span>كمدير</span></span>
+      <span class="blk-role__hint">لوحة تحكم الموقع الكاملة</span>
+    </button>
+  </div>
+  <p class="blk-auth__role-note" id="${formId}-note" data-note-client="${esc(ROLE_NOTE_CLIENT)}" data-note-admin="${esc(ROLE_NOTE_ADMIN)}">${esc(ROLE_NOTE_CLIENT)}</p>`
+    : ''
+
+  // (الجولة 16) نموذج الدخول بمحدد الأدوار: script.js يضبط الجلسة حسب الدور
+  // المختار ثم ينقل لفضاء ذلك الدور (بلا data-redirect هنا). التسجيل يحمل
+  // data-signup-client ليدخل فضاء الزبون بجلسة زبون. بلا صفحة client:
+  // السلوك القديم حرفياً (data-redirect إلى لوحة المدير).
+  const formAttrs = rolesEnabled && clientPage
+    ? `data-login-roles="1" data-client-href="${esc(ctx.hrefOf(clientPage.id))}" data-admin-href="${esc(adminDash ? ctx.hrefOf(adminDash.id) : '#')}"`
+    : redirect
+      ? `data-redirect="${esc(redirect)}"${variant === 'signup' && clientPage ? ' data-signup-client="1"' : ''}`
+      : `data-success="${esc(success)}"`
 
   const fields: string[] = []
   if (variant === 'signup') {
@@ -2702,7 +3467,8 @@ function renderAuthCard(p: Record<string, unknown>, ctx: RenderCtx): string {
       <div class="blk-auth__title-row"><h1 class="blk-auth__title">${esc(title)}</h1>${badgeHtml('بيانات تجريبية', 'primary')}</div>
       ${subtitle ? `<p class="blk-auth__subtitle">${esc(subtitle)}</p>` : ''}
     </div>
-    <form class="pt-form blk-form__grid" ${redirect ? `data-redirect="${esc(redirect)}"` : `data-success="${esc(success)}"`} novalidate>
+    ${rolesHtml}
+    <form class="pt-form blk-form__grid" ${formAttrs} novalidate>
       ${fields.join('')}
       <button class="pt-btn pt-btn--primary pt-btn--lg pt-btn--block" type="submit">${esc(buttonText)}</button>
     </form>
@@ -2792,7 +3558,9 @@ function renderDataTable(p: Record<string, unknown>, ctx: RenderCtx): string {
   const headerTitle = title || ENTITY_LABELS[entityKey] || 'البيانات'
   const tableId = nextId(ctx, 'tbl')
 
-  if (!entity || entity.rows.length === 0) {
+  // (الجولة 15) كيان مفقود أو بلا أعمدة → حالة الفراغ؛ كيان بأعمدة ولو صفر
+  // صفوف → جدول كامل قابل للإدارة من الموقع نفسه («إضافة» تعمل على الفراغ).
+  if (!entity || !Array.isArray(entity.columns) || entity.columns.length === 0) {
     return renderState(
       'empty',
       {
@@ -2805,7 +3573,21 @@ function renderDataTable(p: Record<string, unknown>, ctx: RenderCtx): string {
   }
 
   const columns: EntityColumn[] = entity.columns
-  const head = columns.map((col) => `<th scope="col">${esc(col.label)}</th>`).join('')
+  const rowsAll: Array<Record<string, unknown>> = Array.isArray(entity.rows) ? entity.rows : []
+  // (الجولة 16) وضع الزبون (clientView): جدول للقراءة فقط وصفوف الزبونة
+  // التجريبية فقط إن كان للكيان عمود avatar — لا عمود أو صفر مطابقات → كل
+  // الصفوف (لا يظهر الجدول فارغاً أبداً — نفس القاعدة في script.js والمعاينة)
+  const clientView = B(p, 'clientView')
+  let rowsShow = rowsAll
+  if (clientView) {
+    const avatarCol = columns.find((col) => col.type === 'avatar')
+    if (avatarCol) {
+      const matched = rowsAll.filter((row) => row[avatarCol.key] === DEMO_CLIENT.name)
+      if (matched.length > 0) rowsShow = matched
+    }
+  }
+  const singular = ENTITY_SINGULARS[entityKey] || ENTITY_LABELS[entityKey] || 'عنصر'
+  const head = `${columns.map((col) => `<th scope="col">${esc(col.label)}</th>`).join('')}${clientView ? '' : '<th scope="col">إجراءات</th>'}`
 
   const cellHtml = (col: EntityColumn, value: unknown): string => {
     switch (col.type) {
@@ -2831,29 +3613,49 @@ function renderDataTable(p: Record<string, unknown>, ctx: RenderCtx): string {
     }
   }
 
-  const rows = entity.rows
-    .map((row) => `<tr>${columns.map((col) => `<td>${cellHtml(col, row[col.key])}</td>`).join('')}</tr>`)
-    .join('')
+  /** اسم الصف = قيمة أول عمود نص/أفاتار (لتسميات أزرار الإجراءات) */
+  const rowNameOf = (row: Record<string, unknown>): string => {
+    for (const col of columns) {
+      if (col.type === 'text' || col.type === 'avatar') {
+        const v = row[col.key]
+        if (typeof v === 'string' && v) return v
+      }
+    }
+    return ''
+  }
 
-  return `<div class="pt-card blk-table">
+  const rowsHtml =
+    rowsShow.length === 0
+      ? `<tr class="blk-table__empty"><td colspan="${columns.length + (clientView ? 0 : 1)}">لا يوجد ${esc(singular)} بعد${clientView ? '.' : ' — اضغط «إضافة» لإضافة أول عنصر من هنا مباشرة.'}</td></tr>`
+      : rowsShow
+          .map((row, i) => {
+            const name = rowNameOf(row) || singular
+            return `<tr data-idx="${i}">${columns.map((col) => `<td>${cellHtml(col, row[col.key])}</td>`).join('')}${clientView ? '' : `<td class="blk-table__act"><span class="pt-rowacts"><button type="button" class="pt-rowact" data-edit-row aria-label="تعديل ${esc(name)}" title="تعديل">${iconSvg('pencil', 15)}</button><button type="button" class="pt-rowact pt-rowact--danger" data-del-row aria-label="حذف ${esc(name)}" title="حذف">${iconSvg('trash-2', 15)}</button></span></td>`}</tr>`
+          })
+          .join('')
+
+  return `<div class="pt-card blk-table" data-entity="${esc(entityKey)}"${clientView ? ' data-client-view="1"' : ''}>
   <div class="blk-table__head">
     <h3>${esc(headerTitle)}</h3>
-    <div class="blk-table__search"><input class="pt-input" type="search" placeholder="بحث..." aria-label="بحث في الجدول" data-table-search="${tableId}"></div>
+    <div class="blk-table__tools">
+      <div class="blk-table__search"><input class="pt-input" type="search" placeholder="بحث..." aria-label="بحث في الجدول" data-table-search="${tableId}"></div>
+      ${clientView ? '' : `<button type="button" class="pt-btn pt-btn--sm pt-btn--primary" data-add-row>${iconSvg('plus', 14)}<span>إضافة ${esc(singular)}</span></button>`}
+    </div>
   </div>
   <div class="pt-table-scroll">
     <table class="pt-table" id="${tableId}">
       <thead><tr>${head}</tr></thead>
-      <tbody>${rows}</tbody>
+      <tbody>${rowsHtml}</tbody>
     </table>
   </div>
   <div class="blk-table__foot">
-    <p id="${tableId}-count">عرض ${entity.rows.length} من ${entity.rows.length} صف</p>
+    <p id="${tableId}-count">عرض ${rowsShow.length} من ${rowsShow.length} صف</p>
     <div class="blk-table__pager" data-pager="${tableId}" data-page-size="5" data-current="1" hidden>
       <button type="button" class="pt-btn pt-btn--sm pt-btn--outline" data-page="prev" aria-label="الصفحة السابقة">${iconSvg('arrow-right', 16)}</button>
       <span class="blk-table__pager-count">صفحة 1 من 1</span>
       <button type="button" class="pt-btn pt-btn--sm pt-btn--outline" data-page="next" aria-label="الصفحة التالية">${iconSvg('arrow-left', 16)}</button>
     </div>
-    <p>بيانات تجريبية</p>
+    <p class="blk-table__demo">بيانات تجريبية — تُحفظ تعديلاتك محلياً في متصفحك <button type="button" class="pt-linkbtn" data-reset-entity>إعادة الضبط</button></p>
   </div>
 </div>`
 }
@@ -2914,28 +3716,30 @@ function renderSettingsForm(p: Record<string, unknown>): string {
   const title = S(p, 'title')
   const sections = L(p, 'sections')
   const sectionsHtml = sections
-    .map((section) => {
+    .map((section, si) => {
       const secTitle = iS(section, 'title')
       const fields = L(section, 'fields')
       const fieldsHtml = fields
-        .map((f) => {
+        .map((f, fi) => {
           const label = iS(f, 'label')
           const type = iS(f, 'type', 'text')
           const value = iS(f, 'value')
           const hint = iS(f, 'hint')
+          // (الجولة 15) مفتاح الحقل لحفظ قيم النموذج محلياً في المتصفح
+          const skey = `f${si}-${fi}`
           let control = ''
           if (type === 'switch') {
             const on = value === 'true' || value === '1'
-            control = `<button type="button" class="pt-switch${on ? ' on' : ''}" role="switch" aria-checked="${on ? 'true' : 'false'}" data-switch><span class="pt-switch__knob"></span></button>`
+            control = `<button type="button" class="pt-switch${on ? ' on' : ''}" role="switch" aria-checked="${on ? 'true' : 'false'}" data-switch data-skey="${esc(skey)}"><span class="pt-switch__knob"></span></button>`
           } else if (type === 'select') {
             const options = optionsOf(f)
               .map((o) => `<option value="${esc(o)}" ${o === value ? 'selected' : ''}>${esc(o)}</option>`)
               .join('')
-            control = `<select class="pt-select">${options}</select>`
+            control = `<select class="pt-select" data-skey="${esc(skey)}">${options}</select>`
           } else if (type === 'password') {
-            control = `<input class="pt-input" type="password" placeholder="••••••••" value="">`
+            control = `<input class="pt-input" type="password" placeholder="••••••••" value="" data-skey="${esc(skey)}">`
           } else {
-            control = `<input class="pt-input" type="text" value="${esc(value)}">`
+            control = `<input class="pt-input" type="text" value="${esc(value)}" data-skey="${esc(skey)}">`
           }
           return `<div class="blk-settings__field">
           <div><span class="blk-settings__field-label">${esc(label)}</span>${hint ? `<span class="blk-settings__hint">${esc(hint)}</span>` : ''}</div>
@@ -2949,7 +3753,7 @@ function renderSettingsForm(p: Record<string, unknown>): string {
 
   return `<div class="pt-card blk-settings__card">
   ${title ? `<div class="blk-settings__title"><h2>${esc(title)}</h2></div>` : ''}
-  <form class="pt-form" data-success="تم حفظ الإعدادات بنجاح." novalidate>
+  <form class="pt-form" data-settings="1" data-success="تم حفظ الإعدادات بنجاح." novalidate>
     ${sectionsHtml}
     <div class="blk-settings__actions"><button class="pt-btn pt-btn--primary" type="submit">حفظ التغييرات</button></div>
   </form>
@@ -3139,16 +3943,31 @@ const TOPBAR_NOTIFICATIONS: Array<{ title: string; detail: string; time: string 
   { title: 'رسالة من سارة بوزيد', detail: '«متى يجهز طلبي؟» — تحتاج رداً', time: 'قبل 3 ساعات' },
 ]
 
-/** تروستة لوحة التحكم: بحث الصفحة + إشعارات + قائمة المستخدم (Task 8) */
-function dashboardTopbarHtml(ctx: RenderCtx): string {
-  const profilePage = ctx.schema.pages.find((pg) => pg.type === 'profile')
-  const settingsPage = ctx.schema.pages.find((pg) => pg.type === 'settings')
+/** تروستة لوحة التحكم: بحث الصفحة + إشعارات + قائمة المستخدم (Task 8).
+ *  (الجولة 16) بجمهور الصفحة: صفحات الزبون تعرض أمينة بلقاسم وقائمة حساب
+ *  مختصرة (تسجيل الخروج فقط)، وصفحات المدير كما كانت — وكلاهما بخطوط
+ *  تعويض الهوية (data-user-*) يستبدلها script.js باسم جلسة الدخول */
+function dashboardTopbarHtml(ctx: RenderCtx, audience: 'admin' | 'client'): string {
+  const isClient = audience === 'client'
+  // روابط المدير فقط تُبحث بين صفحات المدير (لا تُعرض لصفحات الزبون أصلاً)
+  const profilePage = isClient
+    ? undefined
+    : ctx.schema.pages.find((pg) => pg.type === 'profile' && (pg.audience ?? 'admin') === 'admin')
+  const settingsPage = isClient
+    ? undefined
+    : ctx.schema.pages.find((pg) => pg.type === 'settings' && (pg.audience ?? 'admin') === 'admin')
   const loginPage = ctx.schema.pages.find(
     (pg) => pg.type === 'auth' && (pg.authVariant ?? 'login') === 'login'
   )
   const notifMenuId = nextId(ctx, 'notif')
   const userMenuId = nextId(ctx, 'usermenu')
   const dotId = nextId(ctx, 'belldot')
+
+  // (الجولة 16) هوية المستخدم SSR: صفحات الزبون أمينة بلقاسم، والمدير كما كان —
+  // وscript.js يستبدلها بجلسة الدخول عند وجودها (كلا الجمهورين)
+  const userName = isClient ? DEMO_CLIENT.name : 'مستخدم تجريبي'
+  const userEmail = isClient ? DEMO_CLIENT.email : 'demo@sivar.dz'
+  const userAvatarName = isClient ? DEMO_CLIENT.name : 'م'
 
   const notifItems = TOPBAR_NOTIFICATIONS.map(
     (n) => `<li>
@@ -3175,15 +3994,15 @@ function dashboardTopbarHtml(ctx: RenderCtx): string {
     </div>
     <div class="pt-topbar__item">
       <button type="button" class="pt-topbar__btn pt-user" data-menu-toggle="${userMenuId}" aria-label="قائمة الحساب" aria-expanded="false" aria-haspopup="true">
-        ${avatarHtml('م', 28)}
-        <span class="pt-user__name">مستخدم تجريبي</span>
+        ${sessionAvatarHtml(userAvatarName, 28)}
+        <span class="pt-user__name" data-user-name>${esc(userName)}</span>
       </button>
       <div class="pt-dropdown pt-dropdown--user" id="${userMenuId}" role="menu" aria-label="قائمة الحساب">
-        <div class="pt-dropdown__user"><p>مستخدم تجريبي</p><p dir="ltr">demo@sivar.dz</p></div>
+        <div class="pt-dropdown__user"><p data-user-name>${esc(userName)}</p><p dir="ltr" data-user-email>${esc(userEmail)}</p></div>
         <div class="pt-dropdown__body">
           ${profilePage ? `<a role="menuitem" class="pt-dropdown__link" href="${esc(ctx.hrefOf(profilePage.id))}">${iconSvg('user', 16)}<span>الملف الشخصي</span></a>` : ''}
           ${settingsPage ? `<a role="menuitem" class="pt-dropdown__link" href="${esc(ctx.hrefOf(settingsPage.id))}">${iconSvg('settings', 16)}<span>الإعدادات</span></a>` : ''}
-          ${loginPage ? `<div class="pt-dropdown__divider"></div><a role="menuitem" class="pt-dropdown__link pt-dropdown__link--danger" href="${esc(ctx.hrefOf(loginPage.id))}">${iconSvg('log-out', 16)}<span>تسجيل الخروج</span></a>` : ''}
+          ${loginPage ? `<div class="pt-dropdown__divider"></div><a role="menuitem" class="pt-dropdown__link pt-dropdown__link--danger" data-logout="1" href="${esc(ctx.hrefOf(loginPage.id))}">${iconSvg('log-out', 16)}<span>تسجيل الخروج</span></a>` : ''}
         </div>
       </div>
     </div>
@@ -3274,7 +4093,13 @@ function authShell(page: ProjectPage, ctx: RenderCtx): string {
 }
 
 function dashboardShell(page: ProjectPage, ctx: RenderCtx): string {
-  const items = ctx.schema.dashboardNav.items
+  // (الجولة 16) جمهور الصفحة: الشريط الجانبي (وشريط الجوال العلوي) يعرض عناصر
+  // صفحات نفس الجمهور فقط — لا خلط بين فضاء المدير وفضاء الزبون (ترتيب المدير محفوظ)
+  const audience: 'admin' | 'client' = page.audience === 'client' ? 'client' : 'admin'
+  const items = ctx.schema.dashboardNav.items.filter((item) => {
+    const target = ctx.schema.pages.find((pg) => pg.id === item.pageId)
+    return !!target && (target.audience === 'client' ? 'client' : 'admin') === audience
+  })
   const navHtml = items
     .map((item) => {
       const target = ctx.schema.pages.find((pg) => pg.id === item.pageId)
@@ -3307,14 +4132,20 @@ function dashboardShell(page: ProjectPage, ctx: RenderCtx): string {
     logoImg ||
     `<span class="pt-nav__logo" style="width:28px;height:28px;border-radius:calc(var(--pt-radius) - 4px)" aria-hidden="true"></span>`
 
+  // (الجولة 16) هوية بطاقة المستخدم: صفحات الزبون أمينة بلقاسم + شارة «زبون»،
+  // وصفحات المدير كما كانت — وscript.js يستبدل الاسم/الأفاتار بجلسة الدخول
+  const isClient = audience === 'client'
+  const sidebarUserName = isClient ? DEMO_CLIENT.name : 'مستخدم تجريبي'
+  const navAriaLabel = isClient ? 'تنقل فضاء الزبون' : 'تنقل لوحة التحكم'
+
   return `<div class="pt-sidebar-layout">
   <aside class="pt-sidebar">
     <div class="pt-sidebar__brand">${sidebarMark}<span>${esc(brand)}</span></div>
-    <nav class="pt-sidebar__nav" aria-label="تنقل لوحة التحكم">${navHtml}</nav>
+    <nav class="pt-sidebar__nav" aria-label="${esc(navAriaLabel)}">${navHtml}</nav>
     <div class="pt-sidebar__bottom">
       <div class="pt-sidebar__user">
-        ${avatarHtml('م', 34)}
-        <div class="pt-sidebar__user-info"><p class="pt-sidebar__user-name">مستخدم تجريبي</p>${badgeHtml('بيانات تجريبية', 'primary')}</div>
+        ${sessionAvatarHtml(isClient ? DEMO_CLIENT.name : 'م', 34)}
+        <div class="pt-sidebar__user-info"><p class="pt-sidebar__user-name" data-user-name>${esc(sidebarUserName)}</p>${isClient ? badgeHtml('زبون', 'primary') : badgeHtml('بيانات تجريبية', 'primary')}</div>
       </div>
       ${home ? `<a class="pt-sidebar__item pt-sidebar__item--muted" href="${esc(homeHref)}">${iconSvg('globe', 16)}<span>العودة إلى الموقع</span></a>` : ''}
     </div>
@@ -3322,9 +4153,9 @@ function dashboardShell(page: ProjectPage, ctx: RenderCtx): string {
   <div>
     <div class="pt-sidebar-top">
       <div class="pt-sidebar-top__head">${topMark}<span>${esc(brand)}</span></div>
-      <nav class="pt-sidebar-top__pills" aria-label="تنقل لوحة التحكم">${pills}</nav>
+      <nav class="pt-sidebar-top__pills" aria-label="${esc(navAriaLabel)}">${pills}</nav>
     </div>
-    ${dashboardTopbarHtml(ctx)}
+    ${dashboardTopbarHtml(ctx, audience)}
     <main id="pt-main" class="pt-sidebar-content"><div class="pt-sidebar-content__inner">${blocks}</div></main>
   </div>
 </div>
@@ -3355,6 +4186,74 @@ function faviconLink(schema: ProjectSchema, logo: { src: string; mime: string } 
   return `<link rel="icon" href="${esc(letterFavicon(schema))}">`
 }
 
+// ============================================================
+// (الجولة 15) بذرة بيانات الكيانات — تُضمَّر في كل صفحة قبل script.js
+// لتشغيل إدارة المحتوى داخل الموقع المُصدَّر (وضع تجريبي محلي)
+// ============================================================
+/** مفتاح localStorage لكل موقع (مشتق من اسم المشروع — فريد لكل تصدير) */
+function siteDataKey(schema: ProjectSchema): string {
+  const base = (schema.settings?.projectName || schema.metadata.name || 'site').trim()
+  return `sivar-${slugify(base) || 'site'}`
+}
+
+/**
+ * وسم البذرة: window.SIVAR_SEED = { key, entities, labels, entityByVariant }.
+ * يضمّر كل كيان له أعمدة (ولو صفر صفوف — حتى تعمل «إضافة» على الجدول الفارغ)
+ * والصفوف بدائيات فقط (لا data URLs)؛ تُهرَّب «<» وفاصلا السطر حتى لا يُكسر
+ * وسم <script>.
+ */
+function buildSeedScript(schema: ProjectSchema): string {
+  const entities: Record<string, { columns: EntityColumn[]; rows: Array<Record<string, unknown>> }> = {}
+  const labels: Record<string, string> = {}
+  const source = schema.mockData?.entities ?? {}
+  for (const key of Object.keys(source)) {
+    const ent = source[key]
+    if (!ent || !Array.isArray(ent.columns) || ent.columns.length === 0) continue
+    entities[key] = { columns: ent.columns, rows: Array.isArray(ent.rows) ? ent.rows : [] }
+    labels[key] = ENTITY_SINGULARS[key] || ENTITY_LABELS[key] || 'عنصر'
+  }
+  const payload = {
+    key: siteDataKey(schema),
+    entities,
+    labels,
+    entityByVariant: {
+      products: 'products',
+      services: 'services',
+      menu: 'menuItems',
+      properties: 'properties',
+      courses: 'courses',
+    } as Record<string, string>,
+  }
+  const json = JSON.stringify(payload)
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
+  return `<script>window.SIVAR_SEED = ${json};</script>`
+}
+
+/**
+ * (الجولة 16) سمات <body> لنظام الأدوار — فارغة تماماً بلا صفحة فضاء الزبون:
+ *  • صفحات منطقة اللوحة: data-audience + data-login-href + data-client-href +
+ *    data-admin-href (script.js يحرس الجلسة عند الإقلاع) — لا صفحة دخول → بلا
+ *    سمات جمهور إطلاقاً (توافق قديم).
+ *  • صفحة التسعير (أو رئيسية بقسم تسعير): data-client-href وحده — هدفه
+ *    إنشاء الطلب من زر الخطة لزبون مسجّل.
+ *  • landing/auth/faq/custom وبقية الصفحات: لا سمات جمهور.
+ */
+function guardBodyAttrs(schema: ProjectSchema, page: ProjectPage, ctx: RenderCtx): string {
+  const clientPage = findClientPage(schema)
+  if (!clientPage) return ''
+  const isDashArea = DASHBOARD_PAGE_TYPES.has(page.type)
+  const hasPricing = page.type === 'pricing' || (page.type === 'landing' && page.blocks.some((b) => b.type === 'pricing'))
+  if (!isDashArea && !hasPricing) return ''
+  const clientHref = ` data-client-href="${esc(ctx.hrefOf(clientPage.id))}"`
+  if (!isDashArea) return clientHref
+  const loginPage = schema.pages.find((pg) => pg.type === 'auth' && (pg.authVariant ?? 'login') === 'login')
+  if (!loginPage) return ''
+  const adminDash = findAdminDashboardPage(schema)
+  return ` data-audience="${page.audience === 'client' ? 'client' : 'admin'}" data-login-href="${esc(ctx.hrefOf(loginPage.id))}"${clientHref}${adminDash ? ` data-admin-href="${esc(ctx.hrefOf(adminDash.id))}"` : ''}`
+}
+
 function htmlDocument(
   schema: ProjectSchema,
   page: ProjectPage,
@@ -3368,7 +4267,8 @@ function htmlDocument(
     : `${page.name} | ${brand}`
   const description = truncateText(page.subtitle || schema.metadata.description, 160)
   // خلفية المشروع الثابتة: صنف على body + طبقة pt-pagebg كأول ابن (دون خلفية → بلا تغيير)
-  const bodyAttr = ctx.pageBg ? ` class="pt-hasbg pt-hasbg--${esc(ctx.pageBg.overlay)}"` : ''
+  // (الجولة 16) سمات حراسة الجلسة تُدمج بعد صنف الخلفية — لا تُدهس منطق class القائم
+  const bodyAttr = `${ctx.pageBg ? ` class="pt-hasbg pt-hasbg--${esc(ctx.pageBg.overlay)}"` : ''}${guardBodyAttrs(schema, page, ctx)}`
   const pageBgDiv = ctx.pageBg
     ? `<div class="pt-pagebg" aria-hidden="true" style="background-image:url('${esc(ctx.pageBg.src)}')"></div>\n`
     : ''
@@ -3395,14 +4295,14 @@ ${faviconLink(schema, ctx.logo)}
 ${pageBgDiv}<a class="pt-skip" href="#pt-main">تخطَّ إلى المحتوى</a>
 ${body}
 <div class="pt-demo-badge" aria-hidden="true">بيانات تجريبية</div>
-<script src="${esc(ctx.rel)}script.js"></script>
+${buildSeedScript(schema)}<script src="${esc(ctx.rel)}script.js"></script>
 </body>
 </html>`
 }
 
 function shellFor(page: ProjectPage, ctx: RenderCtx): string {
   if (page.type === 'auth') return authShell(page, ctx)
-  if (['dashboard', 'table', 'form', 'settings', 'profile'].includes(page.type)) {
+  if (DASHBOARD_PAGE_TYPES.has(page.type)) {
     return dashboardShell(page, ctx)
   }
   return siteShell(page, ctx)

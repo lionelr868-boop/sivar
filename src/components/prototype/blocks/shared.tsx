@@ -12,6 +12,25 @@ import type { CSSProperties, ReactElement, ReactNode } from 'react'
 import type { ProjectSchema } from '@/lib/types'
 import { hexDarken } from '../theme-provider'
 
+/** عملية صف واحد على كيان جدول (الجولة 15 — إدارة من موقع المستخدم) */
+export interface EntityRowChange {
+  op: 'upsert' | 'delete'
+  /** فهرس الصف داخل الكيان — null يعني إضافة صف جديد */
+  index: number | null
+  /** الصف الكامل بعد التعديل (لـ upsert) */
+  row?: Record<string, unknown>
+}
+
+/**
+ * (الجولة 16) جلسة الدخول التجريبية في المعاينة — مدير الموقع أو زبونه.
+ * زبون: أمينة بلقاسم / amina@sivar.dz، مدير: مستخدم تجريبي / demo@sivar.dz.
+ */
+export interface PreviewSession {
+  role: 'admin' | 'client'
+  name: string
+  email: string
+}
+
 /** سياق يُمرَّر لكل مكوّن أثناء العرض */
 export interface BlockCtx {
   schema: ProjectSchema
@@ -23,6 +42,20 @@ export interface BlockCtx {
   onNavigate?: (pageId: string) => void
   /** بحث التروستة العلوية للوحة — يفلتر جداول الصفحة (Task 8) */
   tableSearch?: string
+  /**
+   * (الجولة 15) إدارة صفوف الكيانات من لوحة تحكم الموقع نفسه —
+   * إضافة/تعديل/حذف صف يحدّث المخطط (ومعه أقسام الموقع المقابلة).
+   * متوفر في وضع المعاينة التفاعلي فقط.
+   */
+  onEntityRowChange?: (entityKey: string, change: EntityRowChange) => void
+  /** (الجولة 16) جلسة الدخول التجريبية — تُضبط من بطاقة الدخول وتُفرّغ عند الخروج */
+  session?: PreviewSession | null
+  /** (الجولة 16) الدخول بدور (مدير/زبون) من بطاقة الدخول */
+  onLoginAs?: (role: 'admin' | 'client') => void
+  /** (الجولة 16) تسجيل الخروج — يفرّغ الجلسة ثم ينقل لصفحة الدخول */
+  onLogout?: () => void
+  /** (الجولة 16) زبون مسجّل يطلب خطة من صفحة التسعير — صف حقيقي في orders */
+  onPlaceOrder?: (plan: { name: string; price: number }) => void
 }
 
 // ---------- قُرّاء الخصائص (آمنة ضد أي مدخلات) ----------

@@ -89,6 +89,9 @@ export const PAGE_TYPE_LABELS: Record<PageType, string> = {
 
 export type AuthVariant = 'login' | 'signup' | 'forgot'
 
+/** جمهور صفحة منطقة اللوحة: مدير الموقع أو زبونه — undefined = admin (توافق قديم) */
+export type PageAudience = 'admin' | 'client'
+
 export type BlockType =
   | 'hero'
   | 'features'
@@ -132,6 +135,8 @@ export interface ProjectPage {
   slug: string
   type: PageType
   authVariant?: AuthVariant
+  /** (الجولة 16) جمهور صفحات منطقة اللوحة — صفحات client تُعرض في شريط فضاء الزبون */
+  audience?: PageAudience
   /** key into ProjectMockData.entities for table pages */
   entity?: string
   title?: string

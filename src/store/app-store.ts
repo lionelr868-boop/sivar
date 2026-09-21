@@ -5,7 +5,9 @@
 import { create } from 'zustand'
 import { toast } from 'sonner'
 import * as api from '@/lib/api-client'
-import { syncEntitiesFromLanding } from '@/lib/project/entity-sync'
+import { applyEntityRowOp, isSyncedEntity, syncEntitiesFromLanding } from '@/lib/project/entity-sync'
+import { DEMO_CLIENT, DEMO_CLIENT_NAME, ENTITY_SINGULARS } from '@/lib/content/mock-data'
+import type { PreviewSession } from '@/components/prototype/blocks/shared'
 import {
   type AgentResult,
   type AppView,
@@ -40,6 +42,8 @@ export interface ExportState {
   error?: string
 }
 
+export type { PreviewSession }
+
 interface AppState {
   // session
   hydrated: boolean
@@ -63,6 +67,8 @@ interface AppState {
   dirty: boolean
   saving: boolean
   previewOpen: boolean
+  /** (الجولة 16) جلسة دخول تجريبية عابرة (مدير/زبون) — لا تُحفظ في المخطط */
+  previewSession: PreviewSession | null
   // agent chat
   agentMessages: AgentMessage[]
   agentBusy: boolean
@@ -86,6 +92,13 @@ interface AppState {
 
   mutateSchema: (mutator: (draft: ProjectSchema) => void, label?: string) => void
   applySchemaFn: (fn: (schema: ProjectSchema) => ProjectSchema) => void
+  // (الجولة 15) إدارة صفوف الكيانات من لوحة تحكم الموقع نفسه
+  upsertEntityRow: (entityKey: string, index: number | null, row: Record<string, unknown>) => void
+  deleteEntityRow: (entityKey: string, index: number) => void
+  // (الجولة 16) جلسة الدخول بالأدوار في المعاينة + طلب خطة من التسعير
+  loginPreviewAs: (role: 'admin' | 'client') => void
+  logoutPreview: () => void
+  placeClientOrder: (plan: { name: string; price: number }) => void
   undo: () => void
   redo: () => void
   saveProject: (versionLabel?: string) => Promise<void>
@@ -133,6 +146,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   dirty: false,
   saving: false,
   previewOpen: false,
+  previewSession: null,
   agentMessages: [],
   agentBusy: false,
   exportState: { open: false, phase: 'idle', checks: [] },
@@ -202,12 +216,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       schema: null,
       agentMessages: [],
       dashboardSection: 'home',
+      previewSession: null,
     })
   },
 
   // ---------- builder ----------
   openProject: async (id) => {
-    set({ schemaLoading: true, view: 'builder', projectId: id, past: [], future: [], dirty: false, agentMessages: [] })
+    // (الجولة 16) تغيير المشروع يُفرّغ جلسة المعاينة (مدير/زبون)
+    set({ schemaLoading: true, view: 'builder', projectId: id, past: [], future: [], dirty: false, agentMessages: [], previewSession: null })
     try {
       const { project } = await api.getProject(id)
       const firstPage = project.schema.pages[0]?.id ?? null
@@ -235,6 +251,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       past: [],
       future: [],
       previewOpen: false,
+      previewSession: null,
     })
     get().refreshProjects()
   },
@@ -269,6 +286,68 @@ export const useAppStore = create<AppState>((set, get) => ({
       future: [],
       dirty: true,
     })
+  },
+
+  // ---------- (الجولة 15) صفوف الكيانات من موقع المستخدم ----------
+  upsertEntityRow: (entityKey, index, row) => {
+    const { schema } = get()
+    if (!schema) return
+    const name = ENTITY_SINGULARS[entityKey] ?? entityKey
+    const label = String(row[Object.keys(row)[0] ?? ''] ?? name) || name
+    // نمرّ عبر مسار التزامن الموازي نفسه: الصف + مصالحة قسم الموقع
+    get().applySchemaFn((current) => applyEntityRowOp(current, entityKey, 'upsert', index, row))
+    toast.success(
+      index == null
+        ? isSyncedEntity(entityKey)
+          ? `أُضيف «${label}» وتحدّث قسم الموقع المقابل تلقائياً`
+          : `أُضيف «${label}»`
+        : `حُدّث «${label}»${isSyncedEntity(entityKey) ? ' وقسم الموقع المقابل' : ''}`,
+    )
+  },
+
+  deleteEntityRow: (entityKey, index) => {
+    const { schema } = get()
+    if (!schema) return
+    const name = ENTITY_SINGULARS[entityKey] ?? entityKey
+    const row = schema.mockData?.entities?.[entityKey]?.rows?.[index]
+    const label = String((row as Record<string, unknown> | undefined)?.name ?? (row as Record<string, unknown> | undefined)?.title ?? name) || name
+    get().applySchemaFn((current) => applyEntityRowOp(current, entityKey, 'delete', index))
+    toast.success(`حُذف «${label}»${isSyncedEntity(entityKey) ? ' وقسم الموقع المقابل' : ''}`)
+  },
+
+  // ---------- (الجولة 16) جلسة الدخول بالأدوار في المعاينة ----------
+  loginPreviewAs: (role) => {
+    set({
+      previewSession:
+        role === 'client'
+          ? { role: 'client', name: DEMO_CLIENT.name, email: DEMO_CLIENT.email }
+          : { role: 'admin', name: 'مستخدم تجريبي', email: 'demo@sivar.dz' },
+    })
+  },
+
+  logoutPreview: () => set({ previewSession: null }),
+
+  /**
+   * (الجولة 16) طلب حقيقي من التسعير: زبون مسجّل يطلب خطة — صف جديد
+   * آخر صفوف orders بنفس مسار الجولة 15 (applySchemaFn + applyEntityRowOp)
+   * فيظهر فوراً في «طلباتي» ولوحة المدير.
+   */
+  placeClientOrder: (plan) => {
+    const { schema } = get()
+    if (!schema) return
+    const orders = schema.mockData?.entities?.orders
+    if (!orders || !Array.isArray(orders.columns) || orders.columns.length === 0) return
+    const row: Record<string, unknown> = {
+      id: 'ORD-' + Math.floor(10000 + Math.random() * 89999),
+      customer: DEMO_CLIENT_NAME,
+      item: plan.name,
+      quantity: 1,
+      total: plan.price,
+      date: new Date().toISOString().slice(0, 10),
+      status: 'جديد',
+    }
+    get().applySchemaFn((current) => applyEntityRowOp(current, 'orders', 'upsert', null, row))
+    toast.success(`تم استلام طلبك «${plan.name}» — يظهر الآن في «طلباتي»`)
   },
 
   undo: () => {

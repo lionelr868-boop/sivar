@@ -25,6 +25,16 @@ export function PreviewMode() {
   const selectPage = useAppStore((s) => s.selectPage)
   const device = useAppStore((s) => s.device)
   const setDevice = useAppStore((s) => s.setDevice)
+  // (الجولة 15) إدارة صفوف الكيانات من لوحة تحكم الموقع نفسه —
+  // إضافة/تعديل/حذف يحدّث المخطط ويتزامن مع أقسام الموقع المقابلة
+  const upsertEntityRow = useAppStore((s) => s.upsertEntityRow)
+  const deleteEntityRow = useAppStore((s) => s.deleteEntityRow)
+  // (الجولة 16) جلسة الدخول بالأدوار — الدخول كمدير/كزبون من بطاقة
+  // الدخول، الطلب الفعلي لخطة من التسعير، وتسجيل الخروج
+  const previewSession = useAppStore((s) => s.previewSession)
+  const loginPreviewAs = useAppStore((s) => s.loginPreviewAs)
+  const logoutPreview = useAppStore((s) => s.logoutPreview)
+  const placeClientOrder = useAppStore((s) => s.placeClientOrder)
 
   const [pageId, setPageId] = useState<string | null>(null)
   // مكدس تاريخ التنقل داخل المعاينة (لزر الرجوع)
@@ -137,6 +147,14 @@ export function PreviewMode() {
               pageId={page?.id ?? ''}
               interactive
               onNavigate={navigate}
+              onEntityRowChange={(entityKey, change) => {
+                if (change.op === 'delete') deleteEntityRow(entityKey, change.index ?? 0)
+                else upsertEntityRow(entityKey, change.index, change.row ?? {})
+              }}
+              session={previewSession}
+              onLoginAs={loginPreviewAs}
+              onLogout={logoutPreview}
+              onPlaceOrder={placeClientOrder}
             />
           </div>
         </div>

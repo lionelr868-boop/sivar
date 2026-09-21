@@ -1,0 +1,932 @@
+     1→// ============================================================
+     2→// SIVAR — Algerian mock data engine (بيانات تجريبية جزائرية)
+     3→// Task 2-a — isomorphic + deterministic (seed based)
+     4→// كل الأسماء عربية، المدن جزائرية، العملة دج، التواريخ 2024
+     5→// ============================================================
+     6→import type {
+     7→  ChartData,
+     8→  EntityColumn,
+     9→  EntityData,
+    10→  ProjectMockData,
+    11→  ProjectType,
+    12→  StatItem,
+    13→} from '@/lib/types'
+    14→
+    15→// ---------- shared pools ----------
+    16→const NAMES: string[] = [
+    17→  'أحمد بن علي',
+    18→  'محمد قادري',
+    19→  'سارة بوزيد',
+    20→  'ياسين مراد',
+    21→  'أمينة حساني',
+    22→  'كريم بلقاسم',
+    23→  'نورة سعدي',
+    24→  'رشيد بوعلام',
+    25→  'ليلى مزيان',
+    26→  'عمر تواتي',
+    27→]
+    28→
+    29→const EMAILS: string[] = [
+    30→  'ahmed.benali@gmail.com',
+    31→  'mohamed.ghadri@gmail.com',
+    32→  'sara.bouzid@gmail.com',
+    33→  'yacine.mourad@gmail.com',
+    34→  'amina.hassani@gmail.com',
+    35→  'karim.belkacem@gmail.com',
+    36→  'nora.saadi@gmail.com',
+    37→  'rachid.boualem@gmail.com',
+    38→  'leila.meziane@gmail.com',
+    39→  'omar.touati@gmail.com',
+    40→]
+    41→
+    42→const CITIES: string[] = ['الجزائر', 'وهران', 'قسنطينة', 'سطيف', 'عنابة', 'البليدة']
+    43→
+    44→/** Algerian month names (جانفي … ديسمبر) */
+    45→export const ARABIC_MONTHS: string[] = [
+    46→  'جانفي',
+    47→  'فيفري',
+    48→  'مارس',
+    49→  'أفريل',
+    50→  'ماي',
+    51→  'جوان',
+    52→  'جويلية',
+    53→  'أوت',
+    54→  'سبتمبر',
+    55→  'أكتوبر',
+    56→  'نوفمبر',
+    57→  'ديسمبر',
+    58→]
+    59→
+    60→/** أيام الأسبوع — تبدأ من الاثنين */
+    61→export const ARABIC_DAYS: string[] = [
+    62→  'الاثنين',
+    63→  'الثلاثاء',
+    64→  'الأربعاء',
+    65→  'الخميس',
+    66→  'الجمعة',
+    67→  'السبت',
+    68→  'الأحد',
+    69→]
+    70→
+    71→/** يُرجع شخصاً (اسم + بريد) من المجموعة الدوّارة */
+    72→function person(i: number): { name: string; email: string } {
+    73→  const idx = ((i % NAMES.length) + NAMES.length) % NAMES.length
+    74→  return { name: NAMES[idx], email: EMAILS[idx] }
+    75→}
+    76→
+    77→/** (الجولة 16) هوية الزبون التجريبي — تدخل «كزبون» من صفحة الدخول وترى طلباتها في فضاء الزبون */
+    78→export const DEMO_CLIENT = {
+    79→  name: 'أمينة بلقاسم',
+    80→  email: 'amina@sivar.dz',
+    81→  city: 'وهران',
+    82→} as const
+    83→
+    84→export const DEMO_CLIENT_NAME: string = DEMO_CLIENT.name
+    85→
+    86→/** تنسيق الأرقام بأسلوب 24,580 */
+    87→export function num(v: number): string {
+    88→  return v.toLocaleString('en-US')
+    89→}
+    90→
+    91→// ---------- entity keys / labels ----------
+    92→export const ENTITY_KEYS = [
+    93→  'customers',
+    94→  'orders',
+    95→  'products',
+    96→  'bookings',
+    97→  'invoices',
+    98→  'services',
+    99→  'users',
+   100→  'clients',
+   101→  'tasks',
+   102→  'teamMembers',
+   103→  'courses',
+   104→  'students',
+   105→  'properties',
+   106→  'appointments',
+   107→  'menuItems',
+   108→  'transactions',
+   109→  'subscriptions',
+   110→] as const
+   111→
+   112→export type EntityKey = (typeof ENTITY_KEYS)[number]
+   113→
+   114→export const ENTITY_LABELS: Record<string, string> = {
+   115→  customers: 'العملاء',
+   116→  orders: 'الطلبات',
+   117→  products: 'المنتجات',
+   118→  bookings: 'الحجوزات',
+   119→  invoices: 'الفواتير',
+   120→  services: 'الخدمات',
+   121→  users: 'المستخدمون',
+   122→  clients: 'الزبناء',
+   123→  tasks: 'المهام',
+   124→  teamMembers: 'أعضاء الفريق',
+   125→  courses: 'الدورات',
+   126→  students: 'الطلاب',
+   127→  properties: 'العقارات',
+   128→  appointments: 'المواعيد',
+   129→  menuItems: 'أصناف القائمة',
+   130→  transactions: 'المعاملات',
+   131→  subscriptions: 'الاشتراكات',
+   132→}
+   133→
+   134→/**
+   135→ * (الجولة 15) المفرد لكل كيان — نصّ زر «إضافة» ونوافذ التحرير داخل
+   136→ * لوحة تحكم الموقع نفسه (المعاينة + الموقع الثابت المُصدَّر).
+   137→ */
+   138→export const ENTITY_SINGULARS: Record<string, string> = {
+   139→  customers: 'عميل',
+   140→  orders: 'طلب',
+   141→  products: 'منتج',
+   142→  bookings: 'حجز',
+   143→  invoices: 'فاتورة',
+   144→  services: 'خدمة',
+   145→  users: 'مستخدم',
+   146→  clients: 'زبون',
+   147→  tasks: 'مهمة',
+   148→  teamMembers: 'عضو فريق',
+   149→  courses: 'دورة',
+   150→  students: 'طالب',
+   151→  properties: 'عقار',
+   152→  appointments: 'موعد',
+   153→  menuItems: 'صنف',
+   154→  transactions: 'معاملة',
+   155→  subscriptions: 'اشتراك',
+   156→}
+   157→
+   158→/** (الجولة 15) اقتراحات الحالات الشائعة لنموذج إضافة/تعديل صف (datalist) */
+   159→export const BADGE_SUGGESTIONS: string[] = [
+   160→  'نشط',
+   161→  'مكتمل',
+   162→  'مدفوع',
+   163→  'متاح',
+   164→  'مؤكد',
+   165→  'جديد',
+   166→  'قيد المعالجة',
+   167→  'معلق',
+   168→  'متأخرة',
+   169→  'ملغى',
+   170→  'نفد المخزون',
+   171→  'غير نشط',
+   172→]
+   173→
+   174→export const CHART_KEYS = ['revenueMonthly', 'ordersWeekly', 'salesByCategory', 'usersGrowth'] as const
+   175→
+   176→export const CHART_LABELS: Record<string, string> = {
+   177→  revenueMonthly: 'الإيرادات الشهرية',
+   178→  ordersWeekly: 'الطلبات الأسبوعية',
+   179→  salesByCategory: 'المبيعات حسب الفئة',
+   180→  usersGrowth: 'نمو المستخدمين',
+   181→}
+   182→
+   183→/** الكيان الافتراضي حسب نوع المشروع (يُستعمل في صفحات البداية) */
+   184→export function defaultEntityFor(type: ProjectType): string {
+   185→  switch (type) {
+   186→    case 'ecommerce':
+   187→    case 'marketplace':
+   188→    case 'delivery':
+   189→      return 'orders'
+   190→    case 'restaurant':
+   191→      return 'menuItems'
+   192→    case 'booking':
+   193→      return 'bookings'
+   194→    case 'health':
+   195→      return 'appointments'
+   196→    case 'education':
+   197→      return 'courses'
+   198→    case 'realestate':
+   199→      return 'properties'
+   200→    case 'fintech':
+   201→      return 'transactions'
+   202→    case 'services':
+   203→    case 'agency':
+   204→      return 'clients'
+   205→    case 'admin':
+   206→    case 'app':
+   207→      return 'users'
+   208→    default:
+   209→      return 'customers'
+   210→  }
+   211→}
+   212→
+   213→/** حزمة الإحصائيات الافتراضية حسب نوع المشروع */
+   214→export function defaultStatsPreset(type: ProjectType): string {
+   215→  switch (type) {
+   216→    case 'saas':
+   217→    case 'ai':
+   218→    case 'fintech':
+   219→      return 'saas'
+   220→    case 'ecommerce':
+   221→    case 'marketplace':
+   222→    case 'delivery':
+   223→      return 'ecommerce'
+   224→    case 'education':
+   225→      return 'education'
+   226→    case 'health':
+   227→    case 'booking':
+   228→      return 'booking'
+   229→    case 'restaurant':
+   230→      return 'restaurant'
+   231→    case 'agency':
+   232→    case 'services':
+   233→    case 'realestate':
+   234→      return 'agency'
+   235→    default:
+   236→      return 'overview'
+   237→  }
+   238→}
+   239→
+   240→// ---------- seed helpers ----------
+   241→/** تدوير الصفوف — seed 0 يعني بدون تغيير */
+   242→function rot<T>(rows: T[], seed: number): T[] {
+   243→  if (!seed || rows.length === 0) return [...rows]
+   244→  const r = ((seed % rows.length) + rows.length) % rows.length
+   245→  return [...rows.slice(r), ...rows.slice(0, r)]
+   246→}
+   247→
+   248→/** اهتزاز رقمي بسيط — seed 0 يعني بدون تغيير */
+   249→function jit(v: number, seed: number, pct = 0.08): number {
+   250→  if (!seed) return v
+   251→  const f = 1 + (((seed % 7) - 3) * pct) / 3
+   252→  return Math.max(0, Math.round(v * f))
+   253→}
+   254→
+   255→const NUMERIC_COLUMN_TYPES = new Set<string>(['number', 'currency', 'progress'])
+   256→
+   257→/** بناء كيان مع تطبيق seed (تدوير + اهتزاز الأرقام) — نسخة مستقلة عن الأعمدة */
+   258→function makeEntity(
+   259→  columns: EntityColumn[],
+   260→  baseRows: Array<Record<string, unknown>>,
+   261→  seed: number
+   262→): EntityData {
+   263→  const cols = columns.map((c) => ({ ...c }))
+   264→  const rows = rot(baseRows, seed).map((row) => {
+   265→    const out: Record<string, unknown> = {}
+   266→    for (const col of cols) {
+   267→      const v = row[col.key]
+   268→      if (NUMERIC_COLUMN_TYPES.has(col.type) && typeof v === 'number') {
+   269→        out[col.key] = jit(v, seed)
+   270→      } else {
+   271→        out[col.key] = v
+   272→      }
+   273→    }
+   274→    return out
+   275→  })
+   276→  return { columns: cols, rows }
+   277→}
+   278→
+   279→// ============================================================
+   280→// Entity builders — 17 كياناً، كل واحد بـ 6 صفوف
+   281→// ============================================================
+   282→
+   283→const CUSTOMER_COLS: EntityColumn[] = [
+   284→  { key: 'name', label: 'العميل', type: 'avatar' },
+   285→  { key: 'email', label: 'البريد الإلكتروني', type: 'email' },
+   286→  { key: 'city', label: 'المدينة', type: 'text' },
+   287→  { key: 'orders', label: 'الطلبات', type: 'number' },
+   288→  { key: 'total', label: 'إجمالي المشتريات', type: 'currency' },
+   289→  { key: 'status', label: 'الحالة', type: 'badge' },
+   290→]
+   291→
+   292→function customersRows(): Array<Record<string, unknown>> {
+   293→  const data: Array<[number, string, number, number, string]> = [
+   294→    [0, 'الجزائر', 12, 86400, 'نشط'],
+   295→    [2, 'وهران', 8, 45200, 'نشط'],
+   296→    [1, 'قسنطينة', 5, 24800, 'جديد'],
+   297→    [4, 'سطيف', 15, 112500, 'نشط'],
+   298→    [3, 'عنابة', 3, 12600, 'غير نشط'],
+   299→    [6, 'البليدة', 9, 58700, 'نشط'],
+   300→  ]
+   301→  return data.map(([i, city, orders, total, status]) => ({
+   302→    name: person(i).name,
+   303→    email: person(i).email,
+   304→    city,
+   305→    orders,
+   306→    total,
+   307→    status,
+   308→  }))
+   309→}
+   310→
+   311→const ORDER_COLS: EntityColumn[] = [
+   312→  { key: 'id', label: 'رقم الطلب', type: 'text' },
+   313→  { key: 'customer', label: 'العميل', type: 'avatar' },
+   314→  { key: 'item', label: 'المنتج', type: 'text' },
+   315→  { key: 'quantity', label: 'الكمية', type: 'number' },
+   316→  { key: 'total', label: 'المبلغ', type: 'currency' },
+   317→  { key: 'date', label: 'التاريخ', type: 'date' },
+   318→  { key: 'status', label: 'الحالة', type: 'badge' },
+   319→]
+   320→
+   321→function ordersRows(): Array<Record<string, unknown>> {
+   322→  // (الجولة 16) صفان للزبونة التجريبية «أمينة بلقاسم» حتى يظهر لفضاء الزبون طلباتها
+   323→  const data: Array<[string, number | null, string, number, number, string, string]> = [
+   324→    ['ORD-2401', null, 'سماعة بلوتوث JBL', 1, 8900, '2024-03-12', 'جديد'],
+   325→    ['ORD-2402', 2, 'ساعة ذكية Amazfit', 1, 24800, '2024-03-11', 'مكتمل'],
+   326→    ['ORD-2403', 4, 'حقيبة ظهر جلدية', 2, 12400, '2024-03-10', 'قيد المعالجة'],
+   327→    ['ORD-2404', null, 'مكينة قهوة Delonghi', 1, 32500, '2024-03-09', 'مكتمل'],
+   328→    ['ORD-2405', 6, 'عطر رجالي Dior', 1, 19800, '2024-03-08', 'ملغى'],
+   329→    ['ORD-2406', 3, 'لوحة مفاتيح ميكانيكية', 1, 11300, '2024-03-07', 'جديد'],
+   330→  ]
+   331→  return data.map(([id, i, item, quantity, total, date, status]) => ({
+   332→    id,
+   333→    customer: i === null ? DEMO_CLIENT.name : person(i).name,
+   334→    item,
+   335→    quantity,
+   336→    total,
+   337→    date,
+   338→    status,
+   339→  }))
+   340→}
+   341→
+   342→const PRODUCT_COLS: EntityColumn[] = [
+   343→  { key: 'name', label: 'المنتج', type: 'text' },
+   344→  { key: 'category', label: 'الفئة', type: 'text' },
+   345→  { key: 'price', label: 'السعر', type: 'currency' },
+   346→  { key: 'stock', label: 'المخزون', type: 'number' },
+   347→  { key: 'sold', label: 'المبيعات', type: 'number' },
+   348→  { key: 'status', label: 'الحالة', type: 'badge' },
+   349→]
+   350→
+   351→/** منتجات افتراضية (متجر إلكتروني) — تشمل الأرقام المرجعية 24800 و15000 */
+   352→function productsDefaultRows(): Array<Record<string, unknown>> {
+   353→  const data: Array<[string, string, number, number, number, string]> = [
+   354→    ['سماعة بلوتوث JBL', 'إلكترونيات', 8900, 34, 156, 'نشط'],
+   355→    ['ساعة ذكية Amazfit', 'إلكترونيات', 24800, 12, 98, 'نشط'],
+   356→    ['حقيبة ظهر جلدية', 'حقائب وملابس', 6200, 45, 210, 'نشط'],
+   357→    ['مكينة قهوة Delonghi', 'أجهزة منزلية', 32500, 6, 41, 'نشط'],
+   358→    ['عطر رجالي Dior', 'عطور', 15000, 8, 67, 'نشط'],
+   359→    ['لوحة مفاتيح ميكانيكية', 'إلكترونيات', 11300, 0, 132, 'نفد المخزون'],
+   360→  ]
+   361→  return data.map(([name, category, price, stock, sold, status]) => ({
+   362→    name,
+   363→    category,
+   364→    price,
+   365→    stock,
+   366→    sold,
+   367→    status,
+   368→  }))
+   369→}
+   370→
+   371→/** منتجات مطعم/توصيل — أطباق جزائرية */
+   372→function productsFoodRows(): Array<Record<string, unknown>> {
+   373→  const data: Array<[string, string, number, number, number, string]> = [
+   374→    ['كسكس بخضر', 'أطباق رئيسية', 1200, 48, 320, 'متاح'],
+   375→    ['طاجين زيتون', 'أطباق رئيسية', 1500, 36, 245, 'متاح'],
+   376→    ['شخشوخة', 'أطباق رئيسية', 1000, 52, 198, 'متاح'],
+   377→    ['حريرة', 'شوربات', 400, 80, 410, 'متاح'],
+   378→    ['بريك بالبيض', 'مقبلات', 300, 95, 520, 'متاح'],
+   379→    ['بقلاوة وردة', 'حلويات', 800, 0, 260, 'نفد المخزون'],
+   380→  ]
+   381→  return data.map(([name, category, price, stock, sold, status]) => ({
+   382→    name,
+   383→    category,
+   384→    price,
+   385→    stock,
+   386→    sold,
+   387→    status,
+   388→  }))
+   389→}
+   390→
+   391→const BOOKING_COLS: EntityColumn[] = [
+   392→  { key: 'id', label: 'رقم الحجز', type: 'text' },
+   393→  { key: 'customer', label: 'العميلة', type: 'avatar' },
+   394→  { key: 'service', label: 'الخدمة', type: 'text' },
+   395→  { key: 'date', label: 'التاريخ', type: 'date' },
+   396→  { key: 'time', label: 'الوقت', type: 'text' },
+   397→  { key: 'status', label: 'الحالة', type: 'badge' },
+   398→]
+   399→
+   400→function bookingsRows(): Array<Record<string, unknown>> {
+   401→  // (الجولة 16) حجزان للزبونة التجريبية «أمينة بلقاسم»
+   402→  const data: Array<[string, number | null, string, string, string, string]> = [
+   403→    ['BKG-1201', null, 'قص وتصفيف', '2024-03-12', '10:30', 'مكتمل'],
+   404→    ['BKG-1202', 8, 'صبغة شعر', '2024-03-12', '11:45', 'جديد'],
+   405→    ['BKG-1203', null, 'مانيكير وباديكير', '2024-03-13', '14:00', 'قيد المعالجة'],
+   406→    ['BKG-1204', 6, 'مكياج عروس', '2024-03-15', '09:00', 'مؤكد'],
+   407→    ['BKG-1205', 5, 'حمام مغربي', '2024-03-16', '16:30', 'ملغى'],
+   408→    ['BKG-1206', 9, 'عناية بالبشرة', '2024-03-17', '13:15', 'مكتمل'],
+   409→  ]
+   410→  return data.map(([id, i, service, date, time, status]) => ({
+   411→    id,
+   412→    customer: i === null ? DEMO_CLIENT.name : person(i).name,
+   413→    service,
+   414→    date,
+   415→    time,
+   416→    status,
+   417→  }))
+   418→}
+   419→
+   420→const INVOICE_COLS: EntityColumn[] = [
+   421→  { key: 'id', label: 'رقم الفاتورة', type: 'text' },
+   422→  { key: 'client', label: 'الزبون', type: 'avatar' },
+   423→  { key: 'amount', label: 'المبلغ', type: 'currency' },
+   424→  { key: 'date', label: 'تاريخ الإصدار', type: 'date' },
+   425→  { key: 'status', label: 'الحالة', type: 'badge' },
+   426→]
+   427→
+   428→function invoicesRows(): Array<Record<string, unknown>> {
+   429→  const data: Array<[string, number, number, string, string]> = [
+   430→    ['INV-2024-001', 0, 24800, '2024-03-01', 'مدفوعة'],
+   431→    ['INV-2024-002', 2, 96400, '2024-03-03', 'مدفوعة'],
+   432→    ['INV-2024-003', 4, 15000, '2024-03-05', 'معلّقة'],
+   433→    ['INV-2024-004', 1, 132000, '2024-03-08', 'مدفوعة'],
+   434→    ['INV-2024-005', 6, 45600, '2024-03-10', 'متأخرة'],
+   435→    ['INV-2024-006', 3, 8900, '2024-03-12', 'ملغاة'],
+   436→  ]
+   437→  return data.map(([id, i, amount, date, status]) => ({
+   438→    id,
+   439→    client: person(i).name,
+   440→    amount,
+   441→    date,
+   442→    status,
+   443→  }))
+   444→}
+   445→
+   446→const SERVICE_COLS: EntityColumn[] = [
+   447→  { key: 'name', label: 'الخدمة', type: 'text' },
+   448→  { key: 'category', label: 'الفئة', type: 'text' },
+   449→  { key: 'price', label: 'السعر', type: 'currency' },
+   450→  { key: 'duration', label: 'المدة', type: 'text' },
+   451→  { key: 'rating', label: 'التقييم', type: 'progress' },
+   452→  { key: 'status', label: 'الحالة', type: 'badge' },
+   453→]
+   454→
+   455→function servicesRows(): Array<Record<string, unknown>> {
+   456→  const data: Array<[string, string, number, string, number, string]> = [
+   457→    ['تصميم شعار احترافي', 'تصميم', 15000, '3 أيام', 96, 'نشطة'],
+   458→    ['تطوير موقع واجهات', 'برمجة', 120000, 'أسبوعان', 92, 'نشطة'],
+   459→    ['جلسة تصوير احترافية', 'إعلام', 8000, 'يوم واحد', 88, 'نشطة'],
+   460→    ['إدارة حسابات التواصل', 'تسويق', 25000, 'شهرياً', 90, 'نشطة'],
+   461→    ['استشارة تقنية', 'استشارات', 5000, 'ساعة واحدة', 95, 'نشطة'],
+   462→    ['مونتاج فيديو تسويقي', 'إعلام', 20000, '4 أيام', 87, 'موقوفة'],
+   463→  ]
+   464→  return data.map(([name, category, price, duration, rating, status]) => ({
+   465→    name,
+   466→    category,
+   467→    price,
+   468→    duration,
+   469→    rating,
+   470→    status,
+   471→  }))
+   472→}
+   473→
+   474→const USER_COLS: EntityColumn[] = [
+   475→  { key: 'name', label: 'المستخدم', type: 'avatar' },
+   476→  { key: 'email', label: 'البريد الإلكتروني', type: 'email' },
+   477→  { key: 'role', label: 'الدور', type: 'text' },
+   478→  { key: 'lastActive', label: 'آخر ظهور', type: 'date' },
+   479→  { key: 'status', label: 'الحالة', type: 'badge' },
+   480→]
+   481→
+   482→function usersRows(): Array<Record<string, unknown>> {
+   483→  const data: Array<[number, string, string, string]> = [
+   484→    [0, 'مدير عام', '2024-03-12', 'نشط'],
+   485→    [2, 'محررة محتوى', '2024-03-11', 'نشط'],
+   486→    [1, 'مسؤول دعم', '2024-03-10', 'نشط'],
+   487→    [4, 'محللة بيانات', '2024-03-08', 'معلّق'],
+   488→    [3, 'مختبر واجهات', '2024-03-07', 'نشط'],
+   489→    [6, 'مشرف عمليات', '2024-03-05', 'معلّق'],
+   490→  ]
+   491→  return data.map(([i, role, lastActive, status]) => ({
+   492→    name: person(i).name,
+   493→    email: person(i).email,
+   494→    role,
+   495→    lastActive,
+   496→    status,
+   497→  }))
+   498→}
+   499→
+   500→const CLIENT_COLS: EntityColumn[] = [
+   501→  { key: 'name', label: 'الزبون', type: 'avatar' },
+   502→  { key: 'company', label: 'الشركة', type: 'text' },
+   503→  { key: 'city', label: 'المدينة', type: 'text' },
+   504→  { key: 'contract', label: 'قيمة العقد', type: 'currency' },
+   505→  { key: 'status', label: 'الحالة', type: 'badge' },
+   506→]
+   507→
+   508→function clientsRows(): Array<Record<string, unknown>> {
+   509→  const data: Array<[number, string, string, number, string]> = [
+   510→    [0, 'شركة الأمل للتجهيزات', 'الجزائر', 2500000, 'نشط'],
+   511→    [2, 'مؤسسة النور للبناء', 'وهران', 1850000, 'نشط'],
+   512→    [1, 'وكالة صوت الشباب', 'قسنطينة', 960000, 'قيد المراجعة'],
+   513→    [4, 'مطبعة الهنا', 'سطيف', 640000, 'نشط'],
+   514→    [3, 'تعاونية الوئام', 'عنابة', 420000, 'متوقف'],
+   515→    [6, 'شركة المتوسط للتوزيع', 'البليدة', 1450000, 'نشط'],
+   516→  ]
+   517→  return data.map(([i, company, city, contract, status]) => ({
+   518→    name: person(i).name,
+   519→    company,
+   520→    city,
+   521→    contract,
+   522→    status,
+   523→  }))
+   524→}
+   525→
+   526→const TASK_COLS: EntityColumn[] = [
+   527→  { key: 'title', label: 'المهمة', type: 'text' },
+   528→  { key: 'assignee', label: 'المسؤولة', type: 'avatar' },
+   529→  { key: 'priority', label: 'الأولوية', type: 'badge' },
+   530→  { key: 'due', label: 'الاستحقاق', type: 'date' },
+   531→  { key: 'progress', label: 'التقدم', type: 'progress' },
+   532→  { key: 'status', label: 'الحالة', type: 'badge' },
+   533→]
+   534→
+   535→function tasksRows(): Array<Record<string, unknown>> {
+   536→  const data: Array<[string, number, string, string, number, string]> = [
+   537→    ['تصميم صفحة الهبوط الجديدة', 2, 'عالية', '2024-03-20', 75, 'قيد المعالجة'],
+   538→    ['مراجعة نصوص الموقع', 0, 'متوسطة', '2024-03-18', 40, 'جديد'],
+   539→    ['ربط بوابة الدفع', 3, 'عالية', '2024-03-25', 20, 'جديد'],
+   540→    ['اختبار تجربة المستخدم', 6, 'منخفضة', '2024-04-02', 10, 'قيد المعالجة'],
+   541→    ['تجهيز محتوى صفحة التسعير', 8, 'متوسطة', '2024-03-22', 90, 'مكتمل'],
+   542→    ['إعداد لوحة التحكم', 1, 'عالية', '2024-03-15', 100, 'مكتمل'],
+   543→  ]
+   544→  return data.map(([title, i, priority, due, progress, status]) => ({
+   545→    title,
+   546→    assignee: person(i).name,
+   547→    priority,
+   548→    due,
+   549→    progress,
+   550→    status,
+   551→  }))
+   552→}
+   553→
+   554→const TEAM_COLS: EntityColumn[] = [
+   555→  { key: 'name', label: 'العضو', type: 'avatar' },
+   556→  { key: 'role', label: 'الدور', type: 'text' },
+   557→  { key: 'department', label: 'القسم', type: 'text' },
+   558→  { key: 'email', label: 'البريد الإلكتروني', type: 'email' },
+   559→  { key: 'status', label: 'الحالة', type: 'badge' },
+   560→]
+   561→
+   562→function teamRows(): Array<Record<string, unknown>> {
+   563→  const data: Array<[number, string, string, string]> = [
+   564→    [2, 'مصممة واجهات', 'التصميم', 'نشط'],
+   565→    [0, 'مطوّر واجهات أمامية', 'التطوير', 'نشط'],
+   566→    [8, 'مسؤولة تسويق', 'التسويق', 'نشط'],
+   567→    [1, 'مهندس بيانات', 'التطوير', 'نشط'],
+   568→    [4, 'مسؤولة نجاح العملاء', 'العمليات', 'نشط'],
+   569→    [7, 'مدير مشاريع', 'الإدارة', 'نشط'],
+   570→  ]
+   571→  return data.map(([i, role, department, status]) => ({
+   572→    name: person(i).name,
+   573→    role,
+   574→    department,
+   575→    email: person(i).email,
+   576→    status,
+   577→  }))
+   578→}
+   579→
+   580→const COURSE_COLS: EntityColumn[] = [
+   581→  { key: 'title', label: 'الدورة', type: 'text' },
+   582→  { key: 'instructor', label: 'المدرّب', type: 'avatar' },
+   583→  { key: 'students', label: 'الطلاب', type: 'number' },
+   584→  { key: 'price', label: 'السعر', type: 'currency' },
+   585→  { key: 'rating', label: 'التقييم', type: 'progress' },
+   586→  { key: 'status', label: 'الحالة', type: 'badge' },
+   587→]
+   588→
+   589→function coursesRows(): Array<Record<string, unknown>> {
+   590→  const data: Array<[string, number, number, number, number, string]> = [
+   591→    ['أساسيات تطوير الويب', 0, 1240, 9900, 94, 'نشطة'],
+   592→    ['التسويق الرقمي للمشاريع الناشئة', 2, 860, 12900, 92, 'نشطة'],
+   593→    ['تصميم UI/UX الاحترافي', 8, 645, 14900, 96, 'نشطة'],
+   594→    ['الذكاء الاصطناعي للمبتدئين', 1, 1580, 15900, 90, 'نشطة'],
+   595→    ['إدارة المشاريع الصغيرة', 5, 430, 8900, 88, 'نشطة'],
+   596→    ['المحاسبة لأصحاب المشاريع', 6, 512, 7900, 85, 'قريباً'],
+   597→  ]
+   598→  return data.map(([title, i, students, price, rating, status]) => ({
+   599→    title,
+   600→    instructor: person(i).name,
+   601→    students,
+   602→    price,
+   603→    rating,
+   604→    status,
+   605→  }))
+   606→}
+   607→
+   608→const STUDENT_COLS: EntityColumn[] = [
+   609→  { key: 'name', label: 'الطالب', type: 'avatar' },
+   610→  { key: 'email', label: 'البريد الإلكتروني', type: 'email' },
+   611→  { key: 'course', label: 'الدورة', type: 'text' },
+   612→  { key: 'progress', label: 'التقدم', type: 'progress' },
+   613→  { key: 'city', label: 'المدينة', type: 'text' },
+   614→  { key: 'status', label: 'الحالة', type: 'badge' },
+   615→]
+   616→
+   617→function studentsRows(): Array<Record<string, unknown>> {
+   618→  const data: Array<[number, string, number, string, string]> = [
+   619→    [0, 'أساسيات تطوير الويب', 78, 'الجزائر', 'نشط'],
+   620→    [2, 'التسويق الرقمي للمشاريع الناشئة', 45, 'وهران', 'نشط'],
+   621→    [4, 'تصميم UI/UX الاحترافي', 92, 'قسنطينة', 'نشط'],
+   622→    [1, 'الذكاء الاصطناعي للمبتدئين', 12, 'سطيف', 'جديد'],
+   623→    [6, 'أساسيات تطوير الويب', 60, 'عنابة', 'نشط'],
+   624→    [3, 'إدارة المشاريع الصغيرة', 30, 'البليدة', 'متوقف'],
+   625→  ]
+   626→  return data.map(([i, course, progress, city, status]) => ({
+   627→    name: person(i).name,
+   628→    email: person(i).email,
+   629→    course,
+   630→    progress,
+   631→    city,
+   632→    status,
+   633→  }))
+   634→}
+   635→
+   636→const PROPERTY_COLS: EntityColumn[] = [
+   637→  { key: 'title', label: 'العقار', type: 'text' },
+   638→  { key: 'type', label: 'النوع', type: 'text' },
+   639→  { key: 'city', label: 'المدينة', type: 'text' },
+   640→  { key: 'area', label: 'المساحة (م²)', type: 'number' },
+   641→  { key: 'price', label: 'السعر', type: 'currency' },
+   642→  { key: 'status', label: 'الحالة', type: 'badge' },
+   643→]
+   644→
+   645→function propertiesRows(): Array<Record<string, unknown>> {
+   646→  const data: Array<[string, string, string, number, number, string]> = [
+   647→    ['فيلا فاخرة بحيدرة', 'فيلا', 'الجزائر', 420, 95000000, 'متاح'],
+   648→    ['شقة حديثة بباب الزوار', 'شقة', 'الجزائر', 120, 24800000, 'متاح'],
+   649→    ['شقة بإطلالة بحي الشط', 'شقة', 'وهران', 95, 15600000, 'محجوز'],
+   650→    ['أرض بضواحي سطيف', 'أرض', 'سطيف', 250, 2500000, 'متاح'],
+   651→    ['دوبلكس بقسنطينة', 'دوبلكس', 'قسنطينة', 180, 31500000, 'متاح'],
+   652→    ['محل تجاري بوهران', 'محل تجاري', 'وهران', 60, 12800000, 'مؤجر'],
+   653→  ]
+   654→  return data.map(([title, type, city, area, price, status]) => ({
+   655→    title,
+   656→    type,
+   657→    city,
+   658→    area,
+   659→    price,
+   660→    status,
+   661→  }))
+   662→}
+   663→
+   664→const APPOINTMENT_COLS: EntityColumn[] = [
+   665→  { key: 'id', label: 'رقم الموعد', type: 'text' },
+   666→  { key: 'patient', label: 'المريض', type: 'avatar' },
+   667→  { key: 'doctor', label: 'الطبيب', type: 'text' },
+   668→  { key: 'date', label: 'التاريخ', type: 'date' },
+   669→  { key: 'time', label: 'الوقت', type: 'text' },
+   670→  { key: 'status', label: 'الحالة', type: 'badge' },
+   671→]
+   672→
+   673→function appointmentsRows(): Array<Record<string, unknown>> {
+   674→  // (الجولة 16) موعدان للزبونة التجريبية «أمينة بلقاسم»
+   675→  const data: Array<[string, number | null, string, string, string, string]> = [
+   676→    ['APT-3301', 8, 'د. كريم بلقاسم — قلب', '2024-03-12', '09:30', 'مكتمل'],
+   677→    ['APT-3302', 4, 'د. سارة بوزيد — أطفال', '2024-03-12', '10:45', 'مؤكد'],
+   678→    ['APT-3303', null, 'د. محمد قادري — عام', '2024-03-13', '11:15', 'جديد'],
+   679→    ['APT-3304', null, 'د. نورة سعدي — جلدية', '2024-03-14', '14:00', 'قيد المعالجة'],
+   680→    ['APT-3305', 5, 'د. رشيد بوعلام — عظام', '2024-03-15', '16:30', 'ملغى'],
+   681→    ['APT-3306', 6, 'د. سارة بوزيد — أطفال', '2024-03-16', '10:00', 'مكتمل'],
+   682→  ]
+   683→  return data.map(([id, i, doctor, date, time, status]) => ({
+   684→    id,
+   685→    patient: i === null ? DEMO_CLIENT.name : person(i).name,
+   686→    doctor,
+   687→    date,
+   688→    time,
+   689→    status,
+   690→  }))
+   691→}
+   692→
+   693→const MENU_COLS: EntityColumn[] = [
+   694→  { key: 'name', label: 'الطبق', type: 'text' },
+   695→  { key: 'category', label: 'الفئة', type: 'text' },
+   696→  { key: 'price', label: 'السعر', type: 'currency' },
+   697→  { key: 'orders', label: 'الطلبات', type: 'number' },
+   698→  { key: 'rating', label: 'التقييم', type: 'progress' },
+   699→  { key: 'status', label: 'الحالة', type: 'badge' },
+   700→]
+   701→
+   702→function menuRows(): Array<Record<string, unknown>> {
+   703→  const data: Array<[string, string, number, number, number, string]> = [
+   704→    ['كسكس بخضر', 'أطباق رئيسية', 1200, 320, 97, 'متاح'],
+   705→    ['طاجين زيتون', 'أطباق رئيسية', 1500, 245, 95, 'متاح'],
+   706→    ['شخشوخة', 'أطباق رئيسية', 1000, 198, 93, 'متاح'],
+   707→    ['حريرة', 'شوربات', 400, 410, 96, 'متاح'],
+   708→    ['بريك بالبيض', 'مقبلات', 300, 520, 94, 'متاح'],
+   709→    ['بقلاوة وردة', 'حلويات', 800, 260, 92, 'نفد'],
+   710→  ]
+   711→  return data.map(([name, category, price, orders, rating, status]) => ({
+   712→    name,
+   713→    category,
+   714→    price,
+   715→    orders,
+   716→    rating,
+   717→    status,
+   718→  }))
+   719→}
+   720→
+   721→const TRANSACTION_COLS: EntityColumn[] = [
+   722→  { key: 'id', label: 'رقم المعاملة', type: 'text' },
+   723→  { key: 'sender', label: 'الطرف', type: 'avatar' },
+   724→  { key: 'type', label: 'النوع', type: 'badge' },
+   725→  { key: 'amount', label: 'المبلغ', type: 'currency' },
+   726→  { key: 'date', label: 'التاريخ', type: 'date' },
+   727→  { key: 'status', label: 'الحالة', type: 'badge' },
+   728→]
+   729→
+   730→function transactionsRows(): Array<Record<string, unknown>> {
+   731→  const data: Array<[string, number, string, number, string, string]> = [
+   732→    ['TRX-88231', 0, 'تحويل صادر', 15000, '2024-03-10', 'مكتمل'],
+   733→    ['TRX-88232', 2, 'إيداع', 24800, '2024-03-10', 'مكتمل'],
+   734→    ['TRX-88233', 4, 'دفع فاتورة', 6400, '2024-03-11', 'قيد المعالجة'],
+   735→    ['TRX-88234', 1, 'تحويل وارد', 82000, '2024-03-11', 'مكتمل'],
+   736→    ['TRX-88235', 6, 'سحب', 20000, '2024-03-12', 'فاشل'],
+   737→    ['TRX-88236', 3, 'دفع فاتورة', 12700, '2024-03-12', 'مكتمل'],
+   738→  ]
+   739→  return data.map(([id, i, type, amount, date, status]) => ({
+   740→    id,
+   741→    sender: person(i).name,
+   742→    type,
+   743→    amount,
+   744→    date,
+   745→    status,
+   746→  }))
+   747→}
+   748→
+   749→const SUBSCRIPTION_COLS: EntityColumn[] = [
+   750→  { key: 'id', label: 'رقم الاشتراك', type: 'text' },
+   751→  { key: 'customer', label: 'المشترك', type: 'avatar' },
+   752→  { key: 'plan', label: 'الخطة', type: 'text' },
+   753→  { key: 'price', label: 'السعر الشهري', type: 'currency' },
+   754→  { key: 'startDate', label: 'تاريخ البدء', type: 'date' },
+   755→  { key: 'status', label: 'الحالة', type: 'badge' },
+   756→]
+   757→
+   758→function subscriptionsRows(): Array<Record<string, unknown>> {
+   759→  const data: Array<[string, number, string, number, string, string]> = [
+   760→    ['SUB-501', 0, 'الخطة الاحترافية', 4900, '2024-01-05', 'نشط'],
+   761→    ['SUB-502', 2, 'الخطة الأساسية', 2900, '2024-01-18', 'نشط'],
+   762→    ['SUB-503', 4, 'الخطة الاحترافية', 4900, '2024-02-02', 'تجريبي'],
+   763→    ['SUB-504', 1, 'خطة المؤسسات', 12900, '2024-02-10', 'نشط'],
+   764→    ['SUB-505', 6, 'الخطة الأساسية', 2900, '2024-02-22', 'ملغى'],
+   765→    ['SUB-506', 3, 'الخطة الاحترافية', 4900, '2024-03-01', 'نشط'],
+   766→  ]
+   767→  return data.map(([id, i, plan, price, startDate, status]) => ({
+   768→    id,
+   769→    customer: person(i).name,
+   770→    plan,
+   771→    price,
+   772→    startDate,
+   773→    status,
+   774→  }))
+   775→}
+   776→
+   777→// ---------- builder registry ----------
+   778→function productsEntity(type: ProjectType, seed: number): EntityData {
+   779→  const rows =
+   780→    type === 'restaurant' || type === 'delivery' ? productsFoodRows() : productsDefaultRows()
+   781→  return makeEntity(PRODUCT_COLS, rows, seed)
+   782→}
+   783→
+   784→const ENTITY_BUILDERS: Record<string, (seed: number) => EntityData> = {
+   785→  customers: (seed) => makeEntity(CUSTOMER_COLS, customersRows(), seed),
+   786→  orders: (seed) => makeEntity(ORDER_COLS, ordersRows(), seed),
+   787→  products: (seed) => productsEntity('other', seed),
+   788→  bookings: (seed) => makeEntity(BOOKING_COLS, bookingsRows(), seed),
+   789→  invoices: (seed) => makeEntity(INVOICE_COLS, invoicesRows(), seed),
+   790→  services: (seed) => makeEntity(SERVICE_COLS, servicesRows(), seed),
+   791→  users: (seed) => makeEntity(USER_COLS, usersRows(), seed),
+   792→  clients: (seed) => makeEntity(CLIENT_COLS, clientsRows(), seed),
+   793→  tasks: (seed) => makeEntity(TASK_COLS, tasksRows(), seed),
+   794→  teamMembers: (seed) => makeEntity(TEAM_COLS, teamRows(), seed),
+   795→  courses: (seed) => makeEntity(COURSE_COLS, coursesRows(), seed),
+   796→  students: (seed) => makeEntity(STUDENT_COLS, studentsRows(), seed),
+   797→  properties: (seed) => makeEntity(PROPERTY_COLS, propertiesRows(), seed),
+   798→  appointments: (seed) => makeEntity(APPOINTMENT_COLS, appointmentsRows(), seed),
+   799→  menuItems: (seed) => makeEntity(MENU_COLS, menuRows(), seed),
+   800→  transactions: (seed) => makeEntity(TRANSACTION_COLS, transactionsRows(), seed),
+   801→  subscriptions: (seed) => makeEntity(SUBSCRIPTION_COLS, subscriptionsRows(), seed),
+   802→}
+   803→
+   804→/** يبني كياناً جاهزاً من المفاتيح المعروفة (لملء البيانات الناقصة) */
+   805→export function buildEntityData(key: string, seed = 0): EntityData | undefined {
+   806→  const builder = ENTITY_BUILDERS[key]
+   807→  return builder ? builder(seed) : undefined
+   808→}
+   809→
+   810→/**
+   811→ * إعادة توليد صفوف كيان قائم مع الحفاظ على أعمدته ومحتواه
+   812→ * (تدوير الصفوف + اهتزاز الأرقام) — يُستعمل من أداة generate_mock_data.
+   813→ */
+   814→export function refreshEntityRows(entity: EntityData, seed: number): EntityData {
+   815→  return makeEntity(entity.columns, entity.rows, seed)
+   816→}
+   817→
+   818→// ============================================================
+   819→// Charts — 4 رسوم بيانية
+   820→// ============================================================
+   821→
+   822→export function buildCharts(seed = 0): Record<string, ChartData> {
+   823→  const revenue: Array<{ label: string; value: number }> = ARABIC_MONTHS.map((label, i) => ({
+   824→    label,
+   825→    value: jit(
+   826→      [1850000, 2120000, 1940000, 2380000, 2650000, 2400000, 2780000, 3150000, 3420000, 3280000, 3690000, 4150000][i],
+   827→      seed,
+   828→      0.05
+   829→    ),
+   830→  }))
+   831→
+   832→  const ordersWeekly: Array<{ label: string; value: number }> = ARABIC_DAYS.map((label, i) => ({
+   833→    label,
+   834→    value: jit([124, 158, 142, 187, 240, 96, 88][i], seed, 0.15),
+   835→  }))
+   836→
+   837→  const salesByCategory: Array<{ label: string; value: number }> = [
+   838→    { label: 'إلكترونيات', value: 42 },
+   839→    { label: 'ملابس وحقائب', value: 24 },
+   840→    { label: 'منزل وحديقة', value: 14 },
+   841→    { label: 'رياضة', value: 11 },
+   842→    { label: 'أخرى', value: 9 },
+   843→  ]
+   844→
+   845→  const usersGrowth: Array<{ label: string; value: number }> = ARABIC_MONTHS.map((label, i) => ({
+   846→    label,
+   847→    value: jit([1200, 1380, 1560, 1890, 2200, 2540, 2980, 3450, 3960, 4520, 5120, 5880][i], seed, 0.05),
+   848→  }))
+   849→
+   850→  return {
+   851→    revenueMonthly: { type: 'bar', title: CHART_LABELS.revenueMonthly, data: revenue },
+   852→    ordersWeekly: { type: 'line', title: CHART_LABELS.ordersWeekly, data: ordersWeekly },
+   853→    salesByCategory: { type: 'donut', title: CHART_LABELS.salesByCategory, data: salesByCategory },
+   854→    usersGrowth: { type: 'line', title: CHART_LABELS.usersGrowth, data: usersGrowth },
+   855→  }
+   856→}
+   857→
+   858→// ============================================================
+   859→// Stats presets — 7 حزم إحصائيات
+   860→// ============================================================
+   861→
+   862→export const STATS_PRESETS: Record<string, StatItem[]> = {
+   863→  overview: [
+   864→    { label: 'الإيرادات الشهرية', value: `${num(3420000)} دج`, change: '+12.5%', icon: 'trending-up' },
+   865→    { label: 'الطلبات هذا الشهر', value: num(1248), change: '+8.2%', icon: 'shopping-cart' },
+   866→    { label: 'العملاء النشطون', value: num(5880), change: '+4.6%', icon: 'users' },
+   867→    { label: 'متوسط التقييم', value: '4.8 / 5', change: '+0.2', icon: 'star' },
+   868→  ],
+   869→  ecommerce: [
+   870→    { label: 'إجمالي المبيعات', value: `${num(8940000)} دج`, change: '+15.3%', icon: 'trending-up' },
+   871→    { label: 'الطلبات الجديدة', value: num(324), change: '+22%', icon: 'shopping-cart' },
+   872→    { label: 'المنتجات المتوفرة', value: num(486), change: '+12', icon: 'package' },
+   873→    { label: 'منتجات نفد مخزونها', value: num(7), change: '-3', icon: 'bell' },
+   874→  ],
+   875→  booking: [
+   876→    { label: 'حجوزات اليوم', value: num(42), change: '+6', icon: 'calendar' },
+   877→    { label: 'حجوزات الشهر', value: num(1156), change: '+9.4%', icon: 'calendar-days' },
+   878→    { label: 'عملاء جدد هذا الشهر', value: num(89), change: '+12%', icon: 'users' },
+   879→    { label: 'معدل الإلغاء', value: '3.2%', change: '-0.8%', icon: 'trending-up' },
+   880→  ],
+   881→  education: [
+   882→    { label: 'الطلاب المسجلون', value: num(12480), change: '+18%', icon: 'graduation-cap' },
+   883→    { label: 'الدورات النشطة', value: num(86), change: '+9', icon: 'book-open' },
+   884→    { label: 'نسبة إكمال الدورات', value: '78%', change: '+5%', icon: 'check' },
+   885→    { label: 'الإيرادات الشهرية', value: `${num(2940000)} دج`, change: '+11%', icon: 'trending-up' },
+   886→  ],
+   887→  restaurant: [
+   888→    { label: 'طلبات اليوم', value: num(156), change: '+12%', icon: 'shopping-cart' },
+   889→    { label: 'مبيعات اليوم', value: `${num(184500)} دج`, change: '+9.8%', icon: 'trending-up' },
+   890→    { label: 'متوسط قيمة الطلب', value: `${num(1180)} دج`, change: '+3%', icon: 'credit-card' },
+   891→    { label: 'أكثر طبق مبيعاً', value: 'كسكس بخضر', change: `${num(320)} طلب`, icon: 'star' },
+   892→  ],
+   893→  agency: [
+   894→    { label: 'مشاريع نشطة', value: num(24), change: '+5', icon: 'briefcase' },
+   895→    { label: 'عملاء حاليون', value: num(38), change: '+7', icon: 'users' },
+   896→    { label: 'مشاريع مسلّمة', value: num(142), change: '+16', icon: 'check' },
+   897→    { label: 'رضا العملاء', value: '96%', change: '+2%', icon: 'star' },
+   898→  ],
+   899→  saas: [
+   900→    { label: 'المشتركون النشطون', value: num(5880), change: '+14.2%', icon: 'users' },
+   901→    { label: 'اشتراكات جديدة (30 يوم)', value: num(462), change: '+22%', icon: 'trending-up' },
+   902→    { label: 'الإيراد الشهري المتكرر', value: `${num(2940000)} دج`, change: '+10.8%', icon: 'wallet' },
+   903→    { label: 'معدل الاحتفاظ', value: '94.2%', change: '+1.4%', icon: 'shield' },
+   904→  ],
+   905→}
+   906→
+   907→// ============================================================
+   908→// buildMockData — نقطة الدخول الرئيسية
+   909→// ============================================================
+   910→
+   911→/**
+   912→ * يبني بيانات تجريبية كاملة (كل الكيانات + الرسوم + حزم الإحصائيات)
+   913→ * المحتوى مناسب للنوع: منتجات المطعم/التوصيل أطباق جزائرية.
+   914→ */
+   915→export function buildMockData(type: ProjectType): ProjectMockData {
+   916→  const entities: Record<string, EntityData> = {}
+   917→  for (const key of ENTITY_KEYS) {
+   918→    entities[key] = key === 'products' ? productsEntity(type, 0) : ENTITY_BUILDERS[key](0)
+   919→  }
+   920→  // نسخ عميقة لحزم الإحصائيات حتى تبقى مستقلة لكل مشروع
+   921→  const stats: Record<string, StatItem[]> = {}
+   922→  for (const [key, items] of Object.entries(STATS_PRESETS)) {
+   923→    stats[key] = items.map((it) => ({ ...it }))
+   924→  }
+   925→  return {
+   926→    currency: 'DZD',
+   927→    stats,
+   928→    entities,
+   929→    charts: buildCharts(0),
+   930→  }
+   931→}
+   932→

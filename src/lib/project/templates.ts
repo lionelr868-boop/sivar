@@ -9,6 +9,7 @@ import {
   CHART_LABELS,
   ENTITY_LABELS,
 } from '@/lib/content/mock-data'
+import { ensureClientAreaPage } from '@/lib/project/client-area'
 import type {
   AuthVariant,
   Block,
@@ -2647,5 +2648,10 @@ export function buildTemplateSchema(templateId: string): ProjectSchema {
     settings: { dir: 'rtl', lang: 'ar', currency: 'DZD', projectName: p.name },
   }
 
-  return deepClone(schema)
+  // (الجولة 16) صفحة «حسابي» — فضاء الزبون لكل قالب (id ثابت من القالب
+  // حفاظاً على حتمية SSR/CSR) + عنصر شريطها آخر القائمة. الوصول إليها
+  // من صفحة الدخول (اختيار «كزبون») — لا تُضاف إلى قائمة الموقع العلوي.
+  const ensured = ensureClientAreaPage(schema, { id: `${p.id}-account` })
+
+  return deepClone(ensured.schema)
 }

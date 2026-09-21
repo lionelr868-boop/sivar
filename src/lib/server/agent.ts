@@ -280,6 +280,8 @@ function buildContext(schema: ProjectSchema): string {
       type: p.type,
       entity: p.entity ?? null,
       authVariant: p.authVariant ?? null,
+      // (الجولة 16) جمهور صفحات منطقة اللوحة — client = فضاء الزبون
+      audience: p.audience === 'client' ? 'client' : null,
       blocks: p.blocks.map((b) => {
         const extra = compactBlockItems(b)
         return extra ? { id: b.id, type: b.type, content: extra } : { id: b.id, type: b.type }
@@ -347,6 +349,7 @@ const AGENT_SYSTEM_PROMPT = [
   '- استعمل pageId الموجودة في السياق، لا تخترع معرّفات.',
   '- لإضافة مكوّن استعمل blockType من availableBlockTypes فقط، وخصائص props مطابقة لأنواع المكوّن (عنوان/نص/عناصر).',
   '- عند إنشاء صفحة تنتمي للوحة التحكم (table|form|dashboard|settings|profile) اذكر في explanation أنها أُدرجت تلقائياً في الشريط الجانبي للوحة التحكم.',
+  '- (الجولة 16) صفحات جمهورها client هي فضاء الزبون («حسابي») بشريطه الجانبي الخاص — لا تخلط بين عناصر فضاء المدير والزبون، وcreate_page تقبل "audience":"client" لإنشاء صفحات فضاء الزبون.',
   '',
   'أعد JSON فقط دون أي نص خارجه، بالصيغة:',
   '{"explanation":"شرح عربي موجز لما فعلته","actions":[{"tool":"اسم الأداة","args":{...}}]}',
@@ -466,6 +469,10 @@ function sanitizeActions(schema: ProjectSchema, rawActions: unknown): AgentActio
             ? (args.authVariant as AuthVariant)
             : undefined
         const clean: Record<string, unknown> = { name, type, entity, authVariant }
+        // (الجولة 16) جمهور الصفحة — client لفضاء الزبون (وإلا undefined = admin)
+        if (typeof args.audience === 'string' && ['client', 'admin'].includes(args.audience)) {
+          clean.audience = args.audience
+        }
         if (
           type === 'landing' &&
           typeof args.landingVariant === 'string' &&

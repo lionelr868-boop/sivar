@@ -8,7 +8,7 @@ import type { Block } from '@/lib/types'
 import { Check } from 'lucide-react'
 import { PButton } from '../ui/p-button'
 import { num } from '@/lib/content/mock-data'
-import { pricingButtonTarget } from '@/lib/project/nav-targets'
+import { findClientPage, pricingButtonTarget } from '@/lib/project/nav-targets'
 import { L, S, iB, iN, iS, SectionHeading, SectionShell, type BlockCtx } from './shared'
 
 export function PricingBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): ReactElement {
@@ -18,7 +18,18 @@ export function PricingBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): R
   const currency = S(p, 'currency', 'دج') || 'دج'
   const plans = L(p, 'plans')
   const buttonTarget = pricingButtonTarget(ctx.schema)
-  const planGo = () => {
+  const planGo = (plan: { name: string; price: number }) => {
+    // (الجولة 16) زبون مسجّل يطلب الخطة فعلياً — صف جديد في orders
+    // عبر طبقة البيانات ثم انتقال إلى فضاء الزبون «طلباتي»
+    if (ctx.session?.role === 'client' && ctx.onPlaceOrder && ctx.onNavigate) {
+      const orders = ctx.schema.mockData?.entities?.orders
+      const clientPage = findClientPage(ctx.schema)
+      if (orders && Array.isArray(orders.columns) && orders.columns.length > 0 && clientPage) {
+        ctx.onPlaceOrder({ name: plan.name, price: plan.price })
+        ctx.onNavigate(clientPage.id)
+        return
+      }
+    }
     if (ctx.onNavigate && buttonTarget) ctx.onNavigate(buttonTarget)
   }
 
@@ -96,7 +107,7 @@ export function PricingBlock({ block, ctx }: { block: Block; ctx: BlockCtx }): R
                   variant={highlighted ? 'primary' : 'outline'}
                   size="lg"
                   className="mt-6 w-full"
-                  onClick={planGo}
+                  onClick={() => planGo({ name: iS(plan, 'name'), price })}
                 >
                   {iS(plan, 'buttonText', 'اشترك الآن')}
                 </PButton>

@@ -189,6 +189,8 @@ export const builder = {
   // (الجولة 13) صفحات منطقة لوحة التحكم تُدرج تلقائياً في الشريط الجانبي
   pageAddedSidebarToast: 'تمت إضافة «{name}» وأدرجناها في الشريط الجانبي للوحة التحكم',
   blockAddedToast: 'تمت إضافة «{name}»',
+  // (الجولة 16) شارة صفحات فضاء الزبون في لوحة الصفحات
+  clientAudienceBadge: 'زبون',
   // ===== Task 7-c: الشعار =====
   logoSection: 'الشعار',
   logoUploadBtn: 'رفع شعار المشروع',

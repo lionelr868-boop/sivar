@@ -21,6 +21,7 @@ import type {
   Block,
   BlockType,
   DashboardNavItem,
+  PageAudience,
   PageType,
   ProjectNavigation,
   ProjectPage,
@@ -35,6 +36,7 @@ import {
 } from '@/lib/types'
 import { buildLandingBlocks, changeLandingVariant as changeLandingVariantInSchema, getLandingVariant, LANDING_VARIANTS } from '@/lib/project/landing-kit'
 import { mergeBlockProps } from '@/lib/project/entity-sync'
+import { buildClientAreaBlocks } from '@/lib/project/client-area'
 
 // ============================================================
 // helpers
@@ -126,8 +128,9 @@ const ENTITY_NAV_ICON: Record<string, string> = {
   subscriptions: 'wallet',
 }
 
-/** الأيقونة الدقيقة لعنصر شريط لوحة التحكم حسب نوع الصفحة وكيانها */
-export function dashboardNavIconFor(page: Pick<ProjectPage, 'type' | 'entity'>): string {
+/** الأيقونة الدقيقة لعنصر شريط لوحة التحكم حسب نوع الصفحة وكيانها — صفحات الزبون (الجولة 16) أيقونة user دائماً */
+export function dashboardNavIconFor(page: Pick<ProjectPage, 'type' | 'entity' | 'audience'>): string {
+  if (page.audience === 'client') return 'user'
   switch (page.type) {
     case 'dashboard':
       return 'layout-dashboard'
@@ -156,7 +159,9 @@ function insertDashboardNavItem(schema: ProjectSchema, page: ProjectPage): void 
   if (schema.dashboardNav.items.some((it) => it.pageId === page.id)) return
   const item: DashboardNavItem = { label: page.name, pageId: page.id, icon: dashboardNavIconFor(page) }
   const items = schema.dashboardNav.items
-  if (page.type === 'dashboard') {
+  // (الجولة 16) صفحات فضاء الزبون تُلحق آخر القائمة (شريطها الخاص) —
+  // مسار الجولة 13 لصفحات لوحة المدير كما هو حرفياً
+  if (page.type === 'dashboard' && (page.audience ?? 'admin') === 'admin') {
     let at = 0
     for (let i = items.length - 1; i >= 0; i--) {
       const target = schema.pages.find((p) => p.id === items[i].pageId)
@@ -215,7 +220,7 @@ export function syncPageNavigation(schema: ProjectSchema, pageId: string): Proje
 export function starterBlocksFor(
   schema: ProjectSchema,
   type: PageType,
-  opts?: { entity?: string; authVariant?: AuthVariant; landingVariant?: string }
+  opts?: { entity?: string; authVariant?: AuthVariant; landingVariant?: string; audience?: PageAudience }
 ): Block[] {
   const d = (t: BlockType): Record<string, unknown> => clone(BLOCK_REGISTRY[t].defaults())
   const mk = (t: BlockType, props: Record<string, unknown>): Block => ({ id: uidFn('b_'), type: t, props })
@@ -239,6 +244,10 @@ export function starterBlocksFor(
       return [mk('auth-card', props)]
     }
     case 'dashboard': {
+      // (الجولة 16) لوحة بجمهور client = فضاء الزبون «حسابي» بكتله الجاهزة
+      if (opts?.audience === 'client') {
+        return buildClientAreaBlocks(schema)
+      }
       const entity = opts?.entity ?? defaultEntityFor(schema.metadata.type)
       const preset = defaultStatsPreset(schema.metadata.type)
       const stats = (schema.mockData.stats[preset] ?? schema.mockData.stats.overview ?? []).map((s) => ({
@@ -291,7 +300,7 @@ export function starterBlocksFor(
 
 export function addPageToSchema(
   schema: ProjectSchema,
-  opts: { name: string; type: PageType; entity?: string; authVariant?: AuthVariant; landingVariant?: string }
+  opts: { name: string; type: PageType; entity?: string; authVariant?: AuthVariant; landingVariant?: string; audience?: PageAudience }
 ): { schema: ProjectSchema; pageId: string } {
   const next = clone(schema)
   const type: PageType = isPageType(opts.type) ? opts.type : 'custom'
@@ -302,6 +311,8 @@ export function addPageToSchema(
     slug: slugifyFn(name),
     type,
     authVariant: opts.authVariant,
+    // (الجولة 16) جمهور صفحات منطقة اللوحة — undefined = admin (توافق قديم)
+    audience: opts.audience,
     entity: opts.entity,
     title: name,
     subtitle: '',
@@ -309,6 +320,7 @@ export function addPageToSchema(
       entity: opts.entity,
       authVariant: opts.authVariant,
       landingVariant: opts.landingVariant,
+      audience: opts.audience,
     }),
   }
   next.pages.push(page)
@@ -619,7 +631,18 @@ export function applyActions(schema: ProjectSchema, actions: AgentAction[]): Act
               : undefined
           const landingVariantRaw = strArg(args, 'landingVariant')
           const landingVariant = LANDING_VARIANTS.some((v) => v.id === landingVariantRaw) ? landingVariantRaw : undefined
-          const { schema: next, pageId } = addPageToSchema(current, { name, type, entity, authVariant, landingVariant })
+          // (الجولة 16) جمهور الصفحة — client لصفحات فضاء الزبون (وإلا undefined = admin)
+          const audienceRaw = strArg(args, 'audience')
+          const audience: PageAudience | undefined =
+            audienceRaw === 'client' || audienceRaw === 'admin' ? audienceRaw : undefined
+          const { schema: next, pageId } = addPageToSchema(current, {
+            name,
+            type,
+            entity,
+            authVariant,
+            landingVariant,
+            audience,
+          })
           current = next
           // (الجولة 13) صفحات منطقة اللوحة تُدرج تلقائياً في الشريط الجانبي — نذكر ذلك صراحة
           const created = current.pages.find((p) => p.id === pageId)

@@ -74,6 +74,15 @@ function person(i: number): { name: string; email: string } {
   return { name: NAMES[idx], email: EMAILS[idx] }
 }
 
+/** (الجولة 16) هوية الزبون التجريبي — تدخل «كزبون» من صفحة الدخول وترى طلباتها في فضاء الزبون */
+export const DEMO_CLIENT = {
+  name: 'أمينة بلقاسم',
+  email: 'amina@sivar.dz',
+  city: 'وهران',
+} as const
+
+export const DEMO_CLIENT_NAME: string = DEMO_CLIENT.name
+
 /** تنسيق الأرقام بأسلوب 24,580 */
 export function num(v: number): string {
   return v.toLocaleString('en-US')
@@ -121,6 +130,46 @@ export const ENTITY_LABELS: Record<string, string> = {
   transactions: 'المعاملات',
   subscriptions: 'الاشتراكات',
 }
+
+/**
+ * (الجولة 15) المفرد لكل كيان — نصّ زر «إضافة» ونوافذ التحرير داخل
+ * لوحة تحكم الموقع نفسه (المعاينة + الموقع الثابت المُصدَّر).
+ */
+export const ENTITY_SINGULARS: Record<string, string> = {
+  customers: 'عميل',
+  orders: 'طلب',
+  products: 'منتج',
+  bookings: 'حجز',
+  invoices: 'فاتورة',
+  services: 'خدمة',
+  users: 'مستخدم',
+  clients: 'زبون',
+  tasks: 'مهمة',
+  teamMembers: 'عضو فريق',
+  courses: 'دورة',
+  students: 'طالب',
+  properties: 'عقار',
+  appointments: 'موعد',
+  menuItems: 'صنف',
+  transactions: 'معاملة',
+  subscriptions: 'اشتراك',
+}
+
+/** (الجولة 15) اقتراحات الحالات الشائعة لنموذج إضافة/تعديل صف (datalist) */
+export const BADGE_SUGGESTIONS: string[] = [
+  'نشط',
+  'مكتمل',
+  'مدفوع',
+  'متاح',
+  'مؤكد',
+  'جديد',
+  'قيد المعالجة',
+  'معلق',
+  'متأخرة',
+  'ملغى',
+  'نفد المخزون',
+  'غير نشط',
+]
 
 export const CHART_KEYS = ['revenueMonthly', 'ordersWeekly', 'salesByCategory', 'usersGrowth'] as const
 
@@ -270,17 +319,18 @@ const ORDER_COLS: EntityColumn[] = [
 ]
 
 function ordersRows(): Array<Record<string, unknown>> {
-  const data: Array<[string, number, string, number, number, string, string]> = [
-    ['ORD-2401', 0, 'سماعة بلوتوث JBL', 1, 8900, '2024-03-12', 'جديد'],
+  // (الجولة 16) صفان للزبونة التجريبية «أمينة بلقاسم» حتى يظهر لفضاء الزبون طلباتها
+  const data: Array<[string, number | null, string, number, number, string, string]> = [
+    ['ORD-2401', null, 'سماعة بلوتوث JBL', 1, 8900, '2024-03-12', 'جديد'],
     ['ORD-2402', 2, 'ساعة ذكية Amazfit', 1, 24800, '2024-03-11', 'مكتمل'],
     ['ORD-2403', 4, 'حقيبة ظهر جلدية', 2, 12400, '2024-03-10', 'قيد المعالجة'],
-    ['ORD-2404', 1, 'مكينة قهوة Delonghi', 1, 32500, '2024-03-09', 'مكتمل'],
+    ['ORD-2404', null, 'مكينة قهوة Delonghi', 1, 32500, '2024-03-09', 'مكتمل'],
     ['ORD-2405', 6, 'عطر رجالي Dior', 1, 19800, '2024-03-08', 'ملغى'],
     ['ORD-2406', 3, 'لوحة مفاتيح ميكانيكية', 1, 11300, '2024-03-07', 'جديد'],
   ]
   return data.map(([id, i, item, quantity, total, date, status]) => ({
     id,
-    customer: person(i).name,
+    customer: i === null ? DEMO_CLIENT.name : person(i).name,
     item,
     quantity,
     total,
@@ -348,17 +398,18 @@ const BOOKING_COLS: EntityColumn[] = [
 ]
 
 function bookingsRows(): Array<Record<string, unknown>> {
-  const data: Array<[string, number, string, string, string, string]> = [
-    ['BKG-1201', 4, 'قص وتصفيف', '2024-03-12', '10:30', 'مكتمل'],
+  // (الجولة 16) حجزان للزبونة التجريبية «أمينة بلقاسم»
+  const data: Array<[string, number | null, string, string, string, string]> = [
+    ['BKG-1201', null, 'قص وتصفيف', '2024-03-12', '10:30', 'مكتمل'],
     ['BKG-1202', 8, 'صبغة شعر', '2024-03-12', '11:45', 'جديد'],
-    ['BKG-1203', 2, 'مانيكير وباديكير', '2024-03-13', '14:00', 'قيد المعالجة'],
+    ['BKG-1203', null, 'مانيكير وباديكير', '2024-03-13', '14:00', 'قيد المعالجة'],
     ['BKG-1204', 6, 'مكياج عروس', '2024-03-15', '09:00', 'مؤكد'],
     ['BKG-1205', 5, 'حمام مغربي', '2024-03-16', '16:30', 'ملغى'],
     ['BKG-1206', 9, 'عناية بالبشرة', '2024-03-17', '13:15', 'مكتمل'],
   ]
   return data.map(([id, i, service, date, time, status]) => ({
     id,
-    customer: person(i).name,
+    customer: i === null ? DEMO_CLIENT.name : person(i).name,
     service,
     date,
     time,
@@ -620,17 +671,18 @@ const APPOINTMENT_COLS: EntityColumn[] = [
 ]
 
 function appointmentsRows(): Array<Record<string, unknown>> {
-  const data: Array<[string, number, string, string, string, string]> = [
+  // (الجولة 16) موعدان للزبونة التجريبية «أمينة بلقاسم»
+  const data: Array<[string, number | null, string, string, string, string]> = [
     ['APT-3301', 8, 'د. كريم بلقاسم — قلب', '2024-03-12', '09:30', 'مكتمل'],
     ['APT-3302', 4, 'د. سارة بوزيد — أطفال', '2024-03-12', '10:45', 'مؤكد'],
-    ['APT-3303', 2, 'د. محمد قادري — عام', '2024-03-13', '11:15', 'جديد'],
-    ['APT-3304', 9, 'د. نورة سعدي — جلدية', '2024-03-14', '14:00', 'قيد المعالجة'],
+    ['APT-3303', null, 'د. محمد قادري — عام', '2024-03-13', '11:15', 'جديد'],
+    ['APT-3304', null, 'د. نورة سعدي — جلدية', '2024-03-14', '14:00', 'قيد المعالجة'],
     ['APT-3305', 5, 'د. رشيد بوعلام — عظام', '2024-03-15', '16:30', 'ملغى'],
     ['APT-3306', 6, 'د. سارة بوزيد — أطفال', '2024-03-16', '10:00', 'مكتمل'],
   ]
   return data.map(([id, i, doctor, date, time, status]) => ({
     id,
-    patient: person(i).name,
+    patient: i === null ? DEMO_CLIENT.name : person(i).name,
     doctor,
     date,
     time,

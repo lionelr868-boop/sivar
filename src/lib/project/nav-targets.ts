@@ -37,7 +37,22 @@ export function findPricingPage(schema: ProjectSchema): ProjectPage | null {
 
 export function findDashboardPage(schema: ProjectSchema): ProjectPage | null {
   const pages = Array.isArray(schema?.pages) ? schema.pages : []
-  return pages.find((p) => p.type === 'dashboard') ?? null
+  // (الجولة 16) لوحة المدير فقط — صفحات فضاء الزبون (audience=client) ليست هدف أزرار المدير
+  return pages.find((p) => p.type === 'dashboard' && (p.audience ?? 'admin') === 'admin') ?? null
+}
+
+/** (الجولة 16) أول صفحة من نوع dashboard بجمهور admin — هدف «الدخول كمدير» */
+export function findAdminDashboardPage(schema: ProjectSchema): ProjectPage | null {
+  return findDashboardPage(schema)
+}
+
+/** (الجولة 16) أول صفحة فضاء الزبون (audience=client من أنواع منطقة اللوحة) — هدف «الدخول كزبون» */
+export function findClientPage(schema: ProjectSchema): ProjectPage | null {
+  const pages = Array.isArray(schema?.pages) ? schema.pages : []
+  return (
+    pages.find((p) => p.audience === 'client' && (p.type === 'dashboard' || p.type === 'table' || p.type === 'profile')) ??
+    null
+  )
 }
 
 export function findFormPage(schema: ProjectSchema): ProjectPage | null {

@@ -20,6 +20,16 @@ const GALLERY_ENTITY_BY_VARIANT: Record<string, string> = {
   courses: 'courses',
 }
 
+/** الكيان ← حقل «الاسم» في صفوفه (معرض/فريق ↔ جدول — properties/courses = title) */
+const ROW_NAME_FIELD: Record<string, string> = {
+  products: 'name',
+  services: 'name',
+  properties: 'title',
+  menuItems: 'name',
+  courses: 'title',
+  teamMembers: 'name',
+}
+
 /** أنواع الكيانات التي يغطيها التزامن الموازي */
 const SYNCED_ENTITIES = new Set<string>([...Object.values(GALLERY_ENTITY_BY_VARIANT), 'teamMembers'])
 
@@ -92,11 +102,13 @@ export function syncEntitiesFromLanding(schema: ProjectSchema): ProjectSchema {
     // معرض فارغ = لا اشتقاق (لا نفرّغ جدولاً كاملاً عن غير قصد)
     if (items.length === 0) continue
     const prevRows = entity.rows.filter(isRecord)
+    // (الجولة 15) حقل الاسم الصحيح لكل كيان (properties/courses = title)
+    const nameField = ROW_NAME_FIELD[entityKey] ?? 'name'
     const rows = items.map((item, i) => {
       const prev = prevRows[i] ?? prevRows[prevRows.length - 1] ?? {}
       const nextRow: Record<string, unknown> = { ...prev }
       const name = strOf(item, 'title')
-      if (name) nextRow.name = name
+      if (name) nextRow[nameField] = name
       const price = numOf(item, 'price')
       if (Number.isFinite(price)) nextRow.price = price
       return nextRow
@@ -165,13 +177,15 @@ export function syncLandingFromEntities(schema: ProjectSchema, entities: string[
         if (!Array.isArray(rows) || rows.length === 0) return block
         const items = listOf(props, 'items')
         if (items.length === 0) return block
+        // (الجولة 15) حقل الاسم الصحيح لكل كيان (properties/courses = title)
+        const nameField = ROW_NAME_FIELD[entityKey] ?? 'name'
         let listChanged = false
         const nextItems = items.map((item, i) => {
           const row = rows[i]
           if (!isRecord(row)) return item
           const next: Record<string, unknown> = { ...item }
           let itemChanged = false
-          const name = strOf(row, 'name')
+          const name = strOf(row, nameField)
           if (name && name !== strOf(item, 'title')) {
             next.title = name
             itemChanged = true
@@ -334,4 +348,149 @@ export function mergeBlockProps(
     merged[key] = patchValue
   }
   return merged
+}
+
+// ============================================================
+// 5) (الجولة 15) إدارة الصفوف من لوحة تحكم الموقع نفسه
+// إضافة/تعديل/حذف صف من جدول الكيان + مصالحة فورية لقسم
+// الموقع المقابل (المعرض/الفريق) — التشغيل الموازي الكامل.
+// ============================================================
+
+/** الكيان ← متغير المعرض (عكس GALLERY_ENTITY_BY_VARIANT) */
+const ENTITY_GALLERY_VARIANT: Record<string, string> = {
+  products: 'products',
+  services: 'services',
+  properties: 'properties',
+  menuItems: 'menu',
+  courses: 'courses',
+}
+
+/** قيمة نصية من صف/عنصر (أو '' عند الغياب) */
+function rowStr(row: Record<string, unknown>, key: string): string {
+  const v = row[key]
+  return typeof v === 'string' ? v.trim() : typeof v === 'number' && Number.isFinite(v) ? String(v) : ''
+}
+
+/**
+ * يطبّق عملية صف واحدة (إضافة أو تعديل أو حذف) على كيان مع الإبقاء
+ * على اتساق التشغيل الموازي:
+ * - الصفوف في mockData.entities تتغيّر بالفهرس المطلوب.
+ * - قسم الموقع المقابل (معرض بنفس المتغير / قسم الفريق) يُصالَح بنفس
+ *   الترتيب: عنصر جديد للصف الجديد (بلا مساس الصور والشارات القائمة)،
+ *   تحديث الاسم/السعر عند التعديل، وحذف العنصر عند حذف الصف.
+ * - كيانات بلا قسم مقابل (الطلبات/العملاء...) تتغيّر صفوفها فقط.
+ * الناتج مستقرّ تحت syncEntitiesFromLanding (نفس الطول ونفس الاسم/السعر).
+ */
+export function applyEntityRowOp(
+  schema: ProjectSchema,
+  entityKey: string,
+  op: 'upsert' | 'delete',
+  index: number | null,
+  row?: Record<string, unknown>
+): ProjectSchema {
+  const entities = schema.mockData?.entities
+  const entity = entities?.[entityKey]
+  if (!entity || !Array.isArray(entity.rows)) return schema
+
+  const prevRows = entity.rows.filter(isRecord)
+  const safeIndex = index != null && index >= 0 && index < prevRows.length ? index : null
+
+  // ---- 1) الصفوف ----
+  let rows: Array<Record<string, unknown>>
+  if (op === 'delete') {
+    if (safeIndex == null) return schema
+    rows = prevRows.filter((_, i) => i !== safeIndex)
+  } else {
+    const nextRow = { ...(row ?? {}) }
+    if (safeIndex == null) rows = [...prevRows, nextRow]
+    else rows = prevRows.map((r, i) => (i === safeIndex ? nextRow : r))
+  }
+
+  const nameField = ROW_NAME_FIELD[entityKey] ?? 'name'
+  const rowName = op === 'delete' ? '' : rowStr(row ?? {}, nameField)
+  const rowPrice = op === 'delete' ? NaN : numOf(row ?? {}, 'price')
+  const rowRole = op === 'delete' ? '' : rowStr(row ?? {}, 'role')
+
+  // ---- 2) مصالحة أقسام الموقع (معرض/فريق) للكيانات المتزامنة ----
+  const galleryVariant = ENTITY_GALLERY_VARIANT[entityKey]
+  const isTeam = entityKey === 'teamMembers'
+
+  const pages = schema.pages.map((page) => {
+    const blocks = page.blocks.map((block) => {
+      const props = block.props ?? {}
+
+      if (galleryVariant && block.type === 'gallery' && strOf(props, 'variant') === galleryVariant) {
+        const items = listOf(props, 'items')
+        let nextItems: Array<Record<string, unknown>>
+        if (op === 'delete') {
+          nextItems = safeIndex == null ? items : items.filter((_, i) => i !== safeIndex)
+        } else if (safeIndex == null) {
+          // صف جديد → عنصر معرض جديد (يحمل الاسم والسعر فقط — بلا صورة/شارة)
+          const item: Record<string, unknown> = {}
+          if (rowName) item.title = rowName
+          if (Number.isFinite(rowPrice)) item.price = rowPrice
+          nextItems = [...items, item]
+        } else {
+          nextItems = items.map((it, i) => {
+            if (i !== safeIndex) return it
+            const next = { ...it }
+            let changed = false
+            if (rowName && rowName !== strOf(it, 'title')) {
+              next.title = rowName
+              changed = true
+            }
+            if (Number.isFinite(rowPrice) && rowPrice !== numOf(it, 'price')) {
+              next.price = rowPrice
+              changed = true
+            }
+            return changed ? next : it
+          })
+        }
+        if (sameJson(nextItems, items)) return block
+        return { ...block, props: { ...props, items: nextItems } }
+      }
+
+      if (isTeam && block.type === 'team') {
+        const items = listOf(props, 'items')
+        let nextItems: Array<Record<string, unknown>>
+        if (op === 'delete') {
+          nextItems = safeIndex == null ? items : items.filter((_, i) => i !== safeIndex)
+        } else if (safeIndex == null) {
+          const item: Record<string, unknown> = {}
+          if (rowName) item.name = rowName
+          if (rowRole) item.role = rowRole
+          nextItems = [...items, item]
+        } else {
+          nextItems = items.map((it, i) => {
+            if (i !== safeIndex) return it
+            const next = { ...it }
+            let changed = false
+            if (rowName && rowName !== strOf(it, 'name')) {
+              next.name = rowName
+              changed = true
+            }
+            if (rowRole && rowRole !== strOf(it, 'role')) {
+              next.role = rowRole
+              changed = true
+            }
+            return changed ? next : it
+          })
+        }
+        if (sameJson(nextItems, items)) return block
+        return { ...block, props: { ...props, items: nextItems } }
+      }
+
+      return block
+    })
+    return blocks === page.blocks ? page : { ...page, blocks }
+  })
+
+  return {
+    ...schema,
+    pages,
+    mockData: {
+      ...schema.mockData,
+      entities: { ...entities, [entityKey]: { ...entity, rows } },
+    },
+  }
 }

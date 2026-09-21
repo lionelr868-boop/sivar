@@ -218,6 +218,12 @@ export function PagesPanel({ onNavigated }: { onNavigated?: () => void }) {
                   >
                     <Icon className="size-4 shrink-0" />
                     <span className="truncate">{p.name}</span>
+                    {/* (الجولة 16) شارة صفحات فضاء الزبون */}
+                    {p.audience === 'client' ? (
+                      <Badge variant="secondary" className="shrink-0 text-[10px]">
+                        {t.builder.clientAudienceBadge}
+                      </Badge>
+                    ) : null}
                   </button>
                   <button
                     type="button"

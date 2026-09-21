@@ -1,0 +1,1064 @@
+     1→'use client'
+     2→
+     3→// لوحة الصفحات: قائمة الصفحات + مكونات الصفحة الحالية + إضافة/حذف/ترتيب
+     4→// + مكتبة أنماط صفحات الهبوط (12 نمطاً) + صفحات HTML المخصصة (لصق/رفع/مكتبة)
+     5→import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+     6→import type { LucideIcon } from 'lucide-react'
+     7→import { useAppStore } from '@/store/app-store'
+     8→import * as api from '@/lib/api-client'
+     9→import { t } from '@/lib/i18n'
+    10→import { BLOCK_REGISTRY } from '@/lib/registry/blocks'
+    11→import { addBlockToPage, addHtmlPageToSchema, addPageToSchema, deletePageFromSchema, syncPageNavigation } from '@/lib/project/tools'
+    12→import { changeLandingVariant, getLandingVariant, LANDING_VARIANTS } from '@/lib/project/landing-kit'
+    13→import type { LandingVariantMeta } from '@/lib/project/landing-kit'
+    14→import { LandingVariantThumb } from '@/components/platform/templates-library/landing-variant-thumb'
+    15→import {
+    16→  type AuthVariant,
+    17→  type BlockType,
+    18→  type HtmlSnippetDTO,
+    19→  type LandingVariantId,
+    20→  type PageType,
+    21→  type ProjectPage,
+    22→  HTML_SNIPPET_KIND_LABELS,
+    23→} from '@/lib/types'
+    24→import { cn } from '@/lib/utils'
+    25→import { Badge } from '@/components/ui/badge'
+    26→import { Button } from '@/components/ui/button'
+    27→import { Checkbox } from '@/components/ui/checkbox'
+    28→import { Input } from '@/components/ui/input'
+    29→import { Label } from '@/components/ui/label'
+    30→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    31→import { Skeleton } from '@/components/ui/skeleton'
+    32→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    33→import { Textarea } from '@/components/ui/textarea'
+    34→import {
+    35→  Dialog,
+    36→  DialogContent,
+    37→  DialogDescription,
+    38→  DialogFooter,
+    39→  DialogHeader,
+    40→  DialogTitle,
+    41→} from '@/components/ui/dialog'
+    42→import {
+    43→  AlertDialog,
+    44→  AlertDialogAction,
+    45→  AlertDialogCancel,
+    46→  AlertDialogContent,
+    47→  AlertDialogDescription,
+    48→  AlertDialogFooter,
+    49→  AlertDialogHeader,
+    50→  AlertDialogTitle,
+    51→} from '@/components/ui/alert-dialog'
+    52→import {
+    53→  DropdownMenu,
+    54→  DropdownMenuContent,
+    55→  DropdownMenuItem,
+    56→  DropdownMenuLabel,
+    57→  DropdownMenuSeparator,
+    58→  DropdownMenuTrigger,
+    59→} from '@/components/ui/dropdown-menu'
+    60→import {
+    61→  Check,
+    62→  ChevronDown,
+    63→  ChevronUp,
+    64→  CircleHelp,
+    65→  ClipboardList,
+    66→  Code2,
+    67→  FileText,
+    68→  Globe,
+    69→  Home,
+    70→  LayoutDashboard,
+    71→  LogIn,
+    72→  Plus,
+    73→  Settings,
+    74→  Table2,
+    75→  Tag,
+    76→  Trash2,
+    77→  Upload,
+    78→  User,
+    79→  Wand2,
+    80→} from 'lucide-react'
+    81→import { toast } from 'sonner'
+    82→
+    83→const PAGE_ICONS: Record<PageType, React.ComponentType<{ className?: string }>> = {
+    84→  landing: Home,
+    85→  auth: LogIn,
+    86→  dashboard: LayoutDashboard,
+    87→  pricing: Tag,
+    88→  table: Table2,
+    89→  form: ClipboardList,
+    90→  settings: Settings,
+    91→  profile: User,
+    92→  faq: CircleHelp,
+    93→  custom: FileText,
+    94→}
+    95→
+    96→type AddPageOption =
+    97→  | { kind: 'page'; type: PageType; authVariant?: AuthVariant; label: string; desc: string; icon: LucideIcon }
+    98→  | { kind: 'html'; label: string; desc: string; icon: LucideIcon }
+    99→
+   100→const ADD_PAGE_OPTIONS: AddPageOption[] = [
+   101→  { kind: 'page', type: 'custom', label: t.builder.pageTypeBlank, desc: t.builder.pageTypeCustomDesc, icon: FileText },
+   102→  { kind: 'page', type: 'landing', label: 'Landing', desc: t.builder.pageTypeLandingDesc, icon: Home },
+   103→  { kind: 'page', type: 'dashboard', label: 'Dashboard', desc: t.builder.pageTypeDashboardDesc, icon: LayoutDashboard },
+   104→  { kind: 'page', type: 'pricing', label: 'Pricing', desc: t.builder.pageTypePricingDesc, icon: Tag },
+   105→  { kind: 'page', type: 'auth', authVariant: 'login', label: 'Login', desc: t.builder.pageTypeLoginDesc, icon: LogIn },
+   106→  { kind: 'page', type: 'auth', authVariant: 'signup', label: 'Signup', desc: t.builder.pageTypeSignupDesc, icon: LogIn },
+   107→  { kind: 'page', type: 'settings', label: 'Settings', desc: t.builder.pageTypeSettingsDesc, icon: Settings },
+   108→  { kind: 'page', type: 'profile', label: 'Profile', desc: t.builder.pageTypeProfileDesc, icon: User },
+   109→  { kind: 'page', type: 'table', label: 'Table', desc: t.builder.pageTypeTableDesc, icon: Table2 },
+   110→  { kind: 'page', type: 'form', label: 'Form', desc: t.builder.pageTypeFormDesc, icon: ClipboardList },
+   111→  { kind: 'page', type: 'faq', label: 'FAQ', desc: t.builder.pageTypeFaqDesc, icon: CircleHelp },
+   112→  { kind: 'html', label: 'HTML', desc: t.builder.pageTypeHtmlDesc, icon: Code2 },
+   113→]
+   114→
+   115→const MAX_HTML_FILE_BYTES = 500 * 1024
+   116→
+   117→function formatCount(n: number): string {
+   118→  return n.toLocaleString('en-US')
+   119→}
+   120→
+   121→export function PagesPanel({ onNavigated }: { onNavigated?: () => void }) {
+   122→  const schema = useAppStore((s) => s.schema)
+   123→  const selectedPageId = useAppStore((s) => s.selectedPageId)
+   124→  const selectedBlockId = useAppStore((s) => s.selectedBlockId)
+   125→  const selectPage = useAppStore((s) => s.selectPage)
+   126→  const selectBlock = useAppStore((s) => s.selectBlock)
+   127→  const applySchemaFn = useAppStore((s) => s.applySchemaFn)
+   128→
+   129→  const [addOpen, setAddOpen] = useState(false)
+   130→  const [styleOpen, setStyleOpen] = useState(false)
+   131→  const [renameTarget, setRenameTarget] = useState<string | null>(null)
+   132→  const [renameDraft, setRenameDraft] = useState('')
+   133→  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+   134→
+   135→  const page = useMemo(() => schema?.pages.find((p) => p.id === selectedPageId) ?? null, [schema, selectedPageId])
+   136→  const entityKeys = useMemo(() => (schema ? Object.keys(schema.mockData.entities) : []), [schema])
+   137→
+   138→  if (!schema) return null
+   139→
+   140→  const handleAddBlock = (blockType: BlockType) => {
+   141→    if (!page) return
+   142→    try {
+   143→      let newId = ''
+   144→      applySchemaFn((s) => {
+   145→        const res = addBlockToPage(s, page.id, blockType)
+   146→        newId = res.blockId
+   147→        return res.schema
+   148→      })
+   149→      selectBlock(newId)
+   150→      toast.success(t.builder.blockAddedToast.replace('{name}', BLOCK_REGISTRY[blockType].label))
+   151→    } catch (e) {
+   152→      toast.error((e as Error).message)
+   153→    }
+   154→  }
+   155→
+   156→  const commitRename = () => {
+   157→    if (!renameTarget) return
+   158→    const name = renameDraft.trim()
+   159→    if (name) {
+   160→      // (الجولة 13) إعادة التسمية من المحرر تُزامن عنوان الشريط الجانبي وقائمة الموقع تلقائياً
+   161→      applySchemaFn((s) =>
+   162→        syncPageNavigation(
+   163→          {
+   164→            ...s,
+   165→            pages: s.pages.map((p) => (p.id === renameTarget ? { ...p, name, title: p.title ?? name } : p)),
+   166→          },
+   167→          renameTarget
+   168→        )
+   169→      )
+   170→    }
+   171→    setRenameTarget(null)
+   172→  }
+   173→
+   174→  return (
+   175→    <div className="flex h-full min-h-0 flex-col">
+   176→      {/* الصفحات */}
+   177→      <div className="flex items-center justify-between px-3 pb-1.5 pt-3">
+   178→        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t.builder.pagesPanel}</h3>
+   179→        <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={() => setAddOpen(true)}>
+   180→          <Plus className="size-3.5" />
+   181→          {t.builder.addPage}
+   182→        </Button>
+   183→      </div>
+   184→
+   185→      <ul className="max-h-64 overflow-y-auto px-2 pb-2">
+   186→        {schema.pages.map((p) => {
+   187→          const Icon = PAGE_ICONS[p.type] ?? FileText
+   188→          const isActive = p.id === selectedPageId
+   189→          return (
+   190→            <li key={p.id} className="group/page">
+   191→              {renameTarget === p.id ? (
+   192→                <Input
+   193→                  autoFocus
+   194→                  value={renameDraft}
+   195→                  onChange={(e) => setRenameDraft(e.target.value)}
+   196→                  onBlur={commitRename}
+   197→                  onKeyDown={(e) => {
+   198→                    if (e.key === 'Enter') commitRename()
+   199→                    if (e.key === 'Escape') setRenameTarget(null)
+   200→                  }}
+   201→                  className="h-9 text-sm"
+   202→                  aria-label={t.builder.renamePage}
+   203→                />
+   204→              ) : (
+   205→                <div
+   206→                  className={cn(
+   207→                    'flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors',
+   208→                    isActive ? 'bg-secondary font-medium text-secondary-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+   209→                  )}
+   210→                >
+   211→                  <button
+   212→                    type="button"
+   213→                    className="flex min-w-0 flex-1 items-center gap-2 text-start"
+   214→                    onClick={() => {
+   215→                      selectPage(p.id)
+   216→                      onNavigated?.()
+   217→                    }}
+   218→                  >
+   219→                    <Icon className="size-4 shrink-0" />
+   220→                    <span className="truncate">{p.name}</span>
+   221→                  </button>
+   222→                  <button
+   223→                    type="button"
+   224→                    className="hidden rounded p-1 text-muted-foreground/70 hover:text-foreground group-hover/page:block"
+   225→                    onClick={() => {
+   226→                      setRenameTarget(p.id)
+   227→                      setRenameDraft(p.name)
+   228→                    }}
+   229→                    aria-label={t.builder.renamePage}
+   230→                  >
+   231→                    <FileText className="size-3.5" />
+   232→                  </button>
+   233→                  <button
+   234→                    type="button"
+   235→                    className="hidden rounded p-1 text-muted-foreground/70 hover:text-destructive group-hover/page:block disabled:opacity-30"
+   236→                    onClick={() => setDeleteTarget(p.id)}
+   237→                    disabled={schema.pages.length <= 1}
+   238→                    aria-label={t.builder.deletePage}
+   239→                  >
+   240→                    <Trash2 className="size-3.5" />
+   241→                  </button>
+   242→                </div>
+   243→              )}
+   244→            </li>
+   245→          )
+   246→        })}
+   247→      </ul>
+   248→
+   249→      {/* مكوّنات الصفحة الحالية */}
+   250→      <div className="mt-2 flex min-h-0 flex-1 flex-col border-t">
+   251→        <div className="flex flex-wrap items-center justify-between gap-1.5 px-3 pb-1.5 pt-2.5">
+   252→          <h3 className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+   253→            {t.builder.componentsPanel}
+   254→          </h3>
+   255→          <div className="flex shrink-0 items-center gap-1.5">
+   256→            {page?.type === 'landing' ? (
+   257→              <Button
+   258→                variant="outline"
+   259→                size="sm"
+   260→                className="h-7 gap-1 px-2 text-xs"
+   261→                onClick={() => setStyleOpen(true)}
+   262→                title={t.builder.changeStyleBtn}
+   263→              >
+   264→                <Wand2 className="size-3.5 text-primary" />
+   265→                {t.builder.changeStyleBtn}
+   266→              </Button>
+   267→            ) : null}
+   268→            <DropdownMenu>
+   269→              <DropdownMenuTrigger asChild>
+   270→                <Button variant="outline" size="sm" className="h-7 gap-1 px-2 text-xs">
+   271→                  <Plus className="size-3.5" />
+   272→                  {t.builder.addBlock}
+   273→                </Button>
+   274→              </DropdownMenuTrigger>
+   275→              <DropdownMenuContent side="left" align="start" className="w-60 max-h-96 overflow-y-auto">
+   276→                {(
+   277→                  [
+   278→                    { key: 'marketing', label: t.builder.marketingBlocks },
+   279→                    { key: 'dashboard', label: t.builder.dashboardBlocks },
+   280→                    { key: 'auth', label: t.builder.authBlocks },
+   281→                    { key: 'states', label: t.builder.stateBlocks },
+   282→                  ] as const
+   283→                ).map((group) => {
+   284→                  const defs = Object.values(BLOCK_REGISTRY).filter((d) => d.category === group.key)
+   285→                  if (!defs.length) return null
+   286→                  return (
+   287→                    <DropdownMenuLabel key={group.key}>{group.label}</DropdownMenuLabel>
+   288→                  )
+   289→                })}
+   290→                <DropdownMenuSeparator />
+   291→                {Object.values(BLOCK_REGISTRY)
+   292→                  .sort((a, b) => a.category.localeCompare(b.category))
+   293→                  .map((def) => (
+   294→                    <DropdownMenuItem key={def.type} onClick={() => handleAddBlock(def.type)} className="gap-2">
+   295→                      <span className="text-xs font-semibold text-primary">{def.label}</span>
+   296→                      <span className="truncate text-xs text-muted-foreground">{def.description}</span>
+   297→                    </DropdownMenuItem>
+   298→                  ))}
+   299→              </DropdownMenuContent>
+   300→            </DropdownMenu>
+   301→          </div>
+   302→        </div>
+   303→
+   304→        {page && page.blocks.length > 0 ? (
+   305→          <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+   306→            {page.blocks.map((block, idx) => {
+   307→              const def = BLOCK_REGISTRY[block.type]
+   308→              const isSel = block.id === selectedBlockId
+   309→              return (
+   310→                <li
+   311→                  key={block.id}
+   312→                  className={cn(
+   313→                    'group/blk mb-1 flex items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition-colors',
+   314→                    isSel ? 'border-primary/50 bg-secondary/70 font-medium' : 'border-transparent text-muted-foreground hover:border-border hover:bg-accent/40'
+   315→                  )}
+   316→                >
+   317→                  <button
+   318→                    type="button"
+   319→                    className="min-w-0 flex-1 truncate text-start"
+   320→                    onClick={() => selectBlock(block.id)}
+   321→                    title={def?.description}
+   322→                  >
+   323→                    {def?.label ?? block.type}
+   324→                  </button>
+   325→                  <div className="flex shrink-0 items-center">
+   326→                    <button
+   327→                      type="button"
+   328→                      className="rounded p-0.5 text-muted-foreground/60 hover:text-foreground disabled:opacity-25"
+   329→                      disabled={idx === 0}
+   330→                      onClick={() =>
+   331→                        applySchemaFn((s) => ({
+   332→                          ...s,
+   333→                          pages: s.pages.map((pg) =>
+   334→                            pg.id === page.id
+   335→                              ? {
+   336→                                  ...pg,
+   337→                                  blocks: (() => {
+   338→                                    const blocks = [...pg.blocks]
+   339→                                    const [moved] = blocks.splice(idx, 1)
+   340→                                    blocks.splice(idx - 1, 0, moved)
+   341→                                    return blocks
+   342→                                  })(),
+   343→                                }
+   344→                              : pg
+   345→                          ),
+   346→                        }))
+   347→                      }
+   348→                      aria-label={t.builder.moveUp}
+   349→                    >
+   350→                      <ChevronUp className="size-3.5" />
+   351→                    </button>
+   352→                    <button
+   353→                      type="button"
+   354→                      className="rounded p-0.5 text-muted-foreground/60 hover:text-foreground disabled:opacity-25"
+   355→                      disabled={idx === page.blocks.length - 1}
+   356→                      onClick={() =>
+   357→                        applySchemaFn((s) => ({
+   358→                          ...s,
+   359→                          pages: s.pages.map((pg) =>
+   360→                            pg.id === page.id
+   361→                              ? {
+   362→                                  ...pg,
+   363→                                  blocks: (() => {
+   364→                                    const blocks = [...pg.blocks]
+   365→                                    const [moved] = blocks.splice(idx, 1)
+   366→                                    blocks.splice(idx + 1, 0, moved)
+   367→                                    return blocks
+   368→                                  })(),
+   369→                                }
+   370→                              : pg
+   371→                          ),
+   372→                        }))
+   373→                      }
+   374→                      aria-label={t.builder.moveDown}
+   375→                    >
+   376→                      <ChevronDown className="size-3.5" />
+   377→                    </button>
+   378→                    <button
+   379→                      type="button"
+   380→                      className="rounded p-0.5 text-muted-foreground/60 hover:text-destructive"
+   381→                      onClick={() => {
+   382→                        applySchemaFn((s) => ({
+   383→                          ...s,
+   384→                          pages: s.pages.map((pg) => (pg.id === page.id ? { ...pg, blocks: pg.blocks.filter((b) => b.id !== block.id) } : pg)),
+   385→                        }))
+   386→                        if (isSel) selectBlock(null)
+   387→                      }}
+   388→                      aria-label={t.builder.deleteBlock}
+   389→                    >
+   390→                      <Trash2 className="size-3.5" />
+   391→                    </button>
+   392→                  </div>
+   393→                </li>
+   394→              )
+   395→            })}
+   396→          </ul>
+   397→        ) : (
+   398→          <div className="mx-2 mb-3 rounded-lg border border-dashed p-4 text-center">
+   399→            <p className="text-sm font-medium text-muted-foreground">{t.builder.noBlocks}</p>
+   400→            <p className="mt-1 text-xs text-muted-foreground/70">{t.builder.noBlocksHint}</p>
+   401→          </div>
+   402→        )}
+   403→      </div>
+   404→
+   405→      {/* نافذة إضافة صفحة */}
+   406→      <AddPageDialog
+   407→        open={addOpen}
+   408→        onOpenChange={setAddOpen}
+   409→        entityKeys={entityKeys}
+   410→        onCreate={(opts) => {
+   411→          let pageId = ''
+   412→          let inSidebar = false
+   413→          applySchemaFn((s) => {
+   414→            const res = addPageToSchema(s, {
+   415→              name: opts.name,
+   416→              type: opts.type,
+   417→              authVariant: opts.authVariant,
+   418→              entity: opts.entity,
+   419→              landingVariant: opts.landingVariant,
+   420→            })
+   421→            pageId = res.pageId
+   422→            // (الجولة 13) هل أُدرجت الصفحة الجديدة في الشريط الجانبي للوحة التحكم؟
+   423→            inSidebar = res.schema.dashboardNav.items.some((it) => it.pageId === res.pageId)
+   424→            return res.schema
+   425→          })
+   426→          if (pageId) {
+   427→            selectPage(pageId)
+   428→            const toastMsg = inSidebar
+   429→              ? t.builder.pageAddedSidebarToast.replace('{name}', opts.name)
+   430→              : t.builder.pageAddedToast.replace('{name}', opts.name)
+   431→            toast.success(toastMsg)
+   432→            onNavigated?.()
+   433→          }
+   434→        }}
+   435→        onCreateHtml={(opts) => {
+   436→          let pageId = ''
+   437→          let inSidebar = false
+   438→          applySchemaFn((s) => {
+   439→            const res = addHtmlPageToSchema(s, { name: opts.name, html: opts.html, placement: opts.placement, height: 640 })
+   440→            pageId = res.pageId
+   441→            // (الجولة 13) صفحة HTML داخل اللوحة تُدرج في الشريط الجانبي أيضاً
+   442→            inSidebar = res.schema.dashboardNav.items.some((it) => it.pageId === res.pageId)
+   443→            return res.schema
+   444→          })
+   445→          if (pageId) {
+   446→            selectPage(pageId)
+   447→            const toastMsg = inSidebar
+   448→              ? t.builder.pageAddedSidebarToast.replace('{name}', opts.name)
+   449→              : t.builder.pageAddedToast.replace('{name}', opts.name)
+   450→            toast.success(toastMsg)
+   451→            onNavigated?.()
+   452→            // حفظ في مكتبة HTML — غير حاجز (لا يمنع إنشاء الصفحة)
+   453→            if (opts.saveToLibrary && opts.snippetName) {
+   454→              api
+   455→                .createSnippet({
+   456→                  name: opts.snippetName,
+   457→                  kind: opts.placement === 'dashboard' ? 'dashboard' : 'landing',
+   458→                  html: opts.html,
+   459→                })
+   460→                .then(() => toast.success(t.builder.htmlSavedToLibrary))
+   461→                .catch((e) => toast.error((e as Error).message || t.builder.htmlSaveLibraryError))
+   462→            }
+   463→          }
+   464→        }}
+   465→      />
+   466→
+   467→      {/* نافذة تغيير نمط صفحة الهبوط */}
+   468→      {page && page.type === 'landing' ? (
+   469→        <VariantStyleDialog page={page} open={styleOpen} onOpenChange={setStyleOpen} />
+   470→      ) : null}
+   471→
+   472→      {/* تأكيد حذف الصفحة */}
+   473→      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+   474→        <AlertDialogContent>
+   475→          <AlertDialogHeader>
+   476→            <AlertDialogTitle>{t.builder.deletePageTitle}</AlertDialogTitle>
+   477→            <AlertDialogDescription>
+   478→              {t.builder.deletePageDesc.replace('{name}', schema.pages.find((p) => p.id === deleteTarget)?.name ?? '')}
+   479→            </AlertDialogDescription>
+   480→          </AlertDialogHeader>
+   481→          <AlertDialogFooter>
+   482→            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
+   483→            <AlertDialogAction
+   484→              className="bg-destructive text-white hover:bg-destructive/90"
+   485→              onClick={() => {
+   486→                if (deleteTarget) {
+   487→                  applySchemaFn((s) => deletePageFromSchema(s, deleteTarget))
+   488→                  if (deleteTarget === selectedPageId) {
+   489→                    const next = schema.pages.find((p) => p.id !== deleteTarget)
+   490→                    if (next) selectPage(next.id)
+   491→                  }
+   492→                }
+   493→                setDeleteTarget(null)
+   494→              }}
+   495→            >
+   496→              {t.common.delete}
+   497→            </AlertDialogAction>
+   498→          </AlertDialogFooter>
+   499→        </AlertDialogContent>
+   500→      </AlertDialog>
+   501→    </div>
+   502→  )
+   503→}
+   504→
+   505→// ============================================================
+   506→// بطاقة نمط صفحة هبوط (مشتركة بين نافذتي الإضافة وتغيير النمط)
+   507→// ============================================================
+   508→function VariantCard({
+   509→  variant,
+   510→  selected,
+   511→  onSelect,
+   512→}: {
+   513→  variant: LandingVariantMeta
+   514→  selected: boolean
+   515→  onSelect: () => void
+   516→}) {
+   517→  return (
+   518→    <button
+   519→      type="button"
+   520→      onClick={onSelect}
+   521→      aria-pressed={selected}
+   522→      className={cn(
+   523→        'relative flex flex-col gap-2 rounded-lg border p-2 text-start transition-colors',
+   524→        selected ? 'border-primary bg-secondary/70 ring-1 ring-primary/30' : 'border-border hover:border-primary/40 hover:bg-accent/50'
+   525→      )}
+   526→    >
+   527→      {selected ? (
+   528→        <span
+   529→          className="absolute end-2 top-2 grid size-5 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm"
+   530→          aria-hidden="true"
+   531→        >
+   532→          <Check className="size-3" />
+   533→        </span>
+   534→      ) : null}
+   535→      <span className="block aspect-[4/3] w-full">
+   536→        <LandingVariantThumb variant={variant} className="h-full w-full" />
+   537→      </span>
+   538→      <span className="text-sm font-medium leading-tight">{variant.name}</span>
+   539→      <span className="line-clamp-2 text-xs leading-snug text-muted-foreground">{variant.tagline}</span>
+   540→    </button>
+   541→  )
+   542→}
+   543→
+   544→function VariantGrid({
+   545→  selected,
+   546→  onSelect,
+   547→  maxHeightClass = 'max-h-72',
+   548→}: {
+   549→  selected: LandingVariantId
+   550→  onSelect: (id: LandingVariantId) => void
+   551→  maxHeightClass?: string
+   552→}) {
+   553→  return (
+   554→    <div className={cn('overflow-y-auto pe-1', maxHeightClass)}>
+   555→      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+   556→        {LANDING_VARIANTS.map((v) => (
+   557→          <VariantCard key={v.id} variant={v} selected={selected === v.id} onSelect={() => onSelect(v.id)} />
+   558→        ))}
+   559→      </div>
+   560→    </div>
+   561→  )
+   562→}
+   563→
+   564→// ============================================================
+   565→// نافذة تغيير نمط صفحة هبوط قائمة (إعادة بناء فورية)
+   566→// ============================================================
+   567→function VariantStyleDialog({
+   568→  page,
+   569→  open,
+   570→  onOpenChange,
+   571→}: {
+   572→  page: ProjectPage
+   573→  open: boolean
+   574→  onOpenChange: (o: boolean) => void
+   575→}) {
+   576→  const applySchemaFn = useAppStore((s) => s.applySchemaFn)
+   577→  const selectBlock = useAppStore((s) => s.selectBlock)
+   578→  const [selected, setSelected] = useState<LandingVariantId>('classic-split')
+   579→
+   580→  // إعادة ضبط الاختيار عند فتح النافذة (نمط المزامنة أثناء العرض — بدون effect)
+   581→  const syncKey = `${open ? 'open' : 'closed'}|${page.id}`
+   582→  const [prevSyncKey, setPrevSyncKey] = useState(syncKey)
+   583→  if (syncKey !== prevSyncKey) {
+   584→    setPrevSyncKey(syncKey)
+   585→    if (open) setSelected('classic-split')
+   586→  }
+   587→
+   588→  const apply = () => {
+   589→    const variant = getLandingVariant(selected)
+   590→    applySchemaFn((s) => changeLandingVariant(s, page.id, selected))
+   591→    selectBlock(null)
+   592→    toast.success(t.builder.changeStyleSuccess.replace('{name}', variant.name))
+   593→    onOpenChange(false)
+   594→  }
+   595→
+   596→  return (
+   597→    <Dialog open={open} onOpenChange={onOpenChange}>
+   598→      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+   599→        <DialogHeader>
+   600→          <DialogTitle className="flex items-center gap-2">
+   601→            <Wand2 className="size-4 text-primary" />
+   602→            {t.builder.changeStyleTitle}
+   603→          </DialogTitle>
+   604→          <DialogDescription>{t.builder.changeStyleDesc}</DialogDescription>
+   605→        </DialogHeader>
+   606→
+   607→        <VariantGrid selected={selected} onSelect={setSelected} />
+   608→
+   609→        <div className="flex justify-end gap-2">
+   610→          <Button variant="outline" onClick={() => onOpenChange(false)}>
+   611→            {t.common.cancel}
+   612→          </Button>
+   613→          <Button onClick={apply}>
+   614→            <Wand2 className="size-4" />
+   615→            {t.builder.changeStyleApplyBtn}
+   616→          </Button>
+   617→        </div>
+   618→      </DialogContent>
+   619→    </Dialog>
+   620→  )
+   621→}
+   622→
+   623→// ============================================================
+   624→// نافذة إضافة صفحة — أنواع + أنماط الهبوط + صفحة HTML
+   625→// ============================================================
+   626→type HtmlSourceTab = 'paste' | 'upload' | 'library'
+   627→type HtmlPlacement = 'site' | 'dashboard'
+   628→
+   629→function AddPageDialog({
+   630→  open,
+   631→  onOpenChange,
+   632→  entityKeys,
+   633→  onCreate,
+   634→  onCreateHtml,
+   635→}: {
+   636→  open: boolean
+   637→  onOpenChange: (o: boolean) => void
+   638→  entityKeys: string[]
+   639→  onCreate: (opts: { name: string; type: PageType; authVariant?: AuthVariant; entity?: string; landingVariant?: LandingVariantId }) => void
+   640→  onCreateHtml: (opts: { name: string; html: string; placement: HtmlPlacement; saveToLibrary: boolean; snippetName: string }) => void
+   641→}) {
+   642→  const [type, setType] = useState<PageType>('landing')
+   643→  const [authVariant, setAuthVariant] = useState<AuthVariant>('login')
+   644→  const [name, setName] = useState('')
+   645→  const [entity, setEntity] = useState<string>('')
+   646→  const [landingVariant, setLandingVariant] = useState<LandingVariantId>('classic-split')
+   647→  const [isHtml, setIsHtml] = useState(false)
+   648→
+   649→  // حالة صفحة HTML
+   650→  const [htmlTab, setHtmlTab] = useState<HtmlSourceTab>('paste')
+   651→  const [html, setHtml] = useState('')
+   652→  const [fileName, setFileName] = useState<string | null>(null)
+   653→  const [fileSize, setFileSize] = useState<number | null>(null)
+   654→  const [placement, setPlacement] = useState<HtmlPlacement>('site')
+   655→  const [saveToLibrary, setSaveToLibrary] = useState(false)
+   656→  const [snippetName, setSnippetName] = useState('')
+   657→  const [selectedSnippetId, setSelectedSnippetId] = useState<string | null>(null)
+   658→  const fileInputRef = useRef<HTMLInputElement>(null)
+   659→
+   660→  // مكتبة HTML
+   661→  const [snippets, setSnippets] = useState<HtmlSnippetDTO[] | null>(null)
+   662→  const [snippetsLoading, setSnippetsLoading] = useState(false)
+   663→  const [snippetsError, setSnippetsError] = useState(false)
+   664→
+   665→  // جلب المكتبة (يُستدعى عند فتح تبويب «من مكتبتي» أو عند إعادة المحاولة)
+   666→  const loadSnippets = useCallback(async () => {
+   667→    setSnippetsLoading(true)
+   668→    setSnippetsError(false)
+   669→    try {
+   670→      const { snippets: list } = await api.listSnippets()
+   671→      setSnippets(list)
+   672→    } catch {
+   673→      setSnippetsError(true)
+   674→    } finally {
+   675→      setSnippetsLoading(false)
+   676→    }
+   677→  }, [])
+   678→
+   679→  useEffect(() => {
+   680→    if (!open || !isHtml || htmlTab !== 'library') return
+   681→    void loadSnippets()
+   682→  }, [open, isHtml, htmlTab, loadSnippets])
+   683→
+   684→  // إعادة ضبط الحالة عند إغلاق النافذة (نمط المزامنة أثناء العرض — بدون effect)
+   685→  const [prevOpen, setPrevOpen] = useState(open)
+   686→  if (prevOpen !== open) {
+   687→    setPrevOpen(open)
+   688→    if (!open) {
+   689→      setName('')
+   690→      setEntity('')
+   691→      setType('landing')
+   692→      setLandingVariant('classic-split')
+   693→      setIsHtml(false)
+   694→      setHtmlTab('paste')
+   695→      setHtml('')
+   696→      setFileName(null)
+   697→      setFileSize(null)
+   698→      setPlacement('site')
+   699→      setSaveToLibrary(false)
+   700→      setSnippetName('')
+   701→      setSelectedSnippetId(null)
+   702→    }
+   703→  }
+   704→
+   705→  const selectedOption = ADD_PAGE_OPTIONS.find(
+   706→    (o) => o.kind === 'page' && o.type === type && (o.type !== 'auth' || o.authVariant === authVariant)
+   707→  )
+   708→  const defaultName = isHtml
+   709→    ? placement === 'dashboard'
+   710→      ? t.builder.htmlDefaultDashboardName
+   711→      : t.builder.htmlDefaultPageName
+   712→    : (selectedOption && selectedOption.kind === 'page' ? selectedOption.label : '')
+   713→
+   714→  const handleFile = (file: File) => {
+   715→    if (file.size > MAX_HTML_FILE_BYTES) {
+   716→      toast.error(t.builder.htmlFileTooLarge)
+   717→      return
+   718→    }
+   719→    const reader = new FileReader()
+   720→    reader.onload = () => {
+   721→      const text = typeof reader.result === 'string' ? reader.result : ''
+   722→      setHtml(text)
+   723→      setFileName(file.name)
+   724→      setFileSize(file.size)
+   725→      setSelectedSnippetId(null)
+   726→    }
+   727→    reader.onerror = () => toast.error(t.common.error)
+   728→    reader.readAsText(file)
+   729→  }
+   730→
+   731→  const create = () => {
+   732→    if (isHtml) {
+   733→      const trimmedHtml = html.trim()
+   734→      if (!trimmedHtml || !trimmedHtml.includes('<')) {
+   735→        toast.error(t.builder.htmlInvalid)
+   736→        return
+   737→      }
+   738→      if (saveToLibrary && !snippetName.trim()) {
+   739→        toast.error(t.common.required)
+   740→        return
+   741→      }
+   742→      onCreateHtml({
+   743→        name: name.trim() || defaultName,
+   744→        html: trimmedHtml,
+   745→        placement,
+   746→        saveToLibrary,
+   747→        snippetName: snippetName.trim(),
+   748→      })
+   749→      onOpenChange(false)
+   750→      return
+   751→    }
+   752→    onCreate({
+   753→      name: name.trim() || defaultName,
+   754→      type,
+   755→      authVariant: type === 'auth' ? authVariant : undefined,
+   756→      entity: type === 'table' ? entity || entityKeys[0] : undefined,
+   757→      landingVariant: type === 'landing' ? landingVariant : undefined,
+   758→    })
+   759→    onOpenChange(false)
+   760→  }
+   761→
+   762→  return (
+   763→    <Dialog open={open} onOpenChange={onOpenChange}>
+   764→      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+   765→        <DialogHeader>
+   766→          <DialogTitle>{t.builder.addPageTitle}</DialogTitle>
+   767→          <DialogDescription>{t.builder.addPageSubtitle}</DialogDescription>
+   768→        </DialogHeader>
+   769→
+   770→        {/* أنواع الصفحات */}
+   771→        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+   772→          {ADD_PAGE_OPTIONS.map((opt) => {
+   773→            const isActive =
+   774→              opt.kind === 'html' ? isHtml : !isHtml && opt.type === type && (opt.type !== 'auth' || opt.authVariant === authVariant)
+   775→            const Icon = opt.icon
+   776→            return (
+   777→              <button
+   778→                key={opt.kind === 'html' ? 'html' : `${opt.type}-${opt.authVariant ?? 'x'}`}
+   779→                type="button"
+   780→                onClick={() => {
+   781→                  if (opt.kind === 'html') {
+   782→                    setIsHtml(true)
+   783→                  } else {
+   784→                    setIsHtml(false)
+   785→                    setType(opt.type)
+   786→                    if (opt.authVariant) setAuthVariant(opt.authVariant)
+   787→                  }
+   788→                  setName('')
+   789→                }}
+   790→                aria-pressed={isActive}
+   791→                className={cn(
+   792→                  'flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-colors',
+   793→                  isActive ? 'border-primary bg-secondary/70' : 'border-border hover:bg-accent/50'
+   794→                )}
+   795→              >
+   796→                <Icon className={cn('size-5', isActive ? 'text-primary' : 'text-muted-foreground')} />
+   797→                <span className="text-sm font-medium">{opt.label}</span>
+   798→                <span className="text-[11px] leading-tight text-muted-foreground">{opt.desc}</span>
+   799→              </button>
+   800→            )
+   801→          })}
+   802→        </div>
+   803→
+   804→        {isHtml ? (
+   805→          /* ===== لوحة صفحة HTML ===== */
+   806→          <div className="space-y-3">
+   807→            <div className="space-y-1.5">
+   808→              <Label htmlFor="new-page-name">{t.builder.pageName}</Label>
+   809→              <Input id="new-page-name" value={name} placeholder={defaultName} onChange={(e) => setName(e.target.value)} />
+   810→            </div>
+   811→
+   812→            <div className="space-y-1.5">
+   813→              <Label className="text-xs">{t.builder.htmlSourceLabel}</Label>
+   814→              <Tabs value={htmlTab} onValueChange={(v) => setHtmlTab(v as HtmlSourceTab)}>
+   815→                <TabsList className="grid w-full grid-cols-3">
+   816→                  <TabsTrigger value="paste" className="text-xs">{t.builder.htmlPasteTab}</TabsTrigger>
+   817→                  <TabsTrigger value="upload" className="text-xs">{t.builder.htmlUploadTab}</TabsTrigger>
+   818→                  <TabsTrigger value="library" className="text-xs">{t.builder.htmlLibraryTab}</TabsTrigger>
+   819→                </TabsList>
+   820→
+   821→                {/* لصق الكود */}
+   822→                <TabsContent value="paste" className="mt-2">
+   823→                  <Textarea
+   824→                    value={html}
+   825→                    onChange={(e) => {
+   826→                      setHtml(e.target.value)
+   827→                      setSelectedSnippetId(null)
+   828→                    }}
+   829→                    dir="ltr"
+   830→                    rows={8}
+   831→                    spellCheck={false}
+   832→                    placeholder={t.builder.htmlPlaceholder}
+   833→                    className="min-h-36 bg-muted/40 font-mono text-xs leading-relaxed"
+   834→                    aria-label={t.builder.htmlSourceLabel}
+   835→                  />
+   836→                </TabsContent>
+   837→
+   838→                {/* رفع ملف */}
+   839→                <TabsContent value="upload" className="mt-2 space-y-2">
+   840→                  <input
+   841→                    ref={fileInputRef}
+   842→                    type="file"
+   843→                    accept=".html,.htm,text/html"
+   844→                    className="hidden"
+   845→                    onChange={(e) => {
+   846→                      const file = e.target.files?.[0]
+   847→                      if (file) handleFile(file)
+   848→                      e.target.value = ''
+   849→                    }}
+   850→                  />
+   851→                  {fileName ? (
+   852→                    <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/40 p-3">
+   853→                      <div className="min-w-0">
+   854→                        <p className="truncate text-sm font-medium" title={fileName}>{fileName}</p>
+   855→                        <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+   856→                          <span dir="ltr">
+   857→                            {fileSize != null ? (fileSize / 1024).toFixed(1) : '0'} {t.builder.fileSizeKb}
+   858→                          </span>
+   859→                          <span aria-hidden="true">•</span>
+   860→                          <span dir="ltr">{formatCount(html.length)}</span>
+   861→                          <span>{t.builder.charsUnit}</span>
+   862→                        </p>
+   863→                      </div>
+   864→                      <Button
+   865→                        variant="ghost"
+   866→                        size="sm"
+   867→                        className="h-8 w-8 shrink-0 p-0 text-muted-foreground hover:text-destructive"
+   868→                        onClick={() => {
+   869→                          setFileName(null)
+   870→                          setFileSize(null)
+   871→                          setHtml('')
+   872→                        }}
+   873→                        aria-label={t.common.delete}
+   874→                      >
+   875→                        <Trash2 className="size-3.5" />
+   876→                      </Button>
+   877→                    </div>
+   878→                  ) : null}
+   879→                  <button
+   880→                    type="button"
+   881→                    onClick={() => fileInputRef.current?.click()}
+   882→                    className="flex w-full flex-col items-center gap-1.5 rounded-lg border border-dashed border-border p-6 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-accent/40 hover:text-foreground"
+   883→                    aria-label={t.builder.htmlChooseFile}
+   884→                  >
+   885→                    <Upload className="size-6" />
+   886→                    <span className="text-sm font-medium">{t.builder.htmlChooseFile}</span>
+   887→                    <span className="text-[11px] text-muted-foreground/70">{t.builder.htmlFileHint}</span>
+   888→                  </button>
+   889→                </TabsContent>
+   890→
+   891→                {/* من مكتبتي */}
+   892→                <TabsContent value="library" className="mt-2">
+   893→                  {snippetsLoading ? (
+   894→                    <div className="space-y-2">
+   895→                      {[0, 1, 2].map((i) => (
+   896→                        <Skeleton key={i} className="h-14 w-full" />
+   897→                      ))}
+   898→                    </div>
+   899→                  ) : snippetsError ? (
+   900→                    <div className="rounded-lg border border-dashed p-4 text-center">
+   901→                      <p className="text-xs text-muted-foreground">{t.builder.htmlLibraryError}</p>
+   902→                      <Button variant="outline" size="sm" className="mt-2 h-8 text-xs" onClick={() => void loadSnippets()}>
+   903→                        {t.common.retry}
+   904→                      </Button>
+   905→                    </div>
+   906→                  ) : !snippets || snippets.length === 0 ? (
+   907→                    <div className="rounded-lg border border-dashed p-4 text-center">
+   908→                      <p className="text-xs leading-relaxed text-muted-foreground">{t.builder.htmlLibraryEmpty}</p>
+   909→                    </div>
+   910→                  ) : (
+   911→                    <div className="max-h-56 space-y-1.5 overflow-y-auto pe-1">
+   912→                      {snippets.map((sn) => {
+   913→                        const isSel = selectedSnippetId === sn.id
+   914→                        return (
+   915→                          <button
+   916→                            key={sn.id}
+   917→                            type="button"
+   918→                            onClick={() => {
+   919→                              setSelectedSnippetId(sn.id)
+   920→                              setHtml(sn.html)
+   921→                              setFileName(null)
+   922→                              setFileSize(null)
+   923→                              if (!name.trim()) setName(sn.name)
+   924→                            }}
+   925→                            aria-pressed={isSel}
+   926→                            className={cn(
+   927→                              'flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-start transition-colors',
+   928→                              isSel ? 'border-primary bg-secondary/70 ring-1 ring-primary/30' : 'border-border hover:bg-accent/50'
+   929→                            )}
+   930→                          >
+   931→                            <span className="min-w-0 flex-1">
+   932→                              <span className="block truncate text-sm font-medium">{sn.name}</span>
+   933→                              <span className="mt-0.5 block text-[11px] text-muted-foreground">
+   934→                                <span dir="ltr">{formatCount(sn.html.length)}</span> {t.builder.charsUnit}
+   935→                              </span>
+   936→                            </span>
+   937→                            <Badge variant="secondary" className="shrink-0 text-[10px]">
+   938→                              {HTML_SNIPPET_KIND_LABELS[sn.kind]}
+   939→                            </Badge>
+   940→                          </button>
+   941→                        )
+   942→                      })}
+   943→                    </div>
+   944→                  )}
+   945→                </TabsContent>
+   946→              </Tabs>
+   947→            </div>
+   948→
+   949→            {/* موضع الصفحة */}
+   950→            <div className="space-y-1.5">
+   951→              <Label className="text-xs">{t.builder.htmlPlacementLabel}</Label>
+   952→              <div className="grid grid-cols-2 gap-2">
+   953→                <button
+   954→                  type="button"
+   955→                  onClick={() => setPlacement('site')}
+   956→                  aria-pressed={placement === 'site'}
+   957→                  className={cn(
+   958→                    'flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-colors',
+   959→                    placement === 'site' ? 'border-primary bg-secondary/70 ring-1 ring-primary/30' : 'border-border hover:bg-accent/50'
+   960→                  )}
+   961→                >
+   962→                  <Globe className={cn('size-5', placement === 'site' ? 'text-primary' : 'text-muted-foreground')} />
+   963→                  <span className="text-sm font-medium">{t.builder.htmlPlacementSite}</span>
+   964→                  <span className="text-[11px] leading-tight text-muted-foreground">{t.builder.htmlPlacementSiteDesc}</span>
+   965→                </button>
+   966→                <button
+   967→                  type="button"
+   968→                  onClick={() => setPlacement('dashboard')}
+   969→                  aria-pressed={placement === 'dashboard'}
+   970→                  className={cn(
+   971→                    'flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-colors',
+   972→                    placement === 'dashboard' ? 'border-primary bg-secondary/70 ring-1 ring-primary/30' : 'border-border hover:bg-accent/50'
+   973→                  )}
+   974→                >
+   975→                  <LayoutDashboard className={cn('size-5', placement === 'dashboard' ? 'text-primary' : 'text-muted-foreground')} />
+   976→                  <span className="text-sm font-medium">{t.builder.htmlPlacementDashboard}</span>
+   977→                  <span className="text-[11px] leading-tight text-muted-foreground">{t.builder.htmlPlacementDashboardDesc}</span>
+   978→                </button>
+   979→              </div>
+   980→            </div>
+   981→
+   982→            {/* حفظ في المكتبة */}
+   983→            <div className="space-y-2.5 rounded-lg border bg-muted/30 p-3">
+   984→              <div className="flex items-center gap-2">
+   985→                <Checkbox
+   986→                  id="save-snippet"
+   987→                  checked={saveToLibrary}
+   988→                  onCheckedChange={(c) => setSaveToLibrary(c === true)}
+   989→                />
+   990→                <Label htmlFor="save-snippet" className="cursor-pointer text-xs font-normal leading-snug">
+   991→                  {t.builder.htmlSaveToLibrary}
+   992→                </Label>
+   993→              </div>
+   994→              {saveToLibrary ? (
+   995→                <div className="space-y-1.5">
+   996→                  <Label htmlFor="snippet-name" className="text-xs">
+   997→                    {t.builder.htmlSnippetNameLabel}
+   998→                  </Label>
+   999→                  <Input
+  1000→                    id="snippet-name"
+  1001→                    value={snippetName}
+  1002→                    onChange={(e) => setSnippetName(e.target.value)}
+  1003→                    placeholder={t.builder.htmlSnippetNamePlaceholder}
+  1004→                    className="h-9 text-xs"
+  1005→                  />
+  1006→                </div>
+  1007→              ) : null}
+  1008→            </div>
+  1009→          </div>
+  1010→        ) : (
+  1011→          /* ===== الحقول الاعتيادية ===== */
+  1012→          <div className="space-y-3">
+  1013→            {type === 'landing' ? (
+  1014→              <section className="space-y-2">
+  1015→                <div>
+  1016→                  <Label className="text-xs">{t.builder.landingVariantsSection}</Label>
+  1017→                  <p className="text-[11px] text-muted-foreground">{t.builder.landingVariantsHint}</p>
+  1018→                </div>
+  1019→                <VariantGrid selected={landingVariant} onSelect={setLandingVariant} />
+  1020→              </section>
+  1021→            ) : null}
+  1022→
+  1023→            <div className="space-y-1.5">
+  1024→              <Label htmlFor="new-page-name">{t.builder.pageName}</Label>
+  1025→              <Input id="new-page-name" value={name} placeholder={defaultName} onChange={(e) => setName(e.target.value)} />
+  1026→            </div>
+  1027→
+  1028→            {type === 'table' && entityKeys.length > 0 ? (
+  1029→              <div className="space-y-1.5">
+  1030→                <Label>{t.builder.tableEntity}</Label>
+  1031→                <Select value={entity || entityKeys[0]} onValueChange={setEntity}>
+  1032→                  <SelectTrigger>
+  1033→                    <SelectValue />
+  1034→                  </SelectTrigger>
+  1035→                  <SelectContent className="max-h-60">
+  1036→                    {entityKeys.map((k) => (
+  1037→                      <SelectItem key={k} value={k}>
+  1038→                        {k}
+  1039→                      </SelectItem>
+  1040→                    ))}
+  1041→                  </SelectContent>
+  1042→                </Select>
+  1043→              </div>
+  1044→            ) : null}
+  1045→          </div>
+  1046→        )}
+  1047→
+  1048→        <DialogFooter className="gap-2">
+  1049→          <Button variant="outline" onClick={() => onOpenChange(false)}>
+  1050→            {t.common.cancel}
+  1051→          </Button>
+  1052→          <Button onClick={create}>
+  1053→            {isHtml ? <Code2 className="size-4" /> : null}
+  1054→            {t.builder.createPageBtn}
+  1055→          </Button>
+  1056→        </DialogFooter>
+  1057→      </DialogContent>
+  1058→    </Dialog>
+  1059→  )
+  1060→}
+  1061→
+  1062→export { ADD_PAGE_OPTIONS }
+  1063→export type { PageType }
+  1064→
