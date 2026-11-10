@@ -30,25 +30,50 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files
+.env
+.env*.local
 
 # vercel
 .vercel
 
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-local-*
-.claude
-.z-ai-config
+
+# Database (local SQLite)
+db/
+*.db
+*.db-journal
+
+# Upload / Download temp
+upload/
+download/
+
+# Logs
 *.log
 dev.log
 dev.out.log
-test
-prompt
-
 server.log
+
+# IDE & tools
+.claude
+.z-ai-config
+local-*
+
+# Project dev files
+tmp-*.ts
+worklog.md
+tool-results/
+agent-ctx/
+.zscripts/
+Caddyfile
+examples/
+mini-services/
+
 # Skills directory
 /skills/
+
+# Lock files (keep bun.lock if using bun)
+# package-lock.json
+# yarn.lock
